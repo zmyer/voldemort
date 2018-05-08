@@ -16,9 +16,6 @@
 
 package voldemort.store.slop;
 
-import java.util.List;
-import java.util.Map;
-
 import voldemort.VoldemortException;
 import voldemort.annotations.jmx.JmxGetter;
 import voldemort.cluster.Cluster;
@@ -36,12 +33,16 @@ import voldemort.utils.Pair;
 import voldemort.versioning.Version;
 import voldemort.versioning.Versioned;
 
+import java.util.List;
+import java.util.Map;
+
 /**
  * Tracks statistics of hints that were attempted, but not successfully pushed
  * last time a pusher job ran; also tracks hints that have been added after the
  * last run
- * 
+ *
  */
+// TODO: 2018/4/26 by zmyer
 public class SlopStorageEngine extends AbstractStorageEngine<ByteArray, byte[], byte[]> {
 
     public static final String SLOP_STORE_NAME = "slop";
@@ -78,9 +79,9 @@ public class SlopStorageEngine extends AbstractStorageEngine<ByteArray, byte[], 
 
     public StorageEngine<ByteArray, Slop, byte[]> asSlopStore() {
         return SerializingStorageEngine.wrap(this,
-                                             new ByteArraySerializer(),
-                                             slopSerializer,
-                                             new IdentitySerializer());
+                new ByteArraySerializer(),
+                slopSerializer,
+                new IdentitySerializer());
     }
 
     @Override
@@ -115,7 +116,7 @@ public class SlopStorageEngine extends AbstractStorageEngine<ByteArray, byte[], 
 
     @Override
     public Map<ByteArray, List<Versioned<byte[]>>> getAll(Iterable<ByteArray> keys,
-                                                          Map<ByteArray, byte[]> transforms)
+            Map<ByteArray, byte[]> transforms)
             throws VoldemortException {
         return slopEngine.getAll(keys, transforms);
     }

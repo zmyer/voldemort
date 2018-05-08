@@ -16,12 +16,13 @@
 
 package voldemort.store.quota;
 
-import java.util.concurrent.atomic.AtomicLong;
-
 import voldemort.annotations.jmx.JmxGetter;
 import voldemort.store.stats.SimpleCounter;
 import voldemort.store.stats.Tracked;
 
+import java.util.concurrent.atomic.AtomicLong;
+
+// TODO: 2018/4/3 by zmyer
 public class QuotaLimitStats {
 
     private static final int QUOTA_STATS_RESET_INTERVAL_MS = 60000;
@@ -64,80 +65,80 @@ public class QuotaLimitStats {
 
     private void reportRateLimitedGet() {
         rateLimitedGets.incrementAndGet();
-        if(parent != null) {
+        if (parent != null) {
             parent.reportRateLimitedGet();
         }
     }
 
     private void reportRateLimitedPut() {
         rateLimitedPuts.incrementAndGet();
-        if(parent != null) {
+        if (parent != null) {
             parent.reportRateLimitedPut();
         }
     }
 
     private void reportRateLimitedGetAll() {
         rateLimitedGetAlls.incrementAndGet();
-        if(parent != null) {
+        if (parent != null) {
             parent.reportRateLimitedGetAll();
         }
     }
 
     private void reportRateLimitedDelete() {
         rateLimitedDeletes.incrementAndGet();
-        if(parent != null) {
+        if (parent != null) {
             parent.reportRateLimitedDelete();
         }
     }
 
     public void reportRateLimitedOp(Tracked op) {
-        if(Tracked.GET == op) {
+        if (Tracked.GET == op) {
             reportRateLimitedGet();
-        } else if(Tracked.PUT == op) {
+        } else if (Tracked.PUT == op) {
             reportRateLimitedPut();
-        } else if(Tracked.GET_ALL == op) {
+        } else if (Tracked.GET_ALL == op) {
             reportRateLimitedGetAll();
-        } else if(Tracked.DELETE == op) {
+        } else if (Tracked.DELETE == op) {
             reportRateLimitedDelete();
         }
     }
 
     private void reportGetQuotaUsedPct(long pctUsed) {
         pctGetQuotaUsed.count(pctUsed);
-        if(parent != null) {
+        if (parent != null) {
             parent.reportGetQuotaUsedPct(pctUsed);
         }
     }
 
     private void reportPutQuotaUsedPct(long pctUsed) {
         pctPutQuotaUsed.count(pctUsed);
-        if(parent != null) {
+        if (parent != null) {
             parent.reportPutQuotaUsedPct(pctUsed);
         }
     }
 
     private void reportGetAllQuotaUsedPct(long pctUsed) {
         pctGetAllQuotaUsed.count(pctUsed);
-        if(parent != null) {
+        if (parent != null) {
             parent.reportGetAllQuotaUsedPct(pctUsed);
         }
     }
 
     private void reportDeleteQuotaUsedPct(long pctUsed) {
         pctDeleteQuotaUsed.count(pctUsed);
-        if(parent != null) {
+        if (parent != null) {
             parent.reportDeleteQuotaUsedPct(pctUsed);
         }
     }
 
     public void reportQuotaUsed(Tracked op, long pctUsed) {
-        if(Tracked.GET == op) {
+        if (Tracked.GET == op) {
             reportGetQuotaUsedPct(pctUsed);
-        } else if(Tracked.PUT == op) {
+        } else if (Tracked.PUT == op) {
             reportPutQuotaUsedPct(pctUsed);
-        } else if(Tracked.GET_ALL == op) {
+        } else if (Tracked.GET_ALL == op) {
             reportGetAllQuotaUsedPct(pctUsed);
-        } else if(Tracked.DELETE == op) {
+        } else if (Tracked.DELETE == op) {
             reportDeleteQuotaUsedPct(pctUsed);
         }
     }
@@ -164,12 +165,12 @@ public class QuotaLimitStats {
 
     /**
      * Defensive checks against measured usage pct
-     * 
+     *
      * @param pctUsedVal
      * @return
      */
     private long computePctUsed(Double pctUsedVal) {
-        if(pctUsedVal <= 1.0) {
+        if (pctUsedVal <= 1.0) {
             return 0;
         } else {
             return Math.round(pctUsedVal);

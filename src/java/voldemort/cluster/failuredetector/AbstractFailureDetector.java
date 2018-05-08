@@ -16,25 +16,24 @@
 
 package voldemort.cluster.failuredetector;
 
+import org.apache.commons.lang.StringUtils;
+import org.apache.log4j.Level;
+import org.apache.log4j.Logger;
+import voldemort.annotations.jmx.JmxGetter;
+import voldemort.cluster.Node;
+import voldemort.store.UnreachableStoreException;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import org.apache.commons.lang.StringUtils;
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
-
-import voldemort.annotations.jmx.JmxGetter;
-import voldemort.cluster.Node;
-import voldemort.store.UnreachableStoreException;
-
 /**
  * AbstractFailureDetector serves as a building block for FailureDetector
  * implementations.
- * 
+ *
  */
-
+// TODO: 2018/4/26 by zmyer
 public abstract class AbstractFailureDetector implements FailureDetector {
 
     protected final FailureDetectorConfig failureDetectorConfig;
@@ -50,16 +49,17 @@ public abstract class AbstractFailureDetector implements FailureDetector {
     protected final Logger logger = Logger.getLogger(getClass().getName());
 
     protected AbstractFailureDetector(FailureDetectorConfig failureDetectorConfig) {
-        if(failureDetectorConfig == null)
+        if (failureDetectorConfig == null) {
             throw new IllegalArgumentException("FailureDetectorConfig must be non-null");
+        }
 
         this.failureDetectorConfig = failureDetectorConfig;
         listeners = new ConcurrentHashMap<FailureDetectorListener, Object>();
         idNodeStatusMap = new ConcurrentHashMap<Integer, NodeStatus>();
 
-        for(Node node: failureDetectorConfig.getCluster().getNodes()) {
+        for (Node node : failureDetectorConfig.getCluster().getNodes()) {
             idNodeStatusMap.put(node.getId(),
-                                createNodeStatus(failureDetectorConfig.getTime().getMilliseconds()));
+                    createNodeStatus(failureDetectorConfig.getTime().getMilliseconds()));
         }
     }
 
@@ -72,15 +72,17 @@ public abstract class AbstractFailureDetector implements FailureDetector {
     }
 
     public void addFailureDetectorListener(FailureDetectorListener failureDetectorListener) {
-        if(failureDetectorListener == null)
+        if (failureDetectorListener == null) {
             throw new IllegalArgumentException("FailureDetectorListener must be non-null");
+        }
 
         listeners.put(failureDetectorListener, failureDetectorListener);
     }
 
     public void removeFailureDetectorListener(FailureDetectorListener failureDetectorListener) {
-        if(failureDetectorListener == null)
+        if (failureDetectorListener == null) {
             throw new IllegalArgumentException("FailureDetectorListener must be non-null");
+        }
 
         listeners.remove(failureDetectorListener);
     }
@@ -93,9 +95,10 @@ public abstract class AbstractFailureDetector implements FailureDetector {
     public String getAvailableNodes() {
         List<String> list = new ArrayList<String>();
 
-        for(Node node: getConfig().getCluster().getNodes()) {
-            if(isAvailable(node))
+        for (Node node : getConfig().getCluster().getNodes()) {
+            if (isAvailable(node)) {
                 list.add(String.valueOf(node.getId()));
+            }
         }
 
         return StringUtils.join(list, ",");
@@ -105,9 +108,10 @@ public abstract class AbstractFailureDetector implements FailureDetector {
     public String getUnavailableNodes() {
         List<String> list = new ArrayList<String>();
 
-        for(Node node: getConfig().getCluster().getNodes()) {
-            if(!isAvailable(node))
+        for (Node node : getConfig().getCluster().getNodes()) {
+            if (!isAvailable(node)) {
                 list.add(String.valueOf(node.getId()));
+            }
         }
 
         return StringUtils.join(list, ",");
@@ -117,9 +121,10 @@ public abstract class AbstractFailureDetector implements FailureDetector {
     public int getAvailableNodeCount() {
         int available = 0;
 
-        for(Node node: getConfig().getCluster().getNodes()) {
-            if(isAvailable(node))
+        for (Node node : getConfig().getCluster().getNodes()) {
+            if (isAvailable(node)) {
                 available++;
+            }
         }
 
         return available;
@@ -134,9 +139,10 @@ public abstract class AbstractFailureDetector implements FailureDetector {
         checkNodeArg(node);
         NodeStatus nodeStatus = getNodeStatus(node);
 
-        synchronized(nodeStatus) {
-            while(!isAvailable(node))
+        synchronized (nodeStatus) {
+            while (!isAvailable(node)) {
                 nodeStatus.wait();
+            }
         }
     }
 
@@ -144,18 +150,20 @@ public abstract class AbstractFailureDetector implements FailureDetector {
         checkNodeArg(node);
         NodeStatus nodeStatus = getNodeStatus(node);
 
-        synchronized(nodeStatus) {
+        synchronized (nodeStatus) {
             return nodeStatus.getLastChecked();
         }
     }
 
-    public void destroy() {}
+    public void destroy() {
+    }
 
     protected void setAvailable(Node node) {
         NodeStatus nodeStatus = getNodeStatus(node);
 
-        if(logger.isTraceEnabled())
+        if (logger.isTraceEnabled()) {
             logger.trace("Node " + node.getId() + " set as available");
+        }
 
         // We need to distinguish the case where we're newly available and the
         // case where we're getting redundant availability notices. So let's
@@ -164,24 +172,26 @@ public abstract class AbstractFailureDetector implements FailureDetector {
 
         // If we were not previously available, we've just switched state,
         // so notify any listeners.
-        if(!previouslyAvailable) {
-            if(logger.isInfoEnabled())
+        if (!previouslyAvailable) {
+            if (logger.isInfoEnabled()) {
                 logger.info("Node " + node.getId() + " now available");
+            }
 
-            synchronized(nodeStatus) {
+            synchronized (nodeStatus) {
                 nodeStatus.resetNumConsecutiveCatastrophicErrors();
-                if(logger.isTraceEnabled()) {
+                if (logger.isTraceEnabled()) {
                     logger.trace("Resetting # consecutive connect errors for node : " + node);
                 }
                 nodeStatus.notifyAll();
             }
 
-            for(FailureDetectorListener fdl: listeners.keySet()) {
+            for (FailureDetectorListener fdl : listeners.keySet()) {
                 try {
                     fdl.nodeAvailable(node);
-                } catch(Exception e) {
-                    if(logger.isEnabledFor(Level.WARN))
+                } catch (Exception e) {
+                    if (logger.isEnabledFor(Level.WARN)) {
                         logger.warn(e, e);
+                    }
                 }
             }
         }
@@ -190,11 +200,12 @@ public abstract class AbstractFailureDetector implements FailureDetector {
     protected void setUnavailable(Node node, UnreachableStoreException e) {
         NodeStatus nodeStatus = getNodeStatus(node);
 
-        if(logger.isDebugEnabled()) {
-            if(e != null)
+        if (logger.isDebugEnabled()) {
+            if (e != null) {
                 logger.debug("Node " + node.getId() + " set as unavailable", e);
-            else
+            } else {
                 logger.debug("Node " + node.getId() + " set as unavailable");
+            }
         }
 
         // We need to distinguish the case where we're newly unavailable and the
@@ -204,26 +215,27 @@ public abstract class AbstractFailureDetector implements FailureDetector {
 
         // If we were previously available, we've just switched state from
         // available to unavailable, so notify any listeners.
-        if(previouslyAvailable) {
-            if(logger.isEnabledFor(Level.WARN)) {
+        if (previouslyAvailable) {
+            if (logger.isEnabledFor(Level.WARN)) {
                 long elapsedMs = System.currentTimeMillis() - nodeStatus.getStartMillis();
                 logger.warn("Node " + node.getId() + " now unavailable . Node metrics. "
-                            + " Catastrophic errors "
-                            + nodeStatus.getNumConsecutiveCatastrophicErrors() + " Successes "
-                            + nodeStatus.getSuccess() + " Failure " + nodeStatus.getFailure()
-                            + " Total " + nodeStatus.getTotal() + " Threshold success percentage "
-                            + failureDetectorConfig.getThreshold() + " Threshold Minimum errors "
-                            + failureDetectorConfig.getThresholdCountMinimum()
-                            + " Threshold Interval " + failureDetectorConfig.getThresholdInterval()
-                            + " Interval elapsed ms " + elapsedMs);
+                        + " Catastrophic errors "
+                        + nodeStatus.getNumConsecutiveCatastrophicErrors() + " Successes "
+                        + nodeStatus.getSuccess() + " Failure " + nodeStatus.getFailure()
+                        + " Total " + nodeStatus.getTotal() + " Threshold success percentage "
+                        + failureDetectorConfig.getThreshold() + " Threshold Minimum errors "
+                        + failureDetectorConfig.getThresholdCountMinimum()
+                        + " Threshold Interval " + failureDetectorConfig.getThresholdInterval()
+                        + " Interval elapsed ms " + elapsedMs);
             }
 
-            for(FailureDetectorListener fdl: listeners.keySet()) {
+            for (FailureDetectorListener fdl : listeners.keySet()) {
                 try {
                     fdl.nodeUnavailable(node);
-                } catch(Exception ex) {
-                    if(logger.isEnabledFor(Level.WARN))
+                } catch (Exception ex) {
+                    if (logger.isEnabledFor(Level.WARN)) {
                         logger.warn(ex, ex);
+                    }
                 }
             }
         }
@@ -233,10 +245,10 @@ public abstract class AbstractFailureDetector implements FailureDetector {
         NodeStatus nodeStatus = null;
         NodeStatus currentNodeStatus = idNodeStatusMap.get(node.getId());
 
-        if(currentNodeStatus == null) {
-            if(logger.isEnabledFor(Level.WARN)) {
+        if (currentNodeStatus == null) {
+            if (logger.isEnabledFor(Level.WARN)) {
                 logger.warn("creating new node status for node " + node.getId()
-                            + " for failure detector");
+                        + " for failure detector");
             }
 
             nodeStatus = createNodeStatus(failureDetectorConfig.getTime().getMilliseconds());
@@ -249,29 +261,31 @@ public abstract class AbstractFailureDetector implements FailureDetector {
     }
 
     protected void checkNodeArg(Node node) {
-        if(node == null)
+        if (node == null) {
             throw new IllegalArgumentException("node must be non-null");
+        }
     }
 
     protected void checkArgs(Node node, long requestTime) {
         checkNodeArg(node);
 
-        if(requestTime < 0)
+        if (requestTime < 0) {
             throw new IllegalArgumentException("requestTime - " + requestTime + " - less than 0");
+        }
     }
 
     /**
      * We need to distinguish the case where we're newly available and the case
      * where we're already available. So we check the node status before we
      * update it and return it to the caller.
-     * 
+     *
      * @param isAvailable True to set to available, false to make unavailable
-     * 
+     *
      * @return Previous value of isAvailable
      */
 
     private boolean setAvailable(NodeStatus nodeStatus, boolean isAvailable) {
-        synchronized(nodeStatus) {
+        synchronized (nodeStatus) {
             boolean previous = nodeStatus.isAvailable();
 
             nodeStatus.setAvailable(isAvailable);

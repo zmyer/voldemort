@@ -16,9 +16,6 @@
 
 package voldemort.store.invalidmetadata;
 
-import java.util.List;
-import java.util.Map;
-
 import voldemort.VoldemortException;
 import voldemort.cluster.Node;
 import voldemort.routing.RoutingStrategy;
@@ -31,13 +28,17 @@ import voldemort.utils.ByteArray;
 import voldemort.versioning.Version;
 import voldemort.versioning.Versioned;
 
+import java.util.List;
+import java.util.Map;
+
 /**
  * An InvalidMetadataCheckingStore store is a store wrapper that delegates to an
  * inner store, and throws {@link InvalidMetadataException} if a client requests
  * a partition which is not or should not be available at this node.
- * 
- * 
+ *
+ *
  */
+// TODO: 2018/4/26 by zmyer
 public class InvalidMetadataCheckingStore extends DelegatingStore<ByteArray, byte[], byte[]> {
 
     private final int nodeId;
@@ -47,15 +48,15 @@ public class InvalidMetadataCheckingStore extends DelegatingStore<ByteArray, byt
      * Create a store which delegates its operations to its inner store and
      * throws {@link InvalidMetadataException} if the partition for key
      * requested should not lie with this node.
-     * 
+     *
      * @param nodeId The id of the destination node
      * @param innerStore The store which we delegate write operations to if
      *        everything is good
      * @param metadata The metadata store
      */
     public InvalidMetadataCheckingStore(int nodeId,
-                                        Store<ByteArray, byte[], byte[]> innerStore,
-                                        MetadataStore metadata) {
+            Store<ByteArray, byte[], byte[]> innerStore,
+            MetadataStore metadata) {
         super(innerStore);
         this.metadata = metadata;
         this.nodeId = nodeId;
@@ -66,22 +67,23 @@ public class InvalidMetadataCheckingStore extends DelegatingStore<ByteArray, byt
         StoreUtils.assertValidKey(key);
         StoreUtils.assertValidNode(metadata, nodeId);
         StoreUtils.assertValidMetadata(key,
-                                       metadata.getRoutingStrategy(getName()),
-                                       metadata.getCluster().getNodeById(nodeId));
+                metadata.getRoutingStrategy(getName()),
+                metadata.getCluster().getNodeById(nodeId));
 
         return getInnerStore().delete(key, version);
     }
 
     @Override
     public Map<ByteArray, List<Versioned<byte[]>>> getAll(Iterable<ByteArray> keys,
-                                                          Map<ByteArray, byte[]> transforms)
+            Map<ByteArray, byte[]> transforms)
             throws VoldemortException {
         StoreUtils.assertValidKeys(keys);
         StoreUtils.assertValidNode(metadata, nodeId);
         RoutingStrategy routingStrategy = metadata.getRoutingStrategy(getName());
         Node node = metadata.getCluster().getNodeById(nodeId);
-        for(ByteArray key: keys)
+        for (ByteArray key : keys) {
             StoreUtils.assertValidMetadata(key, routingStrategy, node);
+        }
 
         return getInnerStore().getAll(keys, transforms);
     }
@@ -92,8 +94,8 @@ public class InvalidMetadataCheckingStore extends DelegatingStore<ByteArray, byt
         StoreUtils.assertValidKey(key);
         StoreUtils.assertValidNode(metadata, nodeId);
         StoreUtils.assertValidMetadata(key,
-                                       metadata.getRoutingStrategy(getName()),
-                                       metadata.getCluster().getNodeById(nodeId));
+                metadata.getRoutingStrategy(getName()),
+                metadata.getCluster().getNodeById(nodeId));
 
         getInnerStore().put(key, value, transforms);
     }
@@ -103,8 +105,8 @@ public class InvalidMetadataCheckingStore extends DelegatingStore<ByteArray, byt
         StoreUtils.assertValidKey(key);
         StoreUtils.assertValidNode(metadata, nodeId);
         StoreUtils.assertValidMetadata(key,
-                                       metadata.getRoutingStrategy(getName()),
-                                       metadata.getCluster().getNodeById(nodeId));
+                metadata.getRoutingStrategy(getName()),
+                metadata.getCluster().getNodeById(nodeId));
 
         return getInnerStore().get(key, transforms);
     }

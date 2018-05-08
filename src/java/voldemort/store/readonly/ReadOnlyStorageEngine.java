@@ -16,20 +16,8 @@
 
 package voldemort.store.readonly;
 
-import java.io.File;
-import java.io.IOException;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
-import java.util.Collections;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.concurrent.locks.ReadWriteLock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
-
+import com.google.common.collect.Lists;
 import org.apache.log4j.Logger;
-
 import voldemort.VoldemortException;
 import voldemort.VoldemortUnsupportedOperationalException;
 import voldemort.annotations.jmx.JmxGetter;
@@ -49,13 +37,24 @@ import voldemort.utils.Utils;
 import voldemort.versioning.Version;
 import voldemort.versioning.Versioned;
 
-import com.google.common.collect.Lists;
+import java.io.File;
+import java.io.IOException;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Collections;
+import java.util.Date;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
  * A read-only store that fronts a big file
- * 
- * 
+ *
+ *
  */
+// TODO: 2018/4/26 by zmyer
 public class ReadOnlyStorageEngine extends AbstractStorageEngine<ByteArray, byte[], byte[]> {
 
     private static Logger logger = Logger.getLogger(ReadOnlyStorageEngine.class);
@@ -78,7 +77,7 @@ public class ReadOnlyStorageEngine extends AbstractStorageEngine<ByteArray, byte
 
     /**
      * Create an instance of the store
-     * 
+     *
      * @param name The name of the store
      * @param searchStrategy The algorithm to use for searching for keys
      * @param routingStrategy The routing strategy used to route keys
@@ -87,20 +86,20 @@ public class ReadOnlyStorageEngine extends AbstractStorageEngine<ByteArray, byte
      * @param numBackups The number of backups of these files to retain
      */
     public ReadOnlyStorageEngine(String name,
-                                 SearchStrategy searchStrategy,
-                                 RoutingStrategy routingStrategy,
-                                 int nodeId,
-                                 File storeDir,
-                                 int numBackups) {
+            SearchStrategy searchStrategy,
+            RoutingStrategy routingStrategy,
+            int nodeId,
+            File storeDir,
+            int numBackups) {
         this(name,
-             searchStrategy,
-             routingStrategy,
-             nodeId,
-             storeDir,
-             numBackups,
-             0,
-             VoldemortConfig.DEFAULT_RO_MAX_VALUE_BUFFER_ALLOCATION_SIZE,
-             null);
+                searchStrategy,
+                routingStrategy,
+                nodeId,
+                storeDir,
+                numBackups,
+                0,
+                VoldemortConfig.DEFAULT_RO_MAX_VALUE_BUFFER_ALLOCATION_SIZE,
+                null);
     }
 
     /**
@@ -116,14 +115,14 @@ public class ReadOnlyStorageEngine extends AbstractStorageEngine<ByteArray, byte
      *        delete a backup
      */
     public ReadOnlyStorageEngine(String name,
-                                 SearchStrategy searchStrategy,
-                                 RoutingStrategy routingStrategy,
-                                 int nodeId,
-                                 File storeDir,
-                                 int numBackups,
-                                 int deleteBackupMs,
-                                 int maxValueBufferAllocationSize,
-                                 VoldemortConfig config) {
+            SearchStrategy searchStrategy,
+            RoutingStrategy routingStrategy,
+            int nodeId,
+            File storeDir,
+            int numBackups,
+            int deleteBackupMs,
+            int maxValueBufferAllocationSize,
+            VoldemortConfig config) {
         super(name);
         this.deleteBackupMs = deleteBackupMs;
         this.storeDir = storeDir;
@@ -156,7 +155,7 @@ public class ReadOnlyStorageEngine extends AbstractStorageEngine<ByteArray, byte
 
     /**
      * Returns the internal chunked file set
-     * 
+     *
      * @return The chunked file set
      */
     public ChunkedFileSet getChunkedFileSet() {
@@ -165,13 +164,14 @@ public class ReadOnlyStorageEngine extends AbstractStorageEngine<ByteArray, byte
 
     /**
      * Returns a string representation of map of chunk id to number of chunks
-     * 
+     *
      * @return String of map of chunk id to number of chunks
      */
-    @JmxGetter(name = "getChunkIdToNumChunks", description = "Returns a string representation of the map of chunk id to number of chunks")
+    @JmxGetter(name = "getChunkIdToNumChunks",
+            description = "Returns a string representation of the map of chunk id to number of chunks")
     public String getChunkIdToNumChunks() {
         StringBuilder builder = new StringBuilder();
-        for(Entry<Object, Integer> entry: fileSet.getChunkIdToNumChunks().entrySet()) {
+        for (Entry<Object, Integer> entry : fileSet.getChunkIdToNumChunks().entrySet()) {
             builder.append(entry.getKey().toString() + " - " + entry.getValue().toString() + ", ");
         }
         return builder.toString();
@@ -180,7 +180,7 @@ public class ReadOnlyStorageEngine extends AbstractStorageEngine<ByteArray, byte
     /**
      * Open the store with the version directory specified. If null is specified
      * we open the directory with the maximum version
-     * 
+     *
      * @param versionDir Version Directory to open. If null, we open the max
      *        versioned / latest directory
      */
@@ -189,22 +189,24 @@ public class ReadOnlyStorageEngine extends AbstractStorageEngine<ByteArray, byte
         fileModificationLock.writeLock().lock();
         try {
             /* check that the store is currently closed */
-            if(isOpen)
+            if (isOpen) {
                 throw new IllegalStateException("Attempt to open already open store.");
+            }
 
             // Find version directory from symbolic link or max version id
-            if(versionDir == null) {
+            if (versionDir == null) {
                 versionDir = ReadOnlyUtils.getCurrentVersion(storeDir);
 
-                if(versionDir == null)
+                if (versionDir == null) {
                     versionDir = new File(storeDir, "version-0");
+                }
             }
 
             // Set the max version id
             long versionId = ReadOnlyUtils.getVersionId(versionDir);
-            if(versionId == -1) {
+            if (versionId == -1) {
                 throw new VoldemortException("Unable to parse id from version directory "
-                                             + versionDir.getAbsolutePath());
+                        + versionDir.getAbsolutePath());
             }
             Utils.mkdirs(versionDir);
 
@@ -214,7 +216,7 @@ public class ReadOnlyStorageEngine extends AbstractStorageEngine<ByteArray, byte
             storeVersionManager.syncInternalStateFromFileSystem(false);
             this.lastSwapped = System.currentTimeMillis();
             this.isOpen = true;
-        } catch(IOException e) {
+        } catch (IOException e) {
             logger.error("Error in opening store", e);
         } finally {
             fileModificationLock.writeLock().unlock();
@@ -226,25 +228,26 @@ public class ReadOnlyStorageEngine extends AbstractStorageEngine<ByteArray, byte
      * to
      */
     public void setRoutingStrategy(RoutingStrategy routingStrategy) {
-        if(this.fileSet == null)
+        if (this.fileSet == null) {
             throw new VoldemortException("File set should not be null");
+        }
 
         this.routingStrategy = routingStrategy;
     }
 
     /**
      * Retrieve the absolute path of the current version
-     * 
+     *
      * @return Returns the absolute path of the current dir
      */
     public String getCurrentDirPath() {
         return storeDir.getAbsolutePath() + File.separator + "version-"
-               + Long.toString(getCurrentVersionId());
+                + Long.toString(getCurrentVersionId());
     }
 
     /**
      * Retrieve the version id of the current directory
-     * 
+     *
      * @return Returns a long indicating the version number
      */
     public long getCurrentVersionId() {
@@ -253,7 +256,7 @@ public class ReadOnlyStorageEngine extends AbstractStorageEngine<ByteArray, byte
 
     /**
      * Retrieves the path of the store
-     * 
+     *
      * @return The absolute path of the store
      */
     public String getStoreDirPath() {
@@ -262,7 +265,7 @@ public class ReadOnlyStorageEngine extends AbstractStorageEngine<ByteArray, byte
 
     /**
      * Retrieve the storage format of RO
-     * 
+     *
      * @return The type of the storage format
      */
     public ReadOnlyStorageFormat getReadOnlyStorageFormat() {
@@ -271,7 +274,7 @@ public class ReadOnlyStorageEngine extends AbstractStorageEngine<ByteArray, byte
 
     /**
      * Time since last time the store was swapped
-     * 
+     *
      * @return Time in milliseconds since the store was swapped
      */
     @JmxGetter(name = "lastSwapped", description = "Time in milliseconds since the store was swapped")
@@ -289,7 +292,7 @@ public class ReadOnlyStorageEngine extends AbstractStorageEngine<ByteArray, byte
         this.fileModificationLock.writeLock().lock();
 
         try {
-            if(isOpen) {
+            if (isOpen) {
                 this.isOpen = false;
                 fileSet.close();
             } else {
@@ -302,7 +305,7 @@ public class ReadOnlyStorageEngine extends AbstractStorageEngine<ByteArray, byte
 
     /**
      * Swap the current version folder for a new one
-     * 
+     *
      * @param newStoreDirectory The path to the new version directory
      */
     @JmxOperation(description = "swapFiles changes this store to use the new data directory")
@@ -310,33 +313,38 @@ public class ReadOnlyStorageEngine extends AbstractStorageEngine<ByteArray, byte
         logger.info("Swapping files for store '" + getName() + "' to " + newStoreDirectory);
         File newVersionDir = new File(newStoreDirectory);
 
-        if(!newVersionDir.exists())
+        if (!newVersionDir.exists()) {
             throw new VoldemortException("File " + newVersionDir.getAbsolutePath()
-                                         + " does not exist.");
+                    + " does not exist.");
+        }
 
-        if(!(newVersionDir.getParentFile().compareTo(storeDir.getAbsoluteFile()) == 0 && ReadOnlyUtils.checkVersionDirName(newVersionDir)))
+        if (!(newVersionDir.getParentFile().compareTo(storeDir.getAbsoluteFile()) == 0 &&
+                ReadOnlyUtils.checkVersionDirName(newVersionDir))) {
             throw new VoldemortException("Invalid version folder name '"
-                                         + newVersionDir
-                                         + "'. Either parent directory is incorrect or format(version-n) is incorrect");
+                    + newVersionDir
+                    + "'. Either parent directory is incorrect or format(version-n) is incorrect");
+        }
 
         // retrieve previous version for (a) check if last write is winning
         // (b) if failure, rollback use
         File previousVersionDir = ReadOnlyUtils.getCurrentVersion(storeDir);
-        if(previousVersionDir == null)
+        if (previousVersionDir == null) {
             throw new VoldemortException("Could not find any latest directory to swap with in store '"
-                                         + getName() + "'");
+                    + getName() + "'");
+        }
 
         long newVersionId = ReadOnlyUtils.getVersionId(newVersionDir);
         long previousVersionId = ReadOnlyUtils.getVersionId(previousVersionDir);
-        if(newVersionId == -1 || previousVersionId == -1)
+        if (newVersionId == -1 || previousVersionId == -1) {
             throw new VoldemortException("Unable to parse folder names (" + newVersionDir.getName()
-                                         + "," + previousVersionDir.getName()
-                                         + ") since format(version-n) is incorrect");
+                    + "," + previousVersionDir.getName()
+                    + ") since format(version-n) is incorrect");
+        }
 
         // check if we're greater than latest since we want last write to win
-        if(previousVersionId > newVersionId) {
+        if (previousVersionId > newVersionId) {
             logger.info("No swap required since current latest version " + previousVersionId
-                        + " is greater than swap version " + newVersionId);
+                    + " is greater than swap version " + newVersionId);
             deleteBackups();
             return;
         }
@@ -347,7 +355,7 @@ public class ReadOnlyStorageEngine extends AbstractStorageEngine<ByteArray, byte
         try {
             close();
             logger.info("Opening primary files for store '" + getName() + "' at "
-                        + newStoreDirectory);
+                    + newStoreDirectory);
 
             // open the latest store
             open(newVersionDir);
@@ -355,16 +363,18 @@ public class ReadOnlyStorageEngine extends AbstractStorageEngine<ByteArray, byte
         } finally {
             try {
                 // we failed to do the swap, attempt a rollback to last version
-                if(!success)
+                if (!success) {
                     rollback(previousVersionDir);
+                }
 
             } finally {
                 fileModificationLock.writeLock().unlock();
-                if(success)
+                if (success) {
                     logger.info("Swap operation completed successfully on store " + getName()
-                                + ", releasing lock.");
-                else
+                            + ", releasing lock.");
+                } else {
                     logger.error("Swap operation failed.");
+                }
             }
         }
 
@@ -378,14 +388,14 @@ public class ReadOnlyStorageEngine extends AbstractStorageEngine<ByteArray, byte
      */
     private void deleteBackups() {
         File[] storeDirList = ReadOnlyUtils.getVersionDirs(storeDir, 0L, getCurrentVersionId());
-        if(storeDirList != null && storeDirList.length > (numBackups + 1)) {
+        if (storeDirList != null && storeDirList.length > (numBackups + 1)) {
             // delete ALL old directories asynchronously
             File[] extraBackups = ReadOnlyUtils.findKthVersionedDir(storeDirList,
-                                                                    0,
-                                                                    storeDirList.length
-                                                                            - (numBackups + 1) - 1);
-            if(extraBackups != null) {
-                for(File backUpFile: extraBackups) {
+                    0,
+                    storeDirList.length
+                            - (numBackups + 1) - 1);
+            if (extraBackups != null) {
+                for (File backUpFile : extraBackups) {
                     deleteAsync(backUpFile);
                 }
             }
@@ -394,7 +404,7 @@ public class ReadOnlyStorageEngine extends AbstractStorageEngine<ByteArray, byte
 
     /**
      * Delete the given file in a separate thread
-     * 
+     *
      * @param file The file to delete
      */
     private void deleteAsync(final File file) {
@@ -405,17 +415,17 @@ public class ReadOnlyStorageEngine extends AbstractStorageEngine<ByteArray, byte
                 try {
                     try {
                         logger.info("Waiting for " + deleteBackupMs
-                                    + " milliseconds before deleting " + file.getAbsolutePath());
+                                + " milliseconds before deleting " + file.getAbsolutePath());
                         Thread.sleep(deleteBackupMs);
-                    } catch(InterruptedException e) {
+                    } catch (InterruptedException e) {
                         logger.warn("Did not sleep enough before deleting backups");
                     }
                     logger.info("Deleting file " + file.getAbsolutePath());
                     Utils.rm(file);
                     logger.info("Deleting of " + file.getAbsolutePath()
-                                + " completed successfully.");
+                            + " completed successfully.");
                     storeVersionManager.syncInternalStateFromFileSystem(true);
-                } catch(Exception e) {
+                } catch (Exception e) {
                     logger.error("Exception during deleteAsync for path: " + file, e);
                 }
             }
@@ -424,7 +434,7 @@ public class ReadOnlyStorageEngine extends AbstractStorageEngine<ByteArray, byte
 
     /**
      * Rollback to the specified push version
-     * 
+     *
      * @param rollbackToDir The full path of the version directory to rollback
      *        to
      */
@@ -435,42 +445,46 @@ public class ReadOnlyStorageEngine extends AbstractStorageEngine<ByteArray, byte
 
     /**
      * Rollback to the specified push version
-     * 
+     *
      * @param rollbackToDir The version directory to rollback to
      */
     public void rollback(File rollbackToDir) {
         logger.info("Rolling back store '" + getName() + "'");
         fileModificationLock.writeLock().lock();
         try {
-            if(rollbackToDir == null)
+            if (rollbackToDir == null) {
                 throw new VoldemortException("Version directory specified to rollback is null");
+            }
 
-            if(!rollbackToDir.exists())
+            if (!rollbackToDir.exists()) {
                 throw new VoldemortException("Version directory " + rollbackToDir.getAbsolutePath()
-                                             + " specified to rollback does not exist");
+                        + " specified to rollback does not exist");
+            }
 
             long versionId = ReadOnlyUtils.getVersionId(rollbackToDir);
-            if(versionId == -1)
+            if (versionId == -1) {
                 throw new VoldemortException("Cannot parse version id");
+            }
 
             File[] backUpDirs = ReadOnlyUtils.getVersionDirs(storeDir, versionId, Long.MAX_VALUE);
-            if(backUpDirs == null || backUpDirs.length <= 1) {
+            if (backUpDirs == null || backUpDirs.length <= 1) {
                 logger.warn("No rollback performed since there are no back-up directories");
                 return;
             }
             backUpDirs = ReadOnlyUtils.findKthVersionedDir(backUpDirs, 0, backUpDirs.length - 1);
 
-            if(isOpen)
+            if (isOpen) {
                 close();
+            }
 
             // open the rollback directory
             open(rollbackToDir);
 
             // back-up all other directories
             DateFormat df = new SimpleDateFormat("MM-dd-yyyy");
-            for(int index = 1; index < backUpDirs.length; index++) {
+            for (int index = 1; index < backUpDirs.length; index++) {
                 Utils.move(backUpDirs[index], new File(storeDir, backUpDirs[index].getName() + "."
-                                                                 + df.format(new Date()) + ".bak"));
+                        + df.format(new Date()) + ".bak"));
             }
 
         } finally {
@@ -481,21 +495,23 @@ public class ReadOnlyStorageEngine extends AbstractStorageEngine<ByteArray, byte
 
     @Override
     public ClosableIterator<ByteArray> keys() {
-        if(!(fileSet.getReadOnlyStorageFormat().compareTo(ReadOnlyStorageFormat.READONLY_V2) == 0))
+        if (!(fileSet.getReadOnlyStorageFormat().compareTo(ReadOnlyStorageFormat.READONLY_V2) == 0)) {
             throw new UnsupportedOperationException("Iteration is not supported for "
-                                                    + getClass().getName()
-                                                    + " with storage format "
-                                                    + fileSet.getReadOnlyStorageFormat());
+                    + getClass().getName()
+                    + " with storage format "
+                    + fileSet.getReadOnlyStorageFormat());
+        }
         return new ChunkedFileSet.ROKeyIterator(fileSet, fileModificationLock);
     }
 
     @Override
     public ClosableIterator<Pair<ByteArray, Versioned<byte[]>>> entries() {
-        if(!(fileSet.getReadOnlyStorageFormat().compareTo(ReadOnlyStorageFormat.READONLY_V2) == 0))
+        if (!(fileSet.getReadOnlyStorageFormat().compareTo(ReadOnlyStorageFormat.READONLY_V2) == 0)) {
             throw new UnsupportedOperationException("Iteration is not supported for "
-                                                    + getClass().getName()
-                                                    + " with storage format "
-                                                    + fileSet.getReadOnlyStorageFormat());
+                    + getClass().getName()
+                    + " with storage format "
+                    + fileSet.getReadOnlyStorageFormat());
+        }
         return new ChunkedFileSet.ROEntriesIterator(fileSet, fileModificationLock);
     }
 
@@ -511,8 +527,9 @@ public class ReadOnlyStorageEngine extends AbstractStorageEngine<ByteArray, byte
 
     @Override
     public void truncate() {
-        if(isOpen)
+        if (isOpen) {
             close();
+        }
         Utils.rm(storeDir);
         logger.debug("Truncate successful for read-only store ");
     }
@@ -524,15 +541,16 @@ public class ReadOnlyStorageEngine extends AbstractStorageEngine<ByteArray, byte
         try {
             fileModificationLock.readLock().lock();
             int chunk = fileSet.getChunkForKey(key.get());
-            if(chunk < 0) {
-                throw new IllegalStateException("Invalid chunk id returned: " + chunk); // should never happen, but just in case
+            if (chunk < 0) {
+                throw new IllegalStateException(
+                        "Invalid chunk id returned: " + chunk); // should never happen, but just in case
             }
             int location = searchStrategy.indexOf(fileSet.indexFileFor(chunk),
-                                                  fileSet.keyToStorageFormat(key.get()),
-                                                  fileSet.getIndexFileSize(chunk));
-            if(location >= 0) {
+                    fileSet.keyToStorageFormat(key.get()),
+                    fileSet.getIndexFileSize(chunk));
+            if (location >= 0) {
                 byte[] value = fileSet.readValue(key.get(), chunk, location);
-                if(value.length == 0) {
+                if (value.length == 0) {
                     return Collections.emptyList();
                 } else {
                     return Collections.singletonList(Versioned.value(value));
@@ -542,7 +560,7 @@ public class ReadOnlyStorageEngine extends AbstractStorageEngine<ByteArray, byte
             }
         } catch (IllegalStateException e) {
             logger.warn("ChunkedFileSet.getChunkForKey() did not execute successfully for store '" + getName() +
-                        "'. Returning empty result for key: " + ByteUtils.toHexString(key.get()), e);
+                    "'. Returning empty result for key: " + ByteUtils.toHexString(key.get()), e);
             return Collections.emptyList();
         } finally {
             fileModificationLock.readLock().unlock();
@@ -551,7 +569,7 @@ public class ReadOnlyStorageEngine extends AbstractStorageEngine<ByteArray, byte
 
     @Override
     public Map<ByteArray, List<Versioned<byte[]>>> getAll(Iterable<ByteArray> keys,
-                                                          Map<ByteArray, byte[]> transforms)
+            Map<ByteArray, byte[]> transforms)
             throws VoldemortException {
         checkStoreEnabled();
         StoreUtils.assertValidKeys(keys);
@@ -559,31 +577,34 @@ public class ReadOnlyStorageEngine extends AbstractStorageEngine<ByteArray, byte
         try {
             fileModificationLock.readLock().lock();
             List<KeyValueLocation> keysAndValueLocations = Lists.newArrayList();
-            for(ByteArray key: keys) {
+            for (ByteArray key : keys) {
                 try {
                     int chunk = fileSet.getChunkForKey(key.get());
-                    if(chunk < 0) {
-                        throw new IllegalStateException("Invalid chunk id returned: " + chunk); // should never happen, but just in case
+                    if (chunk < 0) {
+                        throw new IllegalStateException(
+                                "Invalid chunk id returned: " + chunk); // should never happen, but just in case
                     }
                     int valueLocation = searchStrategy.indexOf(fileSet.indexFileFor(chunk),
-                                                               fileSet.keyToStorageFormat(key.get()),
-                                                               fileSet.getIndexFileSize(chunk));
-                    if(valueLocation >= 0)
+                            fileSet.keyToStorageFormat(key.get()),
+                            fileSet.getIndexFileSize(chunk));
+                    if (valueLocation >= 0) {
                         keysAndValueLocations.add(new KeyValueLocation(chunk, key, valueLocation));
+                    }
                 } catch (IllegalStateException e) {
                     logger.warn("ChunkedFileSet.getChunkForKey() did not execute successfully for store '" +
-                                getName() + "'. Skipping key in getAll: " + ByteUtils.toHexString(key.get()), e);
+                            getName() + "'. Skipping key in getAll: " + ByteUtils.toHexString(key.get()), e);
                     continue;
                 }
             }
             Collections.sort(keysAndValueLocations);
 
-            for(KeyValueLocation keyVal: keysAndValueLocations) {
+            for (KeyValueLocation keyVal : keysAndValueLocations) {
                 byte[] value = fileSet.readValue(keyVal.getKey().get(),
-                                                 keyVal.getChunk(),
-                                                 keyVal.getValueLocation());
-                if(value.length > 0)
+                        keyVal.getChunk(),
+                        keyVal.getValueLocation());
+                if (value.length > 0) {
                     results.put(keyVal.getKey(), Collections.singletonList(Versioned.value(value)));
+                }
             }
             return results;
         } finally {
@@ -641,11 +662,12 @@ public class ReadOnlyStorageEngine extends AbstractStorageEngine<ByteArray, byte
 
         @Override
         public int compareTo(KeyValueLocation kvl) {
-            if(chunk == kvl.getChunk()) {
-                if(valueLocation == kvl.getValueLocation())
+            if (chunk == kvl.getChunk()) {
+                if (valueLocation == kvl.getValueLocation()) {
                     return ByteUtils.compare(getKey().get(), kvl.getKey().get());
-                else
+                } else {
                     return Integer.signum(valueLocation - kvl.getValueLocation());
+                }
             } else {
                 return getChunk() - kvl.getChunk();
             }
@@ -669,7 +691,9 @@ public class ReadOnlyStorageEngine extends AbstractStorageEngine<ByteArray, byte
         }
     }
 
-    public int getFetchingRequest() { return lastFetchRequestId; }
+    public int getFetchingRequest() {
+        return lastFetchRequestId;
+    }
 
     public Long getLastVersionGettingFetched() {
         return lastVersionGettingFetched;

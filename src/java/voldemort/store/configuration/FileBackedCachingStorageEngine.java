@@ -16,24 +16,9 @@
 
 package voldemort.store.configuration;
 
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.concurrent.ConcurrentHashMap;
-
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Logger;
-
 import voldemort.VoldemortException;
 import voldemort.annotations.concurrency.NotThreadsafe;
 import voldemort.store.AbstractStorageEngine;
@@ -49,17 +34,32 @@ import voldemort.versioning.VectorClock;
 import voldemort.versioning.Version;
 import voldemort.versioning.Versioned;
 
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.concurrent.ConcurrentHashMap;
+
 /**
  * A Storage Engine used to persist the keys and values in a human readable
  * format on disk. The data is primarily served off of the cache. After each
  * put, the entire cache state is flushed to the backing file. The data is UTF-8
  * serialized when writing to the file in order to make it human readable.
- * 
+ *
  * The primary purpose of this storage engine is for maintaining the cluster
  * metadata which is characterized by low QPS and not latency sensitive.
- * 
- * 
+ *
+ *
  */
+// TODO: 2018/4/26 by zmyer
 @NotThreadsafe
 public class FileBackedCachingStorageEngine extends
         AbstractStorageEngine<ByteArray, byte[], byte[]> {
@@ -77,15 +77,15 @@ public class FileBackedCachingStorageEngine extends
         super(name);
         this.inputDirectory = inputDirectory;
         File directory = new File(this.inputDirectory);
-        if(!directory.exists() && directory.canRead()) {
+        if (!directory.exists() && directory.canRead()) {
             throw new IllegalArgumentException("Directory " + directory.getAbsolutePath()
-                                               + " does not exist or can not be read.");
+                    + " does not exist or can not be read.");
         }
 
         this.inputPath = inputDirectory + System.getProperty("file.separator") + name;
         this.metadataMap = new ConcurrentHashMap<String, String>();
         this.loadData();
-        if(logger.isDebugEnabled()) {
+        if (logger.isDebugEnabled()) {
             logger.debug("Created a new File backed caching engine. File location = " + inputPath);
         }
     }
@@ -98,16 +98,16 @@ public class FileBackedCachingStorageEngine extends
     private VectorClock readVersion() {
         try {
 
-            if(this.cachedVersion == null) {
+            if (this.cachedVersion == null) {
                 File versionFile = getVersionFile();
-                if(versionFile.exists()) {
+                if (versionFile.exists()) {
                     // read the version file and return version.
                     String hexCode = FileUtils.readFileToString(versionFile, "UTF-8");
                     this.cachedVersion = new VectorClock(Hex.decodeHex(hexCode.toCharArray()));
                 }
             }
             return this.cachedVersion;
-        } catch(Exception e) {
+        } catch (Exception e) {
             throw new VoldemortException("Failed to read Version for file :" + getName(), e);
         }
     }
@@ -116,14 +116,14 @@ public class FileBackedCachingStorageEngine extends
     private void writeVersion(VectorClock newClock) {
         File versionFile = getVersionFile();
         try {
-            if(!versionFile.exists() || versionFile.delete()) {
+            if (!versionFile.exists() || versionFile.delete()) {
                 String hexCode = new String(Hex.encodeHex(newClock.toBytes()));
                 FileUtils.writeStringToFile(versionFile, hexCode, "UTF-8");
                 this.cachedVersion = newClock;
             }
-        } catch(Exception e) {
+        } catch (Exception e) {
             throw new VoldemortException("Failed to write Version for the current file :"
-                                         + getName(), e);
+                    + getName(), e);
         }
     }
 
@@ -134,21 +134,21 @@ public class FileBackedCachingStorageEngine extends
             reader = new BufferedReader(new FileReader(new File(this.inputPath)));
             String line = reader.readLine();
 
-            while(line != null) {
-                if(line.startsWith(NEW_PROPERTY_SEPARATOR.toString())) {
+            while (line != null) {
+                if (line.startsWith(NEW_PROPERTY_SEPARATOR.toString())) {
                     String key = null;
                     StringBuilder value = new StringBuilder();
                     String parts[] = line.split("=");
 
                     // Found a new property block.
                     // First read the key
-                    if(parts.length == 2) {
+                    if (parts.length == 2) {
                         key = parts[1].substring(0, parts[1].length() - 1);
 
                         // Now read the value block !
-                        while((line = reader.readLine()) != null && line.length() != 0
-                              && !line.startsWith(NEW_PROPERTY_SEPARATOR.toString())) {
-                            if(value.length() == 0) {
+                        while ((line = reader.readLine()) != null && line.length() != 0
+                                && !line.startsWith(NEW_PROPERTY_SEPARATOR.toString())) {
+                            if (value.length() == 0) {
                                 value.append(line);
                             } else {
                                 value.append(NEW_LINE + line);
@@ -162,15 +162,15 @@ public class FileBackedCachingStorageEngine extends
                     line = reader.readLine();
                 }
             }
-        } catch(FileNotFoundException e) {
+        } catch (FileNotFoundException e) {
             logger.debug("File used for persistence does not exist !!");
-        } catch(IOException e) {
+        } catch (IOException e) {
             logger.info("Error in flushing data to file for store " + getName(), e);
         } finally {
-            if(reader != null) {
+            if (reader != null) {
                 try {
                     reader.close();
-                } catch(IOException e) {
+                } catch (IOException e) {
                     logger.debug("Error closing reader!", e);
                 }
             }
@@ -182,21 +182,22 @@ public class FileBackedCachingStorageEngine extends
         BufferedWriter writer = null;
         try {
             writer = new BufferedWriter(new FileWriter(new File(this.inputPath)));
-            for(String key: this.metadataMap.keySet()) {
+            for (String key : this.metadataMap.keySet()) {
                 writer.write(NEW_PROPERTY_SEPARATOR + key.toString() + "]" + NEW_LINE);
                 writer.write(this.metadataMap.get(key).toString());
                 writer.write("" + NEW_LINE + "" + NEW_LINE);
             }
             writer.flush();
-        } catch(IOException e) {
+        } catch (IOException e) {
             logger.error("IO exception while flushing data to file backed storage: "
-                         + e.getMessage());
+                    + e.getMessage());
         }
 
         try {
-            if(writer != null)
+            if (writer != null) {
                 writer.close();
-        } catch(Exception e) {
+            }
+        } catch (Exception e) {
             logger.error("Error while flushing data to file backed storage: " + e.getMessage());
         }
     }
@@ -229,7 +230,7 @@ public class FileBackedCachingStorageEngine extends
         List<Versioned<byte[]>> found = new ArrayList<Versioned<byte[]>>();
         byte[] resultBytes = null;
         String value = this.metadataMap.get(keyString);
-        if(value != null) {
+        if (value != null) {
             resultBytes = value.getBytes();
             found.add(new Versioned<byte[]>(resultBytes, readVersion()));
         }
@@ -242,14 +243,15 @@ public class FileBackedCachingStorageEngine extends
 
     @Override
     public Map<ByteArray, List<Versioned<byte[]>>> getAll(Iterable<ByteArray> keys,
-                                                          Map<ByteArray, byte[]> transforms)
+            Map<ByteArray, byte[]> transforms)
             throws VoldemortException {
         StoreUtils.assertValidKeys(keys);
         Map<ByteArray, List<Versioned<byte[]>>> result = StoreUtils.newEmptyHashMap(keys);
-        for(ByteArray key: keys) {
+        for (ByteArray key : keys) {
             List<Versioned<byte[]>> values = get(key, null);
-            if(!values.isEmpty())
+            if (!values.isEmpty()) {
                 result.put(key, values);
+            }
         }
         return result;
     }
@@ -258,7 +260,7 @@ public class FileBackedCachingStorageEngine extends
     public List<Version> getVersions(ByteArray key) {
         List<Versioned<byte[]>> values = get(key, null);
         List<Version> versions = new ArrayList<Version>(values.size());
-        for(Versioned<?> value: values) {
+        for (Versioned<?> value : values) {
             versions.add(value.getVersion());
         }
         return versions;
@@ -276,12 +278,12 @@ public class FileBackedCachingStorageEngine extends
 
         // Validate the Vector clock
         VectorClock clock = readVersion();
-        if(clock != null) {
-            if(value.getVersion().compare(clock) == Occurred.BEFORE) {
+        if (clock != null) {
+            if (value.getVersion().compare(clock) == Occurred.BEFORE) {
                 throw new ObsoleteVersionException("A successor version " + clock + "  to this "
-                                                   + value.getVersion()
-                                                   + " exists for the current file : " + getName());
-            } else if(value.getVersion().compare(clock) == Occurred.CONCURRENTLY) {
+                        + value.getVersion()
+                        + " exists for the current file : " + getName());
+            } else if (value.getVersion().compare(clock) == Occurred.CONCURRENTLY) {
                 throw new ObsoleteVersionException("Concurrent Operation not allowed on Metadata.");
             }
         }
@@ -302,13 +304,13 @@ public class FileBackedCachingStorageEngine extends
         StoreUtils.assertValidKey(key);
         String keyString = new String(key.get());
         String initialValue = this.metadataMap.get(keyString);
-        if(initialValue != null) {
+        if (initialValue != null) {
             String removedValue = this.metadataMap.remove(keyString);
-            if(removedValue != null) {
+            if (removedValue != null) {
                 deleteSuccessful = (initialValue.equals(removedValue));
             }
         }
-        if(deleteSuccessful) {
+        if (deleteSuccessful) {
             this.flushData();
             // Reset the vector clock and persist it.
             // FIXME this also needs to be done per entry, as opposed to
@@ -325,7 +327,7 @@ public class FileBackedCachingStorageEngine extends
         private final FileBackedCachingStorageEngine storageEngineRef;
 
         public FileBackedStorageIterator(Map<String, String> metadataMap,
-                                         FileBackedCachingStorageEngine storageEngine) {
+                FileBackedCachingStorageEngine storageEngine) {
             iterator = metadataMap.entrySet().iterator();
             storageEngineRef = storageEngine;
         }
@@ -339,11 +341,11 @@ public class FileBackedCachingStorageEngine extends
         public Pair<ByteArray, Versioned<byte[]>> next() {
             Entry<String, String> entry = iterator.next();
             Pair<ByteArray, Versioned<byte[]>> nextValue = null;
-            if(entry != null && entry.getKey() != null && entry.getValue() != null) {
+            if (entry != null && entry.getKey() != null && entry.getValue() != null) {
                 ByteArray key = new ByteArray(entry.getKey().getBytes());
                 byte[] resultBytes = entry.getValue().getBytes();
                 Versioned<byte[]> versionedValue = new Versioned<byte[]>(resultBytes,
-                                                                         storageEngineRef.readVersion());
+                        storageEngineRef.readVersion());
                 nextValue = Pair.create(key, versionedValue);
             }
 
@@ -356,7 +358,8 @@ public class FileBackedCachingStorageEngine extends
         }
 
         @Override
-        public void close() {}
+        public void close() {
+        }
 
     }
 

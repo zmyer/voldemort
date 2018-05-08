@@ -15,17 +15,18 @@
  */
 package voldemort.server.storage;
 
-import java.util.List;
-
 import voldemort.annotations.concurrency.NotThreadsafe;
 import voldemort.store.StorageEngine;
 import voldemort.versioning.Versioned;
 
+import java.util.List;
+
 /**
  * Class encapsulating the state necessary to lock a key on the underlying
  * storage and the list of versions stored for the key
- * 
+ *
  */
+// TODO: 2018/4/26 by zmyer
 @NotThreadsafe
 public class KeyLockHandle<V> {
 
@@ -65,7 +66,7 @@ public class KeyLockHandle<V> {
     }
 
     public void close() {
-        if(closed) {
+        if (closed) {
             throw new IllegalStateException("Handle already closed");
         }
         this.closed = true;

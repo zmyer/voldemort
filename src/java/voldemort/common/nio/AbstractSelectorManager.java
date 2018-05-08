@@ -16,6 +16,11 @@
 
 package voldemort.common.nio;
 
+import org.apache.commons.io.IOUtils;
+import org.apache.log4j.Level;
+import org.apache.log4j.Logger;
+import voldemort.VoldemortException;
+
 import java.io.Closeable;
 import java.io.IOException;
 import java.nio.channels.ClosedSelectorException;
@@ -23,12 +28,6 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicBoolean;
-
-import org.apache.commons.io.IOUtils;
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
-
-import voldemort.VoldemortException;
 
 /**
  * SelectorManager handles the non-blocking polling of IO events using the
@@ -90,6 +89,7 @@ import voldemort.VoldemortException;
  * re-balance the remaining requests evenly.
  */
 
+// TODO: 2018/4/26 by zmyer
 public abstract class AbstractSelectorManager implements Runnable {
 
     public static final int SELECTOR_POLL_MS = 500;
@@ -131,7 +131,7 @@ public abstract class AbstractSelectorManager implements Runnable {
     public AbstractSelectorManager(long maxHeartBeatTimeMs) {
         try {
             this.selector = Selector.open();
-        } catch(IOException e) {
+        } catch (IOException e) {
             throw new VoldemortException(e);
         }
 
@@ -142,46 +142,53 @@ public abstract class AbstractSelectorManager implements Runnable {
     public void close() {
         // Attempt to close, but if already closed, then we've been beaten to
         // the punch...
-        if(!isClosed.compareAndSet(false, true))
+        if (!isClosed.compareAndSet(false, true)) {
             return;
+        }
 
         try {
-            for(SelectionKey sk: selector.keys()) {
+            for (SelectionKey sk : selector.keys()) {
                 try {
-                    if(logger.isTraceEnabled())
+                    if (logger.isTraceEnabled()) {
                         logger.trace("Closing SelectionKey's channel");
+                    }
 
                     sk.channel().close();
 
                     Object attachment = sk.attachment();
-                    if(attachment instanceof Closeable) {
+                    if (attachment instanceof Closeable) {
                         IOUtils.closeQuietly((Closeable) attachment);
                     }
-                } catch(Exception e) {
-                    if(logger.isEnabledFor(Level.WARN))
+                } catch (Exception e) {
+                    if (logger.isEnabledFor(Level.WARN)) {
                         logger.warn(e.getMessage(), e);
+                    }
                 }
 
                 try {
-                    if(logger.isTraceEnabled())
+                    if (logger.isTraceEnabled()) {
                         logger.trace("Cancelling SelectionKey");
+                    }
 
                     sk.cancel();
-                } catch(Exception e) {
-                    if(logger.isEnabledFor(Level.WARN))
+                } catch (Exception e) {
+                    if (logger.isEnabledFor(Level.WARN)) {
                         logger.warn(e.getMessage(), e);
+                    }
                 }
             }
-        } catch(Exception e) {
-            if(logger.isEnabledFor(Level.WARN))
+        } catch (Exception e) {
+            if (logger.isEnabledFor(Level.WARN)) {
                 logger.warn(e.getMessage(), e);
+            }
         }
 
         try {
             selector.close();
-        } catch(Exception e) {
-            if(logger.isEnabledFor(Level.WARN))
+        } catch (Exception e) {
+            if (logger.isEnabledFor(Level.WARN)) {
                 logger.warn(e.getMessage(), e);
+            }
         }
     }
 
@@ -189,7 +196,8 @@ public abstract class AbstractSelectorManager implements Runnable {
         long timeElapsed = System.currentTimeMillis() - lastHeartBeatTimeMs;
         boolean healthy = timeElapsed < maxHeartBeatTimeMs;
         if (!healthy) {
-            logger.warn("Selector " + threadName + " is not healthy. Last heart beat(MS) " + lastHeartBeatTimeMs + " time elapsed(MS) "
+            logger.warn("Selector " + threadName + " is not healthy. Last heart beat(MS) " + lastHeartBeatTimeMs +
+                    " time elapsed(MS) "
                     + timeElapsed + " max heart beat time(MS) " + maxHeartBeatTimeMs);
         }
         return healthy;
@@ -207,8 +215,8 @@ public abstract class AbstractSelectorManager implements Runnable {
         threadName = Thread.currentThread().getName();
 
         try {
-            while(true) {
-                if(isClosed.get()) {
+            while (true) {
+                if (isClosed.get()) {
                     logger.debug("SelectorManager is closed, exiting");
 
                     break;
@@ -223,46 +231,50 @@ public abstract class AbstractSelectorManager implements Runnable {
                     selectTimeMs = System.currentTimeMillis() - selectTimeMs;
                     selectCount = selected;
 
-                    if(isClosed.get()) {
+                    if (isClosed.get()) {
                         logger.debug("SelectorManager is closed, exiting");
 
                         break;
                     }
 
-                    if(selected > 0) {
+                    if (selected > 0) {
                         processingTimeMs = System.currentTimeMillis();
                         Iterator<SelectionKey> i = selector.selectedKeys().iterator();
 
-                        while(i.hasNext()) {
+                        while (i.hasNext()) {
                             SelectionKey selectionKey = i.next();
                             i.remove();
 
-                            if(selectionKey.isValid()
-                               && (selectionKey.isConnectable() || selectionKey.isReadable() || selectionKey.isWritable())) {
+                            if (selectionKey.isValid()
+                                    && (selectionKey.isConnectable() || selectionKey.isReadable() ||
+                                    selectionKey.isWritable())) {
                                 Runnable worker = (Runnable) selectionKey.attachment();
                                 worker.run();
                             }
                         }
                         processingTimeMs = System.currentTimeMillis() - processingTimeMs;
                     }
-                } catch(ClosedSelectorException e) {
+                } catch (ClosedSelectorException e) {
                     logger.debug("SelectorManager is closed, exiting");
 
                     break;
-                } catch(Throwable t) {
-                    if(logger.isEnabledFor(Level.ERROR))
+                } catch (Throwable t) {
+                    if (logger.isEnabledFor(Level.ERROR)) {
                         logger.error(t.getMessage(), t);
+                    }
                 }
             }
-        } catch(Throwable t) {
-            if(logger.isEnabledFor(Level.ERROR))
+        } catch (Throwable t) {
+            if (logger.isEnabledFor(Level.ERROR)) {
                 logger.error(t.getMessage(), t);
+            }
         } finally {
             try {
                 close();
-            } catch(Exception e) {
-                if(logger.isEnabledFor(Level.ERROR))
+            } catch (Exception e) {
+                if (logger.isEnabledFor(Level.ERROR)) {
                     logger.error(e.getMessage(), e);
+                }
             }
         }
     }

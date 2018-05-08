@@ -1,11 +1,5 @@
 package voldemort.server;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-
 import voldemort.VoldemortException;
 import voldemort.annotations.concurrency.Threadsafe;
 import voldemort.server.scheduler.slop.SlopPurgeJob;
@@ -19,10 +13,16 @@ import voldemort.utils.ByteArray;
 import voldemort.utils.JmxUtils;
 import voldemort.utils.Pair;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+
 /**
  * A wrapper class that holds all the server's stores--storage engines, routed
  * stores, and remote stores.
- * 
+ *
  * The store repository holds various store types:
  * <ol>
  * <li>Local stores &ndash; These are the local stores used to perform reads and
@@ -34,9 +34,10 @@ import voldemort.utils.Pair;
  * <li>Node Stores &ndash; These represent socket stores for writing to
  * individual nodes.</li>
  * </ol>
- * 
- * 
+ *
+ *
  */
+// TODO: 2018/3/23 by zmyer
 @Threadsafe
 public class StoreRepository {
 
@@ -111,11 +112,12 @@ public class StoreRepository {
         this(true);
     }
 
+    // TODO: 2018/4/3 by zmyer
     public StoreRepository(boolean jmxEnabled) {
         super();
         this.localStores = new ConcurrentHashMap<String, Store<ByteArray, byte[], byte[]>>();
         this.storageEngines = new ConcurrentHashMap<String, StorageEngine<ByteArray, byte[], byte[]>>();
-        if(jmxEnabled) {
+        if (jmxEnabled) {
             this.streamingStatsMap = new ConcurrentHashMap<String, StreamingStats>();
             this.aggregatedStreamStats = new StreamingStats();
         }
@@ -136,12 +138,14 @@ public class StoreRepository {
         return localStores.remove(storeName);
     }
 
+    // TODO: 2018/4/26 by zmyer
     public void addLocalStore(Store<ByteArray, byte[], byte[]> store) {
         Store<ByteArray, byte[], byte[]> found = this.localStores.putIfAbsent(store.getName(),
-                                                                              store);
-        if(found != null)
+                store);
+        if (found != null) {
             throw new VoldemortException("Store '" + store.getName()
-                                         + "' has already been initialized.");
+                    + "' has already been initialized.");
+        }
     }
 
     public List<Store<ByteArray, byte[], byte[]>> getAllLocalStores() {
@@ -156,42 +160,45 @@ public class StoreRepository {
         return this.storageEngines.get(storeName);
     }
 
+    // TODO: 2018/4/26 by zmyer
     public void addStorageEngine(StorageEngine<ByteArray, byte[], byte[]> engine) {
+        //将存储引擎对象插入到集合中
         StorageEngine<ByteArray, byte[], byte[]> found = this.storageEngines.putIfAbsent(engine.getName(),
-                                                                                         engine);
-        if(found != null)
+                engine);
+        if (found != null) {
             throw new VoldemortException("Storage Engine '" + engine.getName()
-                                         + "' has already been initialized.");
+                    + "' has already been initialized.");
+        }
 
         // register streaming stats object for the store
-        if(streamingStatsMap != null) {
+        if (streamingStatsMap != null) {
             // lazily register the aggregated mbean
-            if(storageEngines.size() == 1) {
+            if (storageEngines.size() == 1) {
                 JmxUtils.registerMbean(aggregatedStreamStats,
-                                       JmxUtils.createObjectName(this.getClass().getCanonicalName(),
-                                                                 "aggregated-streaming-stats"));
+                        JmxUtils.createObjectName(this.getClass().getCanonicalName(),
+                                "aggregated-streaming-stats"));
             }
 
             StreamingStats stat = new StreamingStats(aggregatedStreamStats);
             JmxUtils.registerMbean(stat, JmxUtils.createObjectName(this.getClass()
-                                                                       .getCanonicalName(),
-                                                                   engine.getName()
-                                                                           + "-streaming-stats"));
+                            .getCanonicalName(),
+                    engine.getName()
+                            + "-streaming-stats"));
             streamingStatsMap.putIfAbsent(engine.getName(), stat);
         }
     }
 
     public Store<ByteArray, byte[], byte[]> removeStorageEngine(String storeName) {
         // register streaming stats object for the store
-        if(streamingStatsMap != null) {
+        if (streamingStatsMap != null) {
             JmxUtils.unregisterMbean(JmxUtils.createObjectName(this.getClass().getCanonicalName(),
-                                                               storeName + "-streaming-stats"));
+                    storeName + "-streaming-stats"));
             streamingStatsMap.remove(storeName);
             // lazily unregister the aggregated mbean
-            if(storageEngines.size() == 1) {
+            if (storageEngines.size() == 1) {
                 JmxUtils.unregisterMbean(JmxUtils.createObjectName(this.getClass()
-                                                                       .getCanonicalName(),
-                                                                   "aggregated-streaming-stats"));
+                                .getCanonicalName(),
+                        "aggregated-streaming-stats"));
             }
         }
         return this.storageEngines.remove(storeName);
@@ -201,11 +208,14 @@ public class StoreRepository {
         return new ArrayList<StorageEngine<ByteArray, byte[], byte[]>>(this.storageEngines.values());
     }
 
-    public List<StorageEngine<ByteArray, byte[], byte[]>> getStorageEnginesByClass(Class<? extends StorageEngine<?, ?, ?>> c) {
+    public List<StorageEngine<ByteArray, byte[], byte[]>> getStorageEnginesByClass(
+            Class<? extends StorageEngine<?, ?, ?>> c) {
         List<StorageEngine<ByteArray, byte[], byte[]>> l = new ArrayList<StorageEngine<ByteArray, byte[], byte[]>>();
-        for(StorageEngine<ByteArray, byte[], byte[]> engine: this.storageEngines.values())
-            if(engine.getClass().equals(c))
+        for (StorageEngine<ByteArray, byte[], byte[]> engine : this.storageEngines.values()) {
+            if (engine.getClass().equals(c)) {
                 l.add(engine);
+            }
+        }
         return l;
     }
 
@@ -219,10 +229,11 @@ public class StoreRepository {
 
     public void addRoutedStore(Store<ByteArray, byte[], byte[]> store) {
         Store<ByteArray, byte[], byte[]> found = this.routedStores.putIfAbsent(store.getName(),
-                                                                               store);
-        if(found != null)
+                store);
+        if (found != null) {
             throw new VoldemortException("Store '" + store.getName()
-                                         + "' has already been initialized.");
+                    + "' has already been initialized.");
+        }
     }
 
     public List<Store<ByteArray, byte[], byte[]>> getAllRoutedStores() {
@@ -248,15 +259,18 @@ public class StoreRepository {
     public void addNodeStore(int nodeId, Store<ByteArray, byte[], byte[]> store) {
         Pair<String, Integer> key = Pair.create(store.getName(), nodeId);
         Store<ByteArray, byte[], byte[]> found = this.nodeStores.putIfAbsent(key, store);
-        if(found != null)
+        if (found != null) {
             throw new VoldemortException("Store '" + store.getName() + "' for node " + nodeId
-                                         + " has already been initialized.");
+                    + " has already been initialized.");
+        }
     }
 
     public List<Pair<Integer, Store<ByteArray, byte[], byte[]>>> getAllNodeStores() {
-        List<Pair<Integer, Store<ByteArray, byte[], byte[]>>> vals = new ArrayList<Pair<Integer, Store<ByteArray, byte[], byte[]>>>();
-        for(Map.Entry<Pair<String, Integer>, Store<ByteArray, byte[], byte[]>> entry: this.nodeStores.entrySet())
+        List<Pair<Integer, Store<ByteArray, byte[], byte[]>>> vals =
+                new ArrayList<Pair<Integer, Store<ByteArray, byte[], byte[]>>>();
+        for (Map.Entry<Pair<String, Integer>, Store<ByteArray, byte[], byte[]>> entry : this.nodeStores.entrySet()) {
             vals.add(Pair.create(entry.getKey().getSecond(), entry.getValue()));
+        }
         return vals;
     }
 
@@ -271,15 +285,17 @@ public class StoreRepository {
     public void addRedirectingSocketStore(int nodeId, Store<ByteArray, byte[], byte[]> store) {
         Pair<String, Integer> key = Pair.create(store.getName(), nodeId);
         Store<ByteArray, byte[], byte[]> found = this.redirectingSocketStores.putIfAbsent(key,
-                                                                                          store);
-        if(found != null)
+                store);
+        if (found != null) {
             throw new VoldemortException("Store '" + store.getName() + "' for node " + nodeId
-                                         + " has already been initialized.");
+                    + " has already been initialized.");
+        }
     }
 
     public SlopStorageEngine getSlopStore() {
-        if(this.slopStore == null)
+        if (this.slopStore == null) {
             throw new IllegalStateException("Slop store has not been set!");
+        }
         return this.slopStore;
     }
 

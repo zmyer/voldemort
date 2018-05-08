@@ -16,22 +16,23 @@
 
 package voldemort.store;
 
-import java.util.List;
-import java.util.Map;
-
 import voldemort.VoldemortException;
 import voldemort.utils.Utils;
 import voldemort.versioning.Version;
 import voldemort.versioning.Versioned;
 
+import java.util.List;
+import java.util.Map;
+
 /**
  * A Store template that delegates all operations to an inner store.
- * 
+ *
  * Convenient for decorating a store and overriding only certain methods to add
  * behavior.
- * 
- * 
+ *
+ *
  */
+// TODO: 2018/4/26 by zmyer
 public class DelegatingStore<K, V, T> extends AbstractStore<K, V, T> {
 
     private final Store<K, V, T> innerStore;

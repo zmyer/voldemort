@@ -16,41 +16,42 @@
 
 package voldemort.server.protocol;
 
+import voldemort.VoldemortException;
+import voldemort.common.nio.ByteBufferContainer;
+
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
-import voldemort.VoldemortException;
-import voldemort.common.nio.ByteBufferContainer;
-
 /**
  * A request handler that answers client requests in some given format
- * 
- * 
+ *
+ *
  */
+// TODO: 2018/4/26 by zmyer
 public interface RequestHandler {
 
     /**
      * Handles the request as determined by the protocol and command provided as
      * input.
-     * 
+     *
      * @param inputStream
      * @param outputStream
-     * 
+     *
      * @return StreamRequestHandler if this is the beginning of a streaming
      *         request, null if self-contained
-     * 
+     *
      * @throws IOException
      */
 
     public StreamRequestHandler handleRequest(DataInputStream inputStream,
-                                              DataOutputStream outputStream)
+            DataOutputStream outputStream)
             throws IOException;
 
     public StreamRequestHandler handleRequest(DataInputStream inputStream,
-                                              DataOutputStream outputStream,
-                                              ByteBufferContainer outputContainer)
+            DataOutputStream outputStream,
+            ByteBufferContainer outputContainer)
             throws IOException;
 
     /**
@@ -58,7 +59,7 @@ public interface RequestHandler {
      * represents a complete request. Because the non-blocking code can by
      * definition not just block waiting for more data, it's possible to get
      * partial reads, and this identifies that case.
-     * 
+     *
      * @param buffer Buffer to check; the buffer is reset to position 0 before
      *        calling this method and the caller must reset it after the call
      *        returns

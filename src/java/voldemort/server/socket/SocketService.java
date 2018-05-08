@@ -23,27 +23,27 @@ import voldemort.server.protocol.RequestHandlerFactory;
 
 /**
  * The VoldemortService that loads up the socket server
- * 
+ *
  */
-
+// TODO: 2018/4/26 by zmyer
 public class SocketService extends AbstractSocketService {
 
     private final SocketServer server;
 
     public SocketService(RequestHandlerFactory requestHandlerFactory,
-                         int port,
-                         int coreConnections,
-                         int maxConnections,
-                         int socketBufferSize,
-                         String serviceName,
-                         boolean enableJmx) {
+            int port,
+            int coreConnections,
+            int maxConnections,
+            int socketBufferSize,
+            String serviceName,
+            boolean enableJmx) {
         super(ServiceType.SOCKET, port, serviceName, enableJmx);
         this.server = new SocketServer(port,
-                                       coreConnections,
-                                       maxConnections,
-                                       socketBufferSize,
-                                       requestHandlerFactory,
-                                       serviceName);
+                coreConnections,
+                maxConnections,
+                socketBufferSize,
+                requestHandlerFactory,
+                serviceName);
     }
 
     @Override

@@ -35,24 +35,26 @@ public class Zone implements Serializable, Comparable<Zone> {
 
     @Override
     public boolean equals(Object object) {
-        if(this == object)
+        if (this == object) {
             return true;
-        if(!(object instanceof Zone))
-            return false;
-
-        Zone zone = (Zone) object;
-        if(getId() != zone.getId()) {
+        }
+        if (!(object instanceof Zone)) {
             return false;
         }
-        if(this.getProximityList().size() != zone.getProximityList().size()) {
+
+        Zone zone = (Zone) object;
+        if (getId() != zone.getId()) {
+            return false;
+        }
+        if (this.getProximityList().size() != zone.getProximityList().size()) {
             return false;
         }
         Iterator<Integer> proxListFirst = this.getProximityList().iterator();
         Iterator<Integer> proxListSecond = zone.getProximityList().iterator();
-        while(proxListFirst.hasNext() && proxListSecond.hasNext()) {
+        while (proxListFirst.hasNext() && proxListSecond.hasNext()) {
             Integer first = proxListFirst.next();
             Integer second = proxListSecond.next();
-            if(!first.equals(second)) {
+            if (!first.equals(second)) {
                 return false;
             }
         }

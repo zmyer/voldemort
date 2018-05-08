@@ -16,18 +16,19 @@
 
 package voldemort.store.system;
 
-import java.io.StringReader;
-import java.util.List;
-
 import voldemort.store.StoreDefinition;
 import voldemort.utils.StoreDefinitionUtils;
 import voldemort.xml.StoreDefinitionsMapper;
 
+import java.io.StringReader;
+import java.util.List;
+
 /**
  * A file that defines all constants for system stores, including the store
  * definitions
- * 
+ *
  */
+// TODO: 2018/4/26 by zmyer
 public class SystemStoreConstants {
 
     public static final String NAME_PREFIX = "voldsys$_";
@@ -44,59 +45,59 @@ public class SystemStoreConstants {
 
     // The route to all strategy does not bother about zones or rep factor
     public static final String SYSTEM_STORE_SCHEMA = "<stores>"
-                                                     + "  <store>"
-                                                     + "    <name>voldsys$_client_registry</name>"
-                                                     + "    <routing-strategy>all-routing</routing-strategy>"
-                                                     + "    <hinted-handoff-strategy>proximity-handoff</hinted-handoff-strategy>"
-                                                     + "    <persistence>memory</persistence>"
-                                                     + "    <routing>client</routing>"
-                                                     + "    <replication-factor>1</replication-factor>"
-                                                     + "    <required-reads>1</required-reads>"
-                                                     + "    <required-writes>1</required-writes>"
-                                                     + "    <key-serializer>"
-                                                     + "      <type>string</type>"
-                                                     + "    </key-serializer>"
-                                                     + "    <value-serializer>"
-                                                     + "      <type>string</type>"
-                                                     + "    </value-serializer>"
-                                                     + "    <retention-days>7</retention-days>"
-                                                     + "  </store>"
+            + "  <store>"
+            + "    <name>voldsys$_client_registry</name>"
+            + "    <routing-strategy>all-routing</routing-strategy>"
+            + "    <hinted-handoff-strategy>proximity-handoff</hinted-handoff-strategy>"
+            + "    <persistence>memory</persistence>"
+            + "    <routing>client</routing>"
+            + "    <replication-factor>1</replication-factor>"
+            + "    <required-reads>1</required-reads>"
+            + "    <required-writes>1</required-writes>"
+            + "    <key-serializer>"
+            + "      <type>string</type>"
+            + "    </key-serializer>"
+            + "    <value-serializer>"
+            + "      <type>string</type>"
+            + "    </value-serializer>"
+            + "    <retention-days>7</retention-days>"
+            + "  </store>"
 
-                                                     + "  <store>"
-                                                     + "    <name>voldsys$_metadata_version_persistence</name>"
-                                                     + "    <routing-strategy>all-routing</routing-strategy>"
-                                                     + "    <hinted-handoff-strategy>proximity-handoff</hinted-handoff-strategy>"
-                                                     + "    <persistence>file-backed-cache</persistence>"
-                                                     + "    <routing>client</routing>"
-                                                     + "    <replication-factor>1</replication-factor>"
-                                                     + "    <required-reads>1</required-reads>"
-                                                     + "    <required-writes>1</required-writes>"
-                                                     + "    <key-serializer>"
-                                                     + "      <type>string</type>"
-                                                     + "    </key-serializer>"
-                                                     + "    <value-serializer>"
-                                                     + "      <type>string</type>"
-                                                     + "    </value-serializer>"
-                                                     + "  </store>"
+            + "  <store>"
+            + "    <name>voldsys$_metadata_version_persistence</name>"
+            + "    <routing-strategy>all-routing</routing-strategy>"
+            + "    <hinted-handoff-strategy>proximity-handoff</hinted-handoff-strategy>"
+            + "    <persistence>file-backed-cache</persistence>"
+            + "    <routing>client</routing>"
+            + "    <replication-factor>1</replication-factor>"
+            + "    <required-reads>1</required-reads>"
+            + "    <required-writes>1</required-writes>"
+            + "    <key-serializer>"
+            + "      <type>string</type>"
+            + "    </key-serializer>"
+            + "    <value-serializer>"
+            + "      <type>string</type>"
+            + "    </value-serializer>"
+            + "  </store>"
 
-                                                     + "  <store>"
-                                                     + "    <name>voldsys$_store_quotas</name>"
-                                                     + "    <routing-strategy>all-routing</routing-strategy>"
-                                                     + "    <hinted-handoff-strategy>proximity-handoff</hinted-handoff-strategy>"
-                                                     + "    <persistence>file-backed-cache</persistence>"
-                                                     + "    <routing>client</routing>"
-                                                     + "    <replication-factor>1</replication-factor>"
-                                                     + "    <required-reads>1</required-reads>"
-                                                     + "    <required-writes>1</required-writes>"
-                                                     + "    <key-serializer>"
-                                                     + "      <type>string</type>"
-                                                     + "    </key-serializer>"
-                                                     + "    <value-serializer>"
-                                                     + "      <type>string</type>"
-                                                     + "    </value-serializer>"
-                                                     + "  </store>"
+            + "  <store>"
+            + "    <name>voldsys$_store_quotas</name>"
+            + "    <routing-strategy>all-routing</routing-strategy>"
+            + "    <hinted-handoff-strategy>proximity-handoff</hinted-handoff-strategy>"
+            + "    <persistence>file-backed-cache</persistence>"
+            + "    <routing>client</routing>"
+            + "    <replication-factor>1</replication-factor>"
+            + "    <required-reads>1</required-reads>"
+            + "    <required-writes>1</required-writes>"
+            + "    <key-serializer>"
+            + "      <type>string</type>"
+            + "    </key-serializer>"
+            + "    <value-serializer>"
+            + "      <type>string</type>"
+            + "    </value-serializer>"
+            + "  </store>"
 
-                                                     + "</stores>";
+            + "</stores>";
 
     public static boolean isSystemStore(String storeName) {
         return (null == storeName ? false : storeName.startsWith(NAME_PREFIX));

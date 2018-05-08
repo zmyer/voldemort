@@ -16,46 +16,17 @@
 
 package voldemort.client.protocol.admin;
 
-import java.io.Closeable;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.EOFException;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.StringReader;
-import java.io.UnsupportedEncodingException;
-import java.net.Socket;
-import java.net.SocketException;
-import java.nio.channels.Channels;
-import java.nio.channels.FileChannel;
-import java.nio.channels.ReadableByteChannel;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Properties;
-import java.util.Random;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
-
+import com.google.common.base.Objects;
+import com.google.common.collect.AbstractIterator;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
+import com.google.protobuf.ByteString;
+import com.google.protobuf.Message;
+import com.google.protobuf.UninitializedMessageException;
 import org.apache.avro.Schema;
 import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Logger;
-
 import voldemort.VoldemortApplicationException;
 import voldemort.VoldemortException;
 import voldemort.client.ClientConfig;
@@ -126,14 +97,41 @@ import voldemort.versioning.Versioned;
 import voldemort.xml.ClusterMapper;
 import voldemort.xml.StoreDefinitionsMapper;
 
-import com.google.common.base.Objects;
-import com.google.common.collect.AbstractIterator;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
-import com.google.protobuf.ByteString;
-import com.google.protobuf.Message;
-import com.google.protobuf.UninitializedMessageException;
+import java.io.Closeable;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.EOFException;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.StringReader;
+import java.io.UnsupportedEncodingException;
+import java.net.Socket;
+import java.net.SocketException;
+import java.nio.channels.Channels;
+import java.nio.channels.FileChannel;
+import java.nio.channels.ReadableByteChannel;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Properties;
+import java.util.Random;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * AdminClient is intended for administrative functionality that is useful and
@@ -152,6 +150,7 @@ import com.google.protobuf.UninitializedMessageException;
  * </ul>
  *
  */
+// TODO: 2018/4/26 by zmyer
 public class AdminClient implements Closeable {
 
     private static final Logger logger = Logger.getLogger(AdminClient.class);
@@ -164,7 +163,7 @@ public class AdminClient implements Closeable {
     private static final long PRINT_STATS_INTERVAL = 5 * 60 * 1000; // 5 minutes
 
     public final static List<String> restoreStoreEngineBlackList = Arrays.asList(ReadOnlyStorageConfiguration.TYPE_NAME,
-                                                                                 ViewStorageConfiguration.TYPE_NAME);
+            ViewStorageConfiguration.TYPE_NAME);
 
     private final ErrorCodeMapper errorMapper;
     private final SocketPool socketPool;
@@ -195,7 +194,7 @@ public class AdminClient implements Closeable {
 
     /**
      * Common initialization of AdminClient.
-     * 
+     *
      * @param adminClientConfig Client configuration for SocketPool-based
      *        operations.
      * @param clientConfig Client configurations for
@@ -203,16 +202,16 @@ public class AdminClient implements Closeable {
      *        AdminStoreClient.
      */
     private AdminClient(AdminClientConfig adminClientConfig,
-                        ClientConfig clientConfig,
-                        Cluster cluster) {
+            ClientConfig clientConfig,
+            Cluster cluster) {
         Utils.notNull(adminClientConfig);
         Utils.notNull(clientConfig);
 
-        if(clientConfig.getBootstrapUrls().length == 0) {
+        if (clientConfig.getBootstrapUrls().length == 0) {
             throw new IllegalArgumentException("Client config does not have valid bootstrapUrls");
         }
         debugInfo = "BootStrapUrls: "
-                    + Arrays.toString(clientConfig.getBootstrapUrls());
+                + Arrays.toString(clientConfig.getBootstrapUrls());
         this.helperOps = this.new HelperOperations();
         this.replicaOps = this.new ReplicationOperations();
         this.rpcOps = this.new RPCOperations();
@@ -229,7 +228,7 @@ public class AdminClient implements Closeable {
 
         this.errorMapper = new ErrorCodeMapper();
         this.networkClassLoader = new NetworkClassLoader(Thread.currentThread()
-                                                               .getContextClassLoader());
+                .getContextClassLoader());
 
         this.adminClientConfig = adminClientConfig;
         this.clientConfig = clientConfig;
@@ -237,7 +236,7 @@ public class AdminClient implements Closeable {
         this.adminStoreClient = new AdminStoreClient(clientConfig);
         this.fetchSingleStore = !clientConfig.isFetchAllStoresXmlInBootstrap();
 
-        if(cluster != null) {
+        if (cluster != null) {
             // We don't know at which time the Cluster's state was generated, so we can't know the cluster version.
             this.clusterVersion = null;
             this.currentCluster = cluster;
@@ -273,7 +272,7 @@ public class AdminClient implements Closeable {
 
     /**
      * Create an instance of AdminClient given a {@link Cluster} object.
-     * 
+     *
      * @param cluster Initialized cluster object, describing the nodes we wish
      *        to contact
      * @param adminClientConfig Configuration for AdminClient specifying client
@@ -286,8 +285,8 @@ public class AdminClient implements Closeable {
      *        </ul>
      */
     public AdminClient(Cluster cluster,
-                       AdminClientConfig adminClientConfig,
-                       ClientConfig clientConfig) {
+            AdminClientConfig adminClientConfig,
+            ClientConfig clientConfig) {
         this(adminClientConfig, clientConfig, cluster);
     }
 
@@ -314,7 +313,7 @@ public class AdminClient implements Closeable {
         this.socketPool.close();
         this.adminStoreClient.close();
 
-        if(systemStoreFactory != null) {
+        if (systemStoreFactory != null) {
             systemStoreFactory.close();
         }
     }
@@ -324,7 +323,7 @@ public class AdminClient implements Closeable {
      * AdminClient will cause inconsistent operations. This method returns true
      * under such cases, so that caller can discard the current AdminClient and
      * create new AdminClient.
-     * 
+     *
      * @return true if cluster is modified since the AdminClient is create,
      *         false otherwise
      */
@@ -348,11 +347,12 @@ public class AdminClient implements Closeable {
             } else {
                 // Then we can rely on the timestamp we recorded before the bootstrap phase.
                 Properties props = MetadataVersionStoreUtils.getProperties(metadataVersionSysStoreClient);
-                long retrievedVersion = MetadataVersionStoreUtils.getVersion(props, SystemStoreConstants.CLUSTER_VERSION_KEY);
+                long retrievedVersion = MetadataVersionStoreUtils.getVersion(props,
+                        SystemStoreConstants.CLUSTER_VERSION_KEY);
 
                 return retrievedVersion > this.clusterVersion;
             }
-        } catch(Exception e) {
+        } catch (Exception e) {
             logger.info("Error retrieving cluster metadata version");
             return true;
         }
@@ -360,7 +360,7 @@ public class AdminClient implements Closeable {
 
     /**
      * Set cluster info for AdminClient to use.
-     * 
+     *
      * @param cluster Set the current cluster
      */
     public void setAdminClientCluster(Cluster cluster) {
@@ -369,7 +369,7 @@ public class AdminClient implements Closeable {
 
     /**
      * Get the cluster info AdminClient is using.
-     * 
+     *
      * @return Returns the current cluster being used by the admin client
      */
     public Cluster getAdminClientCluster() {
@@ -380,19 +380,19 @@ public class AdminClient implements Closeable {
      * Helper method to construct an AdminClient with "good" default settings
      * based upon a VoldemortConfig. This helper is intended for use by
      * server-side processes such as rebalancing, restore, and so on.
-     * 
+     *
      * @param voldemortConfig
      * @param cluster
      * @param numConnPerNode
      * @return newly constructed AdminClient
      */
     public static AdminClient createTempAdminClient(VoldemortConfig voldemortConfig,
-                                                    Cluster cluster,
-                                                    int numConnPerNode) {
+            Cluster cluster,
+            int numConnPerNode) {
         AdminClientConfig config = new AdminClientConfig().setMaxConnectionsPerNode(numConnPerNode)
-                                                          .setAdminConnectionTimeoutSec(voldemortConfig.getAdminConnectionTimeout())
-                                                          .setAdminSocketTimeoutSec(voldemortConfig.getAdminSocketTimeout())
-                                                          .setAdminSocketBufferSize(voldemortConfig.getAdminSocketBufferSize());
+                .setAdminConnectionTimeoutSec(voldemortConfig.getAdminConnectionTimeout())
+                .setAdminSocketTimeoutSec(voldemortConfig.getAdminSocketTimeout())
+                .setAdminSocketBufferSize(voldemortConfig.getAdminSocketBufferSize());
 
         return new AdminClient(cluster, config);
     }
@@ -401,7 +401,7 @@ public class AdminClient implements Closeable {
         SocketStoreClientFactory factory = new SocketStoreClientFactory(config);
         // get Cluster from bootStrapUrl
         String clusterXml = factory.bootstrapMetadataWithRetries(MetadataStore.CLUSTER_KEY,
-                                                                 factory.validateUrls(config.getBootstrapUrls()));
+                factory.validateUrls(config.getBootstrapUrls()));
         // release all threads/sockets hold by the factory.
         factory.close();
 
@@ -410,38 +410,39 @@ public class AdminClient implements Closeable {
 
     /**
      * Encapsulates helper methods used across the admin client
-     * 
+     *
      */
     public class HelperOperations {
 
         /**
          * Create a system store client based on the cached bootstrap URLs and
          * Zone ID
-         * 
+         *
          * Two system store clients are created currently.
-         * 
+         *
          * 1) metadata version store
-         * 
+         *
          * 2) quota store
          */
         private void initSystemStoreClient(ClientConfig clientConfig) {
 
             String originalIdString = null;
             try {
-                if(systemStoreFactory == null) {
+                if (systemStoreFactory == null) {
                     originalIdString = clientConfig.getIdentifierString();
                     clientConfig.setIdentifierString("admin");
                     systemStoreFactory = new SystemStoreClientFactory<String, String>(clientConfig);
                 }
-                String metadataVersionStoreName = SystemStoreConstants.SystemStoreName.voldsys$_metadata_version_persistence.name();
+                String metadataVersionStoreName =
+                        SystemStoreConstants.SystemStoreName.voldsys$_metadata_version_persistence.name();
                 metadataVersionSysStoreClient = systemStoreFactory.createSystemStore(metadataVersionStoreName,
-                                                                                     null,
-                                                                                     null);
-            } catch(Exception e) {
+                        null,
+                        null);
+            } catch (Exception e) {
                 logger.info("Error while creating a system store client for metadata version store/quota store.",
-                            e);
+                        e);
             } finally {
-                if(originalIdString != null) {
+                if (originalIdString != null) {
                     clientConfig.setIdentifierString(originalIdString);
                 }
             }
@@ -449,40 +450,39 @@ public class AdminClient implements Closeable {
         }
 
 
-
         private SocketPool createSocketPool(AdminClientConfig config) {
             TimeUnit unit = TimeUnit.SECONDS;
             return new SocketPool(config.getMaxConnectionsPerNode(),
-                                  (int) unit.toMillis(config.getAdminConnectionTimeoutSec()),
-                                  (int) unit.toMillis(config.getAdminSocketTimeoutSec()),
-                                  config.getAdminSocketBufferSize(),
-                                  config.getAdminSocketKeepAlive());
+                    (int) unit.toMillis(config.getAdminConnectionTimeoutSec()),
+                    (int) unit.toMillis(config.getAdminSocketTimeoutSec()),
+                    config.getAdminSocketBufferSize(),
+                    config.getAdminSocketKeepAlive());
         }
 
         private void close(Socket socket) {
             try {
                 socket.close();
-            } catch(IOException e) {
+            } catch (IOException e) {
                 logger.warn("Failed to close socket");
             }
         }
 
         // TODO move as many messages to use this helper.
         private void sendAdminRequest(VAdminProto.VoldemortAdminRequest adminRequest,
-                                      int destinationNodeId) {
+                int destinationNodeId) {
             // TODO probably need a helper to do all this, at some point.. all
             // of this file has repeated code
             Node node = AdminClient.this.getAdminClientCluster().getNodeById(destinationNodeId);
             SocketDestination destination = new SocketDestination(node.getHost(),
-                                                                  node.getAdminPort(),
-                                                                  RequestFormatType.ADMIN_PROTOCOL_BUFFERS);
+                    node.getAdminPort(),
+                    RequestFormatType.ADMIN_PROTOCOL_BUFFERS);
             SocketAndStreams sands = socketPool.checkout(destination);
 
             try {
                 DataOutputStream outputStream = sands.getOutputStream();
                 ProtoUtils.writeMessage(outputStream, adminRequest);
                 outputStream.flush();
-            } catch(IOException e) {
+            } catch (IOException e) {
                 helperOps.close(sands.getSocket());
                 throw new VoldemortException(e);
             } finally {
@@ -492,16 +492,16 @@ public class AdminClient implements Closeable {
 
         public void throwException(VProto.Error error) {
             throw AdminClient.this.errorMapper.getError((short) error.getErrorCode(),
-                                                        error.getErrorMessage());
+                    error.getErrorMessage());
         }
 
         private VAdminProto.VoldemortFilter encodeFilter(VoldemortFilter filter) throws IOException {
             Class<?> cl = filter.getClass();
             byte[] classBytes = networkClassLoader.dumpClass(cl);
             return VAdminProto.VoldemortFilter.newBuilder()
-                                              .setName(cl.getName())
-                                              .setData(ProtoUtils.encodeBytes(new ByteArray(classBytes)))
-                                              .build();
+                    .setName(cl.getName())
+                    .setData(ProtoUtils.encodeBytes(new ByteArray(classBytes)))
+                    .build();
         }
 
         public List<StoreDefinition> getStoresInCluster() {
@@ -511,7 +511,7 @@ public class AdminClient implements Closeable {
 
         public boolean checkStoreExistsInCluster(String storeName) {
             List<String> storesInCluster = StoreDefinitionUtils.getStoreNames(getStoresInCluster());
-            if(storesInCluster.contains(storeName)) {
+            if (storesInCluster.contains(storeName)) {
                 return true;
             } else {
                 return false;
@@ -524,22 +524,22 @@ public class AdminClient implements Closeable {
         /**
          * For a particular node, finds out all the [replica, partition] tuples
          * it needs to steal in order to be brought back to normal state
-         * 
+         *
          * @param restoringNode The id of the node which needs to be restored
          * @param cluster The cluster definition
          * @param storeDef The store definition to use
          * @return Map of node id to corresponding partition list
          */
         public Map<Integer, List<Integer>> getReplicationMapping(int restoringNode,
-                                                                 Cluster cluster,
-                                                                 StoreDefinition storeDef) {
+                Cluster cluster,
+                StoreDefinition storeDef) {
             return getReplicationMapping(restoringNode, cluster, storeDef, -1);
         }
 
         /**
          * For a particular node, finds out all the [node, partition] it needs
          * to steal in order to be brought back to normal state
-         * 
+         *
          * @param restoringNode The id of the node which needs to be restored
          * @param cluster The cluster definition
          * @param storeDef The store definition to use
@@ -548,43 +548,43 @@ public class AdminClient implements Closeable {
          * @return Map of node id to corresponding partition list
          */
         public Map<Integer, List<Integer>> getReplicationMapping(int restoringNode,
-                                                                 Cluster cluster,
-                                                                 StoreDefinition storeDef,
-                                                                 int zoneId) {
+                Cluster cluster,
+                StoreDefinition storeDef,
+                int zoneId) {
 
             Map<Integer, List<Integer>> returnMap = Maps.newHashMap();
 
             RoutingStrategy strategy = new RoutingStrategyFactory().updateRoutingStrategy(storeDef,
-                                                                                          cluster);
+                    cluster);
             List<Integer> restoringNodePartition = cluster.getNodeById(restoringNode)
-                                                          .getPartitionIds();
+                    .getPartitionIds();
 
             // Go over every partition. As long as one of them belongs to the
             // current node list, find its replicating partitions
-            for(Node node: cluster.getNodes()) {
-                for(int partitionId: node.getPartitionIds()) {
+            for (Node node : cluster.getNodes()) {
+                for (int partitionId : node.getPartitionIds()) {
                     List<Integer> replicatingPartitions = strategy.getReplicatingPartitionList(partitionId);
                     List<Integer> extraCopyReplicatingPartitions = Lists.newArrayList(replicatingPartitions);
 
-                    if(replicatingPartitions.size() <= 1) {
+                    if (replicatingPartitions.size() <= 1) {
                         throw new VoldemortException("Store "
-                                                     + storeDef.getName()
-                                                     + " cannot be restored from replica because replication factor = 1");
+                                + storeDef.getName()
+                                + " cannot be restored from replica because replication factor = 1");
                     }
 
-                    if(replicatingPartitions.removeAll(restoringNodePartition)) {
-                        if(replicatingPartitions.size() == 0) {
+                    if (replicatingPartitions.removeAll(restoringNodePartition)) {
+                        if (replicatingPartitions.size() == 0) {
                             throw new VoldemortException("Found a case where-in the overlap of "
-                                                         + "the node partition list results in no replicas "
-                                                         + "being left in replicating list");
+                                    + "the node partition list results in no replicas "
+                                    + "being left in replicating list");
                         }
 
                         addDonorWithZonePreference(replicatingPartitions,
-                                                   extraCopyReplicatingPartitions,
-                                                   returnMap,
-                                                   zoneId,
-                                                   cluster,
-                                                   storeDef);
+                                extraCopyReplicatingPartitions,
+                                returnMap,
+                                zoneId,
+                                cluster,
+                                storeDef);
                     }
 
                 }
@@ -597,7 +597,7 @@ public class AdminClient implements Closeable {
          * owns the partition AND has the same zone ID as requested. -1 means no
          * zone preference required when finding a donor node needs to steal in
          * order to
-         * 
+         *
          * @param remainderPartitions The replicating partitions without the one
          *        needed by the restore node
          * @param originalPartitions The entire replicating partition list
@@ -610,11 +610,11 @@ public class AdminClient implements Closeable {
          * @return
          */
         private void addDonorWithZonePreference(List<Integer> remainderPartitions,
-                                                List<Integer> originalPartitions,
-                                                Map<Integer, List<Integer>> donorMap,
-                                                int zoneId,
-                                                Cluster cluster,
-                                                StoreDefinition storeDef) {
+                List<Integer> originalPartitions,
+                Map<Integer, List<Integer>> donorMap,
+                int zoneId,
+                Cluster cluster,
+                StoreDefinition storeDef) {
 
             Map<Integer, Integer> partitionToNodeId = cluster.getPartitionIdToNodeIdMap();
             int nodeId = -1;
@@ -622,21 +622,21 @@ public class AdminClient implements Closeable {
             boolean found = false;
             int index = 0;
 
-            while(!found && index < remainderPartitions.size()) {
+            while (!found && index < remainderPartitions.size()) {
                 nodeId = partitionToNodeId.get(remainderPartitions.get(index));
-                if(-1 == zoneId || cluster.getNodeById(nodeId).getZoneId() == zoneId) {
+                if (-1 == zoneId || cluster.getNodeById(nodeId).getZoneId() == zoneId) {
                     found = true;
                 } else {
                     index++;
                 }
             }
-            if(!found) {
+            if (!found) {
                 throw new VoldemortException("unable to find a node to fetch partition "
-                                             + partitionId + " for store " + storeDef.getName());
+                        + partitionId + " for store " + storeDef.getName());
             }
             partitionId = originalPartitions.get(0);
             List<Integer> partitionIds = null;
-            if(donorMap.containsKey(nodeId)) {
+            if (donorMap.containsKey(nodeId)) {
                 partitionIds = donorMap.get(nodeId);
             } else {
                 partitionIds = new ArrayList<Integer>();
@@ -648,13 +648,13 @@ public class AdminClient implements Closeable {
 
     /**
      * Encapsulates all the RPC helper methods
-     * 
+     *
      */
     public class RPCOperations {
 
         private <T extends Message.Builder> T innerSendAndReceive(SocketAndStreams sands,
-                                                                  Message message,
-                                                                  T builder) throws IOException {
+                Message message,
+                T builder) throws IOException {
             DataOutputStream outputStream = sands.getOutputStream();
             DataInputStream inputStream = sands.getInputStream();
             ProtoUtils.writeMessage(outputStream, message);
@@ -664,30 +664,30 @@ public class AdminClient implements Closeable {
 
         /**
          * tests socket connection by sending a get metadata request
-         * 
+         *
          * @throws IOException
          */
         private SocketAndStreams getSocketAndStreams(SocketDestination destination)
                 throws IOException {
             ByteArray keyBytes = new ByteArray(ByteUtils.getBytes(MetadataStore.SERVER_STATE_KEY,
-                                                                  "UTF-8"));
+                    "UTF-8"));
             VAdminProto.VoldemortAdminRequest request = VAdminProto.VoldemortAdminRequest.newBuilder()
-                                                                                         .setType(VAdminProto.AdminRequestType.GET_METADATA)
-                                                                                         .setGetMetadata(VAdminProto.GetMetadataRequest.newBuilder()
-                                                                                                                                       .setKey(ByteString.copyFrom(keyBytes.get())))
-                                                                                         .build();
+                    .setType(VAdminProto.AdminRequestType.GET_METADATA)
+                    .setGetMetadata(VAdminProto.GetMetadataRequest.newBuilder()
+                            .setKey(ByteString.copyFrom(keyBytes.get())))
+                    .build();
             SocketAndStreams sands = socketPool.checkout(destination);
             try {
                 rpcOps.innerSendAndReceive(sands,
-                                           request,
-                                           VAdminProto.GetMetadataResponse.newBuilder());
-            } catch(EOFException eofe) {
+                        request,
+                        VAdminProto.GetMetadataResponse.newBuilder());
+            } catch (EOFException eofe) {
                 helperOps.close(sands.getSocket());
                 socketPool.checkin(destination, sands);
                 socketPool.close(destination);
                 sands = socketPool.checkout(destination);
                 System.out.println("Socket connection to " + destination.getHost() + ":"
-                                   + destination.getPort() + " was stale and it's now refreshed.");
+                        + destination.getPort() + " was stale and it's now refreshed.");
             }
             return sands;
         }
@@ -695,19 +695,19 @@ public class AdminClient implements Closeable {
         private <T extends Message.Builder> T sendAndReceive(int nodeId, Message message, T builder) {
             Node node = currentCluster.getNodeById(nodeId);
             SocketDestination destination = new SocketDestination(node.getHost(),
-                                                                  node.getAdminPort(),
-                                                                  RequestFormatType.ADMIN_PROTOCOL_BUFFERS);
+                    node.getAdminPort(),
+                    RequestFormatType.ADMIN_PROTOCOL_BUFFERS);
             SocketAndStreams sands = null;
             try {
                 sands = getSocketAndStreams(destination);
                 return innerSendAndReceive(sands, message, builder);
-            } catch(IOException e) {
+            } catch (IOException e) {
                 if (sands != null) {
                     helperOps.close(sands.getSocket());
                 }
                 throw new VoldemortException(e);
             } finally {
-                if(sands != null) {
+                if (sands != null) {
                     socketPool.checkin(destination, sands);
                 }
             }
@@ -715,31 +715,32 @@ public class AdminClient implements Closeable {
 
         /**
          * Get the status of an Async Operation running at (remote) node.
-         * 
+         *
          * <b>If The operation is complete, then the operation will be removed
          * from a list of currently running operations.</b>
-         * 
+         *
          * @param nodeId Id on which the operation is running
          * @param requestId Id of the operation itself
          * @return The status of the operation
          */
         public AsyncOperationStatus getAsyncRequestStatus(int nodeId, int requestId) {
             VAdminProto.AsyncOperationStatusRequest asyncRequest = VAdminProto.AsyncOperationStatusRequest.newBuilder()
-                                                                                                          .setRequestId(requestId)
-                                                                                                          .build();
+                    .setRequestId(requestId)
+                    .build();
             VAdminProto.VoldemortAdminRequest adminRequest = VAdminProto.VoldemortAdminRequest.newBuilder()
-                                                                                              .setType(VAdminProto.AdminRequestType.ASYNC_OPERATION_STATUS)
-                                                                                              .setAsyncOperationStatus(asyncRequest)
-                                                                                              .build();
+                    .setType(VAdminProto.AdminRequestType.ASYNC_OPERATION_STATUS)
+                    .setAsyncOperationStatus(asyncRequest)
+                    .build();
             VAdminProto.AsyncOperationStatusResponse.Builder response = rpcOps.sendAndReceive(nodeId,
-                                                                                              adminRequest,
-                                                                                              VAdminProto.AsyncOperationStatusResponse.newBuilder());
+                    adminRequest,
+                    VAdminProto.AsyncOperationStatusResponse.newBuilder());
 
-            if(response.hasError())
+            if (response.hasError()) {
                 helperOps.throwException(response.getError());
+            }
 
             AsyncOperationStatus status = new AsyncOperationStatus(response.getRequestId(),
-                                                                   response.getDescription());
+                    response.getDescription());
             status.setStatus(response.getStatus());
             status.setComplete(response.getComplete());
 
@@ -749,7 +750,7 @@ public class AdminClient implements Closeable {
         /**
          * Retrieves a list of asynchronous request ids on the server. Does not
          * include the completed requests
-         * 
+         *
          * @param nodeId The id of the node whose request ids we want
          * @return List of async request ids
          */
@@ -760,68 +761,73 @@ public class AdminClient implements Closeable {
         /**
          * Retrieves a list of asynchronous request ids on the server. Depending
          * on the boolean passed also retrieves the completed requests
-         * 
+         *
          * @param nodeId The id of the node whose request ids we want
          * @param showComplete Boolean to indicate if we want to include the
          *        completed requests as well
          * @return List of async request ids
          */
         public List<Integer> getAsyncRequestList(int nodeId, boolean showComplete) {
-            VAdminProto.AsyncOperationListRequest asyncOperationListRequest = VAdminProto.AsyncOperationListRequest.newBuilder()
-                                                                                                                   .setShowComplete(showComplete)
-                                                                                                                   .build();
+            VAdminProto.AsyncOperationListRequest asyncOperationListRequest =
+                    VAdminProto.AsyncOperationListRequest.newBuilder()
+                            .setShowComplete(showComplete)
+                            .build();
             VAdminProto.VoldemortAdminRequest adminRequest = VAdminProto.VoldemortAdminRequest.newBuilder()
-                                                                                              .setType(VAdminProto.AdminRequestType.ASYNC_OPERATION_LIST)
-                                                                                              .setAsyncOperationList(asyncOperationListRequest)
-                                                                                              .build();
+                    .setType(VAdminProto.AdminRequestType.ASYNC_OPERATION_LIST)
+                    .setAsyncOperationList(asyncOperationListRequest)
+                    .build();
             VAdminProto.AsyncOperationListResponse.Builder response = rpcOps.sendAndReceive(nodeId,
-                                                                                            adminRequest,
-                                                                                            VAdminProto.AsyncOperationListResponse.newBuilder());
-            if(response.hasError())
+                    adminRequest,
+                    VAdminProto.AsyncOperationListResponse.newBuilder());
+            if (response.hasError()) {
                 helperOps.throwException(response.getError());
+            }
 
             return response.getRequestIdsList();
         }
 
         /**
          * To stop an asynchronous request on the particular node
-         * 
+         *
          * @param nodeId The id of the node on which the request is running
          * @param requestId The id of the request to terminate
          */
         public void stopAsyncRequest(int nodeId, int requestId) {
-            VAdminProto.AsyncOperationStopRequest asyncOperationStopRequest = VAdminProto.AsyncOperationStopRequest.newBuilder()
-                                                                                                                   .setRequestId(requestId)
-                                                                                                                   .build();
+            VAdminProto.AsyncOperationStopRequest asyncOperationStopRequest =
+                    VAdminProto.AsyncOperationStopRequest.newBuilder()
+                            .setRequestId(requestId)
+                            .build();
             VAdminProto.VoldemortAdminRequest adminRequest = VAdminProto.VoldemortAdminRequest.newBuilder()
-                                                                                              .setType(VAdminProto.AdminRequestType.ASYNC_OPERATION_STOP)
-                                                                                              .setAsyncOperationStop(asyncOperationStopRequest)
-                                                                                              .build();
+                    .setType(VAdminProto.AdminRequestType.ASYNC_OPERATION_STOP)
+                    .setAsyncOperationStop(asyncOperationStopRequest)
+                    .build();
             VAdminProto.AsyncOperationStopResponse.Builder response = rpcOps.sendAndReceive(nodeId,
-                                                                                            adminRequest,
-                                                                                            VAdminProto.AsyncOperationStopResponse.newBuilder());
+                    adminRequest,
+                    VAdminProto.AsyncOperationStopResponse.newBuilder());
 
-            if(response.hasError())
+            if (response.hasError()) {
                 helperOps.throwException(response.getError());
+            }
         }
 
         /**
          * Retrieves a list of scheduled job ids on the server.
-         * 
+         *
          * @param nodeId The id of the node whose job ids we want
          * @return List of job ids
          */
         public List<String> getScheduledJobsList(int nodeId) {
-            VAdminProto.ListScheduledJobsRequest listScheduledJobsRequest = VAdminProto.ListScheduledJobsRequest.newBuilder()
-                                                                                                                   .build();
+            VAdminProto.ListScheduledJobsRequest listScheduledJobsRequest =
+                    VAdminProto.ListScheduledJobsRequest.newBuilder()
+                            .build();
             VAdminProto.VoldemortAdminRequest adminRequest = VAdminProto.VoldemortAdminRequest.newBuilder()
-                                                                                              .setType(VAdminProto.AdminRequestType.LIST_SCHEDULED_JOBS)
-                                                                                              .setListScheduledJobs(listScheduledJobsRequest)
-                                                                                              .build();
+                    .setType(VAdminProto.AdminRequestType.LIST_SCHEDULED_JOBS)
+                    .setListScheduledJobs(listScheduledJobsRequest)
+                    .build();
             VAdminProto.ListScheduledJobsResponse.Builder response = rpcOps.sendAndReceive(nodeId,
-                                                                                           adminRequest,
-                                                                                           VAdminProto.ListScheduledJobsResponse.newBuilder());
-            if(response.hasError()) {
+                    adminRequest,
+                    VAdminProto.ListScheduledJobsResponse.newBuilder());
+            if (response.hasError()) {
                 helperOps.throwException(response.getError());
             }
 
@@ -830,24 +836,25 @@ public class AdminClient implements Closeable {
 
         /**
          * Retrieves status of a scheduled job on the particular node
-         * 
+         *
          * @param nodeId The id of the node on which the request is running
          * @param jobId The id of the job to terminate
          * @returns true if job is enabled
          */
         public boolean getScheduledJobStatus(int nodeId, String jobId) {
-            VAdminProto.GetScheduledJobStatusRequest getScheduledJobStatusRequest = VAdminProto.GetScheduledJobStatusRequest.newBuilder()
-                                                                                                                            .setJobId(jobId)
-                                                                                                                            .build();
+            VAdminProto.GetScheduledJobStatusRequest getScheduledJobStatusRequest =
+                    VAdminProto.GetScheduledJobStatusRequest.newBuilder()
+                            .setJobId(jobId)
+                            .build();
             VAdminProto.VoldemortAdminRequest adminRequest = VAdminProto.VoldemortAdminRequest.newBuilder()
-                                                                                              .setType(VAdminProto.AdminRequestType.GET_SCHEDULED_JOB_STATUS)
-                                                                                              .setGetScheduledJobStatus(getScheduledJobStatusRequest)
-                                                                                              .build();
+                    .setType(VAdminProto.AdminRequestType.GET_SCHEDULED_JOB_STATUS)
+                    .setGetScheduledJobStatus(getScheduledJobStatusRequest)
+                    .build();
             VAdminProto.GetScheduledJobStatusResponse.Builder response = rpcOps.sendAndReceive(nodeId,
-                                                                                          adminRequest,
-                                                                                          VAdminProto.GetScheduledJobStatusResponse.newBuilder());
+                    adminRequest,
+                    VAdminProto.GetScheduledJobStatusResponse.newBuilder());
 
-            if(response.hasError()) {
+            if (response.hasError()) {
                 helperOps.throwException(response.getError());
             }
 
@@ -856,46 +863,48 @@ public class AdminClient implements Closeable {
 
         /**
          * Terminates a scheduled job on the particular node
-         * 
+         *
          * @param nodeId The id of the node on which the request is running
          * @param jobId The id of the job to terminate
          */
         public void stopScheduledJob(int nodeId, String jobId) {
-            VAdminProto.StopScheduledJobRequest stopScheduledJobRequest = VAdminProto.StopScheduledJobRequest.newBuilder()
-                                                                                                             .setJobId(jobId)
-                                                                                                             .build();
+            VAdminProto.StopScheduledJobRequest stopScheduledJobRequest =
+                    VAdminProto.StopScheduledJobRequest.newBuilder()
+                            .setJobId(jobId)
+                            .build();
             VAdminProto.VoldemortAdminRequest adminRequest = VAdminProto.VoldemortAdminRequest.newBuilder()
-                                                                                              .setType(VAdminProto.AdminRequestType.STOP_SCHEDULED_JOB)
-                                                                                              .setStopScheduledJob(stopScheduledJobRequest)
-                                                                                              .build();
+                    .setType(VAdminProto.AdminRequestType.STOP_SCHEDULED_JOB)
+                    .setStopScheduledJob(stopScheduledJobRequest)
+                    .build();
             VAdminProto.StopScheduledJobResponse.Builder response = rpcOps.sendAndReceive(nodeId,
-                                                                                          adminRequest,
-                                                                                          VAdminProto.StopScheduledJobResponse.newBuilder());
+                    adminRequest,
+                    VAdminProto.StopScheduledJobResponse.newBuilder());
 
-            if(response.hasError()) {
+            if (response.hasError()) {
                 helperOps.throwException(response.getError());
             }
         }
 
         /**
          * Enables a scheduled job on the particular node
-         * 
+         *
          * @param nodeId The id of the node on which the request is running
          * @param jobId The id of the job to terminate
          */
         public void enableScheduledJob(int nodeId, String jobId) {
-            VAdminProto.EnableScheduledJobRequest enableScheduledJobRequest = VAdminProto.EnableScheduledJobRequest.newBuilder()
-                                                                                                                   .setJobId(jobId)
-                                                                                                                   .build();
+            VAdminProto.EnableScheduledJobRequest enableScheduledJobRequest =
+                    VAdminProto.EnableScheduledJobRequest.newBuilder()
+                            .setJobId(jobId)
+                            .build();
             VAdminProto.VoldemortAdminRequest adminRequest = VAdminProto.VoldemortAdminRequest.newBuilder()
-                                                                                              .setType(VAdminProto.AdminRequestType.ENABLE_SCHEDULED_JOB)
-                                                                                              .setEnableScheduledJob(enableScheduledJobRequest)
-                                                                                              .build();
+                    .setType(VAdminProto.AdminRequestType.ENABLE_SCHEDULED_JOB)
+                    .setEnableScheduledJob(enableScheduledJobRequest)
+                    .build();
             VAdminProto.EnableScheduledJobResponse.Builder response = rpcOps.sendAndReceive(nodeId,
-                                                                                            adminRequest,
-                                                                                            VAdminProto.EnableScheduledJobResponse.newBuilder());
+                    adminRequest,
+                    VAdminProto.EnableScheduledJobResponse.newBuilder());
 
-            if(response.hasError()) {
+            if (response.hasError()) {
                 helperOps.throwException(response.getError());
             }
         }
@@ -904,9 +913,9 @@ public class AdminClient implements Closeable {
          * Wait for async task at (remote) nodeId to finish completion, using
          * exponential backoff to poll the task completion status.
          * <p>
-         * 
+         *
          * <i>Logs the status at each status check if debug is enabled.</i>
-         * 
+         *
          * @param nodeId Id of the node to poll
          * @param requestId Id of the request to check
          * @param maxWait Maximum time we'll keep checking a request until we
@@ -920,13 +929,13 @@ public class AdminClient implements Closeable {
          *         maxWait time.
          */
         public String waitForCompletion(int nodeId,
-                                        int requestId,
-                                        long maxWait,
-                                        TimeUnit timeUnit,
-                                        AsyncOperationStatus higherStatus) {
+                int requestId,
+                long maxWait,
+                TimeUnit timeUnit,
+                AsyncOperationStatus higherStatus) {
             long delay = INITIAL_DELAY;
             long waitUntil = Long.MAX_VALUE;
-            if(maxWait > 0) {
+            if (maxWait > 0) {
                 waitUntil = System.currentTimeMillis() + timeUnit.toMillis(maxWait);
             }
 
@@ -937,46 +946,47 @@ public class AdminClient implements Closeable {
             // State to detect hung async jobs
             long oldStatusTime = -1;
             long lastStatusReportTime = -1;
-            final long maxUnchangingStatusDelay = adminClientConfig.getMaxBackoffDelayMs() * 10; // 10 minutes under default settings
+            final long maxUnchangingStatusDelay =
+                    adminClientConfig.getMaxBackoffDelayMs() * 10; // 10 minutes under default settings
 
             // State to detect soft errors (i.e.: connectivity issues)
             int currentSoftErrors = 0;
             final int maxSoftErrors = 30;
 
-            while(System.currentTimeMillis() < waitUntil) {
+            while (System.currentTimeMillis() < waitUntil) {
                 try {
                     AsyncOperationStatus status = getAsyncRequestStatus(nodeId, requestId);
                     long statusResponseTime = System.currentTimeMillis();
-                    if(!status.getStatus().equalsIgnoreCase(oldStatus)) {
-                        logger.info(nodeName + " : " +  status);
+                    if (!status.getStatus().equalsIgnoreCase(oldStatus)) {
+                        logger.info(nodeName + " : " + status);
                         oldStatusTime = statusResponseTime;
                         lastStatusReportTime = oldStatusTime;
                     } else if (statusResponseTime - lastStatusReportTime > maxUnchangingStatusDelay) {
                         // If hung jobs are detected, print out a message periodically
                         logger.warn("Async Task ID " + requestId + " on " + nodeName + " has not progressed for "
-                                    + ((statusResponseTime - oldStatusTime) / 1000) + " seconds.");
+                                + ((statusResponseTime - oldStatusTime) / 1000) + " seconds.");
                         lastStatusReportTime = statusResponseTime;
                     }
                     oldStatus = status.getStatus();
 
-                    if(higherStatus != null) {
+                    if (higherStatus != null) {
                         higherStatus.setStatus("Status from " + nodeName + " ("
-                                               + status.getDescription() + ") - "
-                                               + status.getStatus());
+                                + status.getDescription() + ") - "
+                                + status.getStatus());
                     }
                     description = status.getDescription();
-                    if(status.hasException()) {
+                    if (status.hasException()) {
                         logger.error("Error waiting for completion of status on " + nodeName + " : "
-                                     + status, status.getException());
+                                + status, status.getException());
                         throw status.getException();
                     }
 
-                    if(status.isComplete()) {
+                    if (status.isComplete()) {
                         return status.getStatus();
                     }
 
                     currentSoftErrors = 0;
-                } catch(Exception e) {
+                } catch (Exception e) {
                     boolean shouldThrow = true;
                     if (ExceptionUtils.recursiveClassEquals(e, ExceptionUtils.BNP_SOFT_ERRORS)) {
                         currentSoftErrors++;
@@ -1003,25 +1013,26 @@ public class AdminClient implements Closeable {
 
                 try {
                     Thread.sleep(delay);
-                } catch(InterruptedException e) {
+                } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                 }
 
-                if(delay < adminClientConfig.getMaxBackoffDelayMs())
+                if (delay < adminClientConfig.getMaxBackoffDelayMs()) {
                     delay <<= 1;
+                }
             }
             throw new AsyncOperationTimeoutException("Failed to finish task requestId: " + requestId
-                                                     + " in maxWait " + maxWait + " " + timeUnit.toString()
-                                                     + " on " + nodeName);
+                    + " in maxWait " + maxWait + " " + timeUnit.toString()
+                    + " on " + nodeName);
         }
 
         /**
          * Wait for async task at (remote) nodeId to finish completion, using
          * exponential backoff to poll the task completion status.
          * <p>
-         * 
+         *
          * <i>Logs the status at each status check if debug is enabled.</i>
-         * 
+         *
          * @param nodeId Id of the node to poll
          * @param requestId Id of the request to check
          * @param maxWait Maximum time we'll keep checking a request until we
@@ -1040,9 +1051,9 @@ public class AdminClient implements Closeable {
          * exponential backoff to poll the task completion status. Effectively
          * waits forever.
          * <p>
-         * 
+         *
          * <i>Logs the status at each status check if debug is enabled.</i>
-         * 
+         *
          * @param nodeId Id of the node to poll
          * @param requestId Id of the request to check
          * @return description The final description attached with the response
@@ -1057,9 +1068,9 @@ public class AdminClient implements Closeable {
          * Wait till the passed value matches with the metadata value returned
          * by the remote node for the passed key.
          * <p>
-         * 
+         *
          * <i>Logs the status at each status check if debug is enabled.</i>
-         * 
+         *
          * @param nodeId Id of the node to poll
          * @param key metadata key to keep checking for current value
          * @param value metadata value should match for exit criteria.
@@ -1068,45 +1079,47 @@ public class AdminClient implements Closeable {
          * @param timeUnit Unit in which maxWait is expressed.
          */
         public void waitForCompletion(int nodeId,
-                                      String key,
-                                      String value,
-                                      long maxWait,
-                                      TimeUnit timeUnit) {
+                String key,
+                String value,
+                long maxWait,
+                TimeUnit timeUnit) {
             long delay = INITIAL_DELAY;
             long waitUntil = Long.MAX_VALUE;
-            if(maxWait > 0) {
+            if (maxWait > 0) {
                 waitUntil = System.currentTimeMillis() + timeUnit.toMillis(maxWait);
             }
 
-            while(System.currentTimeMillis() < waitUntil) {
+            while (System.currentTimeMillis() < waitUntil) {
                 String currentValue = metadataMgmtOps.getRemoteMetadata(nodeId, key).getValue();
-                if(value.equals(currentValue))
+                if (value.equals(currentValue)) {
                     return;
+                }
 
                 logger.debug("waiting for value " + value + " for metadata key " + key
-                             + " from remote node " + nodeId + " currentValue " + currentValue);
+                        + " from remote node " + nodeId + " currentValue " + currentValue);
 
-                if(delay < adminClientConfig.getMaxBackoffDelayMs())
+                if (delay < adminClientConfig.getMaxBackoffDelayMs()) {
                     delay <<= 1;
+                }
 
                 try {
                     Thread.sleep(delay);
-                } catch(InterruptedException e) {
+                } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                 }
             }
             throw new VoldemortException("Failed to get matching value " + value + " for key "
-                                         + key + " at remote node " + nodeId + " in maximum wait"
-                                         + maxWait + " " + timeUnit.toString() + " time.");
+                    + key + " at remote node " + nodeId + " in maximum wait"
+                    + maxWait + " " + timeUnit.toString() + " time.");
         }
 
         /**
          * Wait till the passed value matches with the metadata value returned
          * by the remote node for the passed key. Effectively waits forever.
          * <p>
-         * 
+         *
          * <i>Logs the status at each status check if debug is enabled.</i>
-         * 
+         *
          * @param nodeId Id of the node to poll
          * @param key metadata key to keep checking for current value
          * @param value metadata value should match for exit criteria.
@@ -1118,7 +1131,7 @@ public class AdminClient implements Closeable {
 
     /**
      * Encapsulates all operations that deal with cluster.xml and stores.xml
-     * 
+     *
      */
     public class MetadataManagementOperations {
         private ByteArray getKeyArray() {
@@ -1131,19 +1144,20 @@ public class AdminClient implements Closeable {
 
         public Versioned<Properties> getMetadataVersion(Integer nodeId) {
             ByteArray keyArray = getKeyArray();
-            List<Versioned<byte[]>> valueObj = storeOps.getNodeKey(SystemStoreConstants.SystemStoreName.voldsys$_metadata_version_persistence.name(),
-                                                                   nodeId,
-                                                                   keyArray);
+            List<Versioned<byte[]>> valueObj = storeOps.getNodeKey(
+                    SystemStoreConstants.SystemStoreName.voldsys$_metadata_version_persistence.name(),
+                    nodeId,
+                    keyArray);
 
             return MetadataVersionStoreUtils.parseProperties(valueObj);
         }
 
         private void setMetadataVersion(int nodeId, Versioned<byte[]> value) {
             ByteArray keyArray = getKeyArray();
-            
+
             NodeValue<ByteArray, byte[]> nodeKeyValue = new NodeValue<ByteArray, byte[]>(nodeId, keyArray, value);
             storeOps.putNodeKeyValue(SystemStoreConstants.SystemStoreName.voldsys$_metadata_version_persistence.name(),
-                                     nodeKeyValue);
+                    nodeKeyValue);
 
         }
 
@@ -1167,33 +1181,33 @@ public class AdminClient implements Closeable {
             for (Integer nodeId : nodeIds) {
                 try {
                     setMetadataVersion(nodeId, value);
-                } catch(InvalidMetadataException invalidEx) {
+                } catch (InvalidMetadataException invalidEx) {
                     // When Nodes are dropped after a cluster XML update, it
                     // throws InvalidMetadataException on meta data version
                     // updates
                     logger.info("Ignoring InvalidMetadataException as the node is removed from cluster. Node: "
-                                + nodeId);
+                            + nodeId);
                 } catch (Exception ex) {
                     lastEx = ex;
                     logger.info("Error updating metadata versions on the node " + nodeId, ex);
                 }
             }
-            
-            if(lastEx != null) {
+
+            if (lastEx != null) {
                 throw lastEx;
             }
         }
 
         /**
          * Set the meta data versions on all nodes to the provided properties.
-         * 
+         *
          * @param newProperties The new meta data versions to be set across all
          *        the nodes in the cluster
          */
         public void setMetadataVersion(Versioned<Properties> newProperties) {
             try {
                 setMetadataVersion(getAdminClientCluster().getNodeIds(), newProperties);
-            } catch(Exception ex) {
+            } catch (Exception ex) {
                 throw new VoldemortApplicationException("Error setting metadata", ex);
             }
         }
@@ -1202,38 +1216,38 @@ public class AdminClient implements Closeable {
             VectorClock version = new VectorClock();
             Properties props = new Properties();
             boolean atLeastOneSuccess = false;
-            for(Integer nodeId: nodeIds) {
+            for (Integer nodeId : nodeIds) {
                 try {
                     Versioned<Properties> versionedProps = getMetadataVersion(nodeId);
                     VectorClock curVersion = (VectorClock) versionedProps.getVersion();
                     Properties curProps = versionedProps.getValue();
-                    
+
                     version = version.merge(curVersion);
                     props = MetadataVersionStoreUtils.mergeVersions(props, curProps);
 
                     atLeastOneSuccess = true;
-                } catch(Exception e) {
+                } catch (Exception e) {
                     if (logger.isDebugEnabled()) {
                         logger.debug("Error retrieving metadata versions for node " + nodeId, e);
                     }
                 }
             }
-            
-            if(atLeastOneSuccess == false) {
+
+            if (atLeastOneSuccess == false) {
                 throw new VoldemortApplicationException("Metadata version retrieval failed on all nodes"
-                                                        + Arrays.toString(nodeIds.toArray()));
+                        + Arrays.toString(nodeIds.toArray()));
             }
 
             return new Versioned<Properties>(props, version);
         }
 
         private Properties refreshVersions(Properties props, Collection<String> versionKeys) {
-            if(props == null) {
+            if (props == null) {
                 props = new Properties();
             }
-            for(String versionKey: versionKeys) {
+            for (String versionKey : versionKeys) {
                 long newValue = 0;
-                if(props.getProperty(versionKey) != null) {
+                if (props.getProperty(versionKey) != null) {
                     newValue = System.currentTimeMillis();
                 }
                 props.setProperty(versionKey, Long.toString(newValue));
@@ -1244,25 +1258,25 @@ public class AdminClient implements Closeable {
         /**
          * Update the metadata versions for the given keys (cluster or store).
          * The new value set is the current timestamp.
-         * 
+         *
          * @param nodeIds nodes on which the metadata key is to be updated
          * @param versionKey The metadata key for which Version should be
          *        incremented
          */
         public void updateMetadataversion(Collection<Integer> nodeIds, String versionKey) {
-            updateMetadataversion(nodeIds, Arrays.asList(new String[] { versionKey }));
+            updateMetadataversion(nodeIds, Arrays.asList(new String[]{ versionKey }));
         }
 
         /**
          * Update the metadata versions for the given keys (cluster or store).
          * The new value set is the current timestamp.
-         * 
+         *
          * @param nodeIds nodes on which the metadata key is to be updated
          * @param versionKeys The metadata keys for which Version should be
          *        incremented
          */
         public void updateMetadataversion(Collection<Integer> nodeIds,
-                                          Collection<String> versionKeys) {
+                Collection<String> versionKeys) {
             try {
                 Versioned<Properties> versionProps = getMetadataVersion(nodeIds);
                 Properties props = refreshVersions(versionProps.getValue(), versionKeys);
@@ -1270,9 +1284,9 @@ public class AdminClient implements Closeable {
                 versionProps = new Versioned<Properties>(props, versionProps.getVersion());
 
                 setMetadataVersion(nodeIds, versionProps);
-            } catch(Exception ex) {
+            } catch (Exception ex) {
                 logger.error("Error Updating version on individual nodes falling back to old behavior ",
-                             ex);
+                        ex);
                 internalUpdateMetadataversion(versionKeys);
             }
         }
@@ -1284,21 +1298,21 @@ public class AdminClient implements Closeable {
          * client to not re-boot strap. So this method is kept as fall back and
          * the versions are now resolved other servers in the public methods and
          * updated correctly
-         * 
+         *
          * @param versionKeys
          */
         private void internalUpdateMetadataversion(Collection<String> versionKeys) {
             Properties props = MetadataVersionStoreUtils.getProperties(AdminClient.this.metadataVersionSysStoreClient);
             props = refreshVersions(props, versionKeys);
             MetadataVersionStoreUtils.setProperties(AdminClient.this.metadataVersionSysStoreClient,
-                                                    props);
+                    props);
         }
 
 
         /**
          * Update metadata at the given remoteNodeId.
          * <p>
-         * 
+         *
          * Metadata keys can be one of {@link MetadataStore#METADATA_KEYS}<br>
          * eg.<br>
          * <li>cluster metadata (cluster.xml as string)
@@ -1306,14 +1320,14 @@ public class AdminClient implements Closeable {
          * <li>Server states <br <br>
          * See {@link voldemort.store.metadata.MetadataStore} for more
          * information.
-         * 
+         *
          * @param remoteNodeId Id of the node
          * @param key Metadata key to update
          * @param value Value for the metadata key
          */
         public void updateRemoteMetadata(int remoteNodeId, String key, Versioned<String> value) {
 
-            if(key.equals(SystemStoreConstants.STORES_VERSION_KEY)) {
+            if (key.equals(SystemStoreConstants.STORES_VERSION_KEY)) {
                 List<StoreDefinition> storeDefs = storeMapper.readStoreList(new StringReader(value.getValue()));
                 // Check for backwards compatibility
                 StoreDefinitionUtils.validateSchemasAsNeeded(storeDefs);
@@ -1321,21 +1335,22 @@ public class AdminClient implements Closeable {
 
             ByteArray keyBytes = new ByteArray(ByteUtils.getBytes(key, "UTF-8"));
             Versioned<byte[]> valueBytes = new Versioned<byte[]>(ByteUtils.getBytes(value.getValue(),
-                                                                                    "UTF-8"),
-                                                                 value.getVersion());
+                    "UTF-8"),
+                    value.getVersion());
 
             VAdminProto.VoldemortAdminRequest request = VAdminProto.VoldemortAdminRequest.newBuilder()
-                                                                                         .setType(VAdminProto.AdminRequestType.UPDATE_METADATA)
-                                                                                         .setUpdateMetadata(VAdminProto.UpdateMetadataRequest.newBuilder()
-                                                                                                                                             .setKey(ByteString.copyFrom(keyBytes.get()))
-                                                                                                                                             .setVersioned(ProtoUtils.encodeVersioned(valueBytes))
-                                                                                                                                             .build())
-                                                                                         .build();
+                    .setType(VAdminProto.AdminRequestType.UPDATE_METADATA)
+                    .setUpdateMetadata(VAdminProto.UpdateMetadataRequest.newBuilder()
+                            .setKey(ByteString.copyFrom(keyBytes.get()))
+                            .setVersioned(ProtoUtils.encodeVersioned(valueBytes))
+                            .build())
+                    .build();
             VAdminProto.UpdateMetadataResponse.Builder response = rpcOps.sendAndReceive(remoteNodeId,
-                                                                                        request,
-                                                                                        VAdminProto.UpdateMetadataResponse.newBuilder());
-            if(response.hasError())
+                    request,
+                    VAdminProto.UpdateMetadataResponse.newBuilder());
+            if (response.hasError()) {
                 helperOps.throwException(response.getError());
+            }
         }
 
         /**
@@ -1344,7 +1359,7 @@ public class AdminClient implements Closeable {
          * execute the required operation against. It also increments the
          * version of the corresponding metadata in the system store.
          * <p>
-         * 
+         *
          * Metadata keys can be one of {@link MetadataStore#METADATA_KEYS}<br>
          * eg.<br>
          * <li>cluster metadata (cluster.xml as string)
@@ -1352,24 +1367,24 @@ public class AdminClient implements Closeable {
          * <li>Server states <br <br>
          * See {@link voldemort.store.metadata.MetadataStore} for more
          * information.
-         * 
+         *
          * @param remoteNodeIds Ids of the nodes
          * @param key Metadata key to update
          * @param value Value for the metadata key
-         * 
+         *
          * */
         public void updateRemoteMetadata(Collection<Integer> remoteNodeIds,
-                                         String key,
-                                         Versioned<String> value) {
-            for(Integer currentNodeId: remoteNodeIds) {
+                String key,
+                Versioned<String> value) {
+            for (Integer currentNodeId : remoteNodeIds) {
                 logger.info("Setting " + key + " for "
-                            + getAdminClientCluster().getNodeById(currentNodeId).getHost() + ":"
-                            + getAdminClientCluster().getNodeById(currentNodeId).getId());
+                        + getAdminClientCluster().getNodeById(currentNodeId).getHost() + ":"
+                        + getAdminClientCluster().getNodeById(currentNodeId).getId());
                 updateRemoteMetadata(currentNodeId, key, value);
             }
 
-            if(key.equals(SystemStoreConstants.CLUSTER_VERSION_KEY)
-               || key.equals(SystemStoreConstants.STORES_VERSION_KEY)) {
+            if (key.equals(SystemStoreConstants.CLUSTER_VERSION_KEY)
+                    || key.equals(SystemStoreConstants.STORES_VERSION_KEY)) {
                 metadataMgmtOps.updateMetadataversion(remoteNodeIds, key);
             }
 
@@ -1377,29 +1392,29 @@ public class AdminClient implements Closeable {
 
         /**
          * Sets metadata.
-         * 
+         *
          * @param nodeIds Node ids to set metadata
          * @param key Metadata key to set
          * @param value Metadata value to set
          */
         public void updateRemoteMetadata(Collection<Integer> nodeIds, String key, String value) {
             VectorClock updatedVersion = null;
-            for(Integer nodeId: nodeIds) {
-                if(updatedVersion == null) {
+            for (Integer nodeId : nodeIds) {
+                if (updatedVersion == null) {
                     updatedVersion = (VectorClock) metadataMgmtOps.getRemoteMetadata(nodeId, key)
-                                                                  .getVersion();
+                            .getVersion();
                 } else {
                     updatedVersion = updatedVersion.merge((VectorClock) metadataMgmtOps.getRemoteMetadata(nodeId,
-                                                                                                          key)
-                                                                                       .getVersion());
+                            key)
+                            .getVersion());
                 }
                 // Bump up version on first node
                 updatedVersion = updatedVersion.incremented(nodeIds.iterator().next(),
-                                                            System.currentTimeMillis());
+                        System.currentTimeMillis());
             }
             metadataMgmtOps.updateRemoteMetadata(nodeIds,
-                                                 key,
-                                                 Versioned.value(value, updatedVersion));
+                    key,
+                    Versioned.value(value, updatedVersion));
         }
 
         /**
@@ -1408,7 +1423,7 @@ public class AdminClient implements Closeable {
          * execute the required operation against. It also increments the
          * version of the corresponding metadata in the system store.
          * <p>
-         * 
+         *
          * Metadata keys can be one of {@link MetadataStore#METADATA_KEYS}<br>
          * eg.<br>
          * <li>cluster metadata (cluster.xml as string)
@@ -1416,11 +1431,11 @@ public class AdminClient implements Closeable {
          * <li>Server states <br <br>
          * See {@link voldemort.store.metadata.MetadataStore} for more
          * information.
-         * 
+         *
          * @param nodeId
          * @param key Metadata key to update
          * @param value Value for the metadata key
-         * 
+         *
          * */
         public void updateRemoteMetadata(Integer nodeId, String key, String value) {
             updateRemoteMetadata(Lists.newArrayList(nodeId), key, value);
@@ -1428,23 +1443,23 @@ public class AdminClient implements Closeable {
 
         /**
          * Update metadata pair <cluster,stores> at the given remoteNodeId.
-         * 
+         *
          * @param remoteNodeId Id of the node
          * @param clusterKey cluster key to update
          * @param clusterValue value of the cluster metadata key
          * @param storesKey stores key to update
          * @param storesValue value of the stores metadata key
-         * 
+         *
          */
         public void updateRemoteMetadataPair(int remoteNodeId,
-                                             String clusterKey,
-                                             Versioned<String> clusterValue,
-                                             String storesKey,
-                                             Versioned<String> storesValue) {
+                String clusterKey,
+                Versioned<String> clusterValue,
+                String storesKey,
+                Versioned<String> storesValue) {
             ByteArray clusterKeyBytes = new ByteArray(ByteUtils.getBytes(clusterKey, "UTF-8"));
             Versioned<byte[]> clusterValueBytes = new Versioned<byte[]>(ByteUtils.getBytes(clusterValue.getValue(),
-                                                                                           "UTF-8"),
-                                                                        clusterValue.getVersion());
+                    "UTF-8"),
+                    clusterValue.getVersion());
 
             List<StoreDefinition> storeDefs = storeMapper.readStoreList(new StringReader(storesValue.getValue()));
             // Check for backwards compatibility
@@ -1452,32 +1467,33 @@ public class AdminClient implements Closeable {
 
             ByteArray storesKeyBytes = new ByteArray(ByteUtils.getBytes(storesKey, "UTF-8"));
             Versioned<byte[]> storesValueBytes = new Versioned<byte[]>(ByteUtils.getBytes(storesValue.getValue(),
-                                                                                          "UTF-8"),
-                                                                       storesValue.getVersion());
+                    "UTF-8"),
+                    storesValue.getVersion());
 
             VAdminProto.VoldemortAdminRequest request = VAdminProto.VoldemortAdminRequest.newBuilder()
-                                                                                         .setType(VAdminProto.AdminRequestType.UPDATE_METADATA_PAIR)
-                                                                                         .setUpdateMetadataPair(VAdminProto.UpdateMetadataPairRequest.newBuilder()
-                                                                                                                                                     .setClusterKey(ByteString.copyFrom(clusterKeyBytes.get()))
-                                                                                                                                                     .setClusterValue(ProtoUtils.encodeVersioned(clusterValueBytes))
-                                                                                                                                                     .setStoresKey(ByteString.copyFrom(storesKeyBytes.get()))
-                                                                                                                                                     .setStoresValue((ProtoUtils.encodeVersioned(storesValueBytes)))
-                                                                                                                                                     .build())
-                                                                                         .build();
+                    .setType(VAdminProto.AdminRequestType.UPDATE_METADATA_PAIR)
+                    .setUpdateMetadataPair(VAdminProto.UpdateMetadataPairRequest.newBuilder()
+                            .setClusterKey(ByteString.copyFrom(clusterKeyBytes.get()))
+                            .setClusterValue(ProtoUtils.encodeVersioned(clusterValueBytes))
+                            .setStoresKey(ByteString.copyFrom(storesKeyBytes.get()))
+                            .setStoresValue((ProtoUtils.encodeVersioned(storesValueBytes)))
+                            .build())
+                    .build();
             VAdminProto.UpdateMetadataPairResponse.Builder response = rpcOps.sendAndReceive(remoteNodeId,
-                                                                                            request,
-                                                                                            VAdminProto.UpdateMetadataPairResponse.newBuilder());
-            if(response.hasError())
+                    request,
+                    VAdminProto.UpdateMetadataPairResponse.newBuilder());
+            if (response.hasError()) {
                 helperOps.throwException(response.getError());
+            }
         }
 
         /**
          * Set offline or online state at the given remoteNodeId.
          * <p>
-         * 
+         *
          * See {@link voldemort.store.metadata.MetadataStore} for more
          * information.
-         * 
+         *
          * @param remoteNodeId Id of the node
          * @param setOffline Ture to transit from NORMAL_SERVER to
          *        OFFLINE_SERVER state, false to transit from OFFLINE_SERVER to
@@ -1486,15 +1502,15 @@ public class AdminClient implements Closeable {
         public void setRemoteOfflineState(int remoteNodeId, boolean setOffline) {
 
             VAdminProto.VoldemortAdminRequest request = VAdminProto.VoldemortAdminRequest.newBuilder()
-                                                                                         .setType(VAdminProto.AdminRequestType.SET_OFFLINE_STATE)
-                                                                                         .setSetOfflineState(VAdminProto.SetOfflineStateRequest.newBuilder()
-                                                                                                                                               .setOfflineMode(setOffline)
-                                                                                                                                               .build())
-                                                                                         .build();
+                    .setType(VAdminProto.AdminRequestType.SET_OFFLINE_STATE)
+                    .setSetOfflineState(VAdminProto.SetOfflineStateRequest.newBuilder()
+                            .setOfflineMode(setOffline)
+                            .build())
+                    .build();
             VAdminProto.SetOfflineStateResponse.Builder response = rpcOps.sendAndReceive(remoteNodeId,
-                                                                                         request,
-                                                                                         VAdminProto.SetOfflineStateResponse.newBuilder());
-            if(response.hasError()) {
+                    request,
+                    VAdminProto.SetOfflineStateResponse.newBuilder());
+            if (response.hasError()) {
                 helperOps.throwException(response.getError());
             }
         }
@@ -1504,51 +1520,52 @@ public class AdminClient implements Closeable {
          * Node It basically loops over the entire list of Nodes that we need to
          * execute the required operation against. It also increments the
          * version of the corresponding metadata in the system store.
-         * 
+         *
          * @param remoteNodeIds Ids of the nodes
          * @param clusterKey cluster key to update
          * @param clusterValue value of the cluster metadata key
          * @param storesKey stores key to update
          * @param storesValue value of the stores metadata key
-         * 
+         *
          * */
         public void updateRemoteMetadataPair(List<Integer> remoteNodeIds,
-                                             String clusterKey,
-                                             Versioned<String> clusterValue,
-                                             String storesKey,
-                                             Versioned<String> storesValue) {
+                String clusterKey,
+                Versioned<String> clusterValue,
+                String storesKey,
+                Versioned<String> storesValue) {
 
             if (remoteNodeIds == null || remoteNodeIds.size() == 0) {
                 throw new IllegalArgumentException("One ore more nodes expected for NodeIds");
             }
 
-            for(Integer currentNodeId: remoteNodeIds) {
+            for (Integer currentNodeId : remoteNodeIds) {
                 logger.info("Setting " + clusterKey + " and " + storesKey + " for "
-                            + getAdminClientCluster().getNodeById(currentNodeId).getHost() + ":"
-                            + getAdminClientCluster().getNodeById(currentNodeId).getId());
+                        + getAdminClientCluster().getNodeById(currentNodeId).getHost() + ":"
+                        + getAdminClientCluster().getNodeById(currentNodeId).getId());
                 updateRemoteMetadataPair(currentNodeId,
-                                         clusterKey,
-                                         clusterValue,
-                                         storesKey,
-                                         storesValue);
+                        clusterKey,
+                        clusterValue,
+                        storesKey,
+                        storesValue);
             }
 
-            if(clusterKey.equals(SystemStoreConstants.CLUSTER_VERSION_KEY)) {
+            if (clusterKey.equals(SystemStoreConstants.CLUSTER_VERSION_KEY)) {
                 // Setting cluster.xml will cause all the stores to be
                 // re-bootstrapped anyway.
                 metadataMgmtOps.updateMetadataversion(remoteNodeIds, clusterKey);
             } else if (storesKey.equals(SystemStoreConstants.STORES_VERSION_KEY)) {
                 StoreDefinitionsMapper storeDefsMapper = new StoreDefinitionsMapper();
-                List<StoreDefinition> storeDefs = storeDefsMapper.readStoreList(new StringReader(storesValue.getValue()));
-                if(storeDefs != null) {
+                List<StoreDefinition> storeDefs = storeDefsMapper.readStoreList(
+                        new StringReader(storesValue.getValue()));
+                if (storeDefs != null) {
                     List<String> storeNames = new ArrayList<String>();
                     try {
-                        for(StoreDefinition storeDef: storeDefs) {
+                        for (StoreDefinition storeDef : storeDefs) {
                             storeNames.add(storeDef.getName());
                         }
 
                         metadataMgmtOps.updateMetadataversion(remoteNodeIds, storeNames);
-                    } catch(Exception e) {
+                    } catch (Exception e) {
                         System.err.println("Error while updating metadata version for the specified store.");
                     }
                 }
@@ -1559,13 +1576,13 @@ public class AdminClient implements Closeable {
         /**
          * Helper method to fetch the current stores xml list and update the
          * specified stores
-         * 
+         *
          * @param nodeId ID of the node for which the stores list has to be
          *        updated
          * @param updatedStores New version of the stores to be updated
          */
         public synchronized void fetchAndUpdateRemoteStore(int nodeId,
-                                                           List<StoreDefinition> updatedStores) {
+                List<StoreDefinition> updatedStores) {
 
             // Check for backwards compatibility
             StoreDefinitionUtils.validateSchemasAsNeeded(updatedStores);
@@ -1574,7 +1591,7 @@ public class AdminClient implements Closeable {
 
             // Fetch the original store definition list
             Versioned<List<StoreDefinition>> originalStoreDefinitions = getRemoteStoreDefList(nodeId);
-            if(originalStoreDefinitions == null) {
+            if (originalStoreDefinitions == null) {
                 throw new VoldemortException("No stores found at this node ID : " + nodeId);
             }
 
@@ -1583,15 +1600,15 @@ public class AdminClient implements Closeable {
             VectorClock oldClock = (VectorClock) originalStoreDefinitions.getVersion();
 
             // Build a map of store name to the new store definitions
-            for(StoreDefinition def: updatedStores) {
+            for (StoreDefinition def : updatedStores) {
                 updatedStoresMap.put(def.getName(), def);
             }
 
             // Iterate through the original store definitions. Replace the old
             // ones with the ones specified in 'updatedStores'
-            for(StoreDefinition def: originalstoreDefList) {
+            for (StoreDefinition def : originalstoreDefList) {
                 StoreDefinition updatedDef = updatedStoresMap.get(def.getName());
-                if(updatedDef == null) {
+                if (updatedDef == null) {
                     finalStoreDefList.add(def);
                 } else {
                     finalStoreDefList.add(updatedDef);
@@ -1600,9 +1617,9 @@ public class AdminClient implements Closeable {
 
             // Set the new store definition on the given nodeId
             updateRemoteMetadata(nodeId,
-                                 MetadataStore.STORES_KEY,
-                                 new Versioned<String>(storeMapper.writeStoreList(finalStoreDefList),
-                                                       oldClock.incremented(nodeId, 1)));
+                    MetadataStore.STORES_KEY,
+                    new Versioned<String>(storeMapper.writeStoreList(finalStoreDefList),
+                            oldClock.incremented(nodeId, 1)));
 
         }
 
@@ -1610,20 +1627,20 @@ public class AdminClient implements Closeable {
             VectorClock currentClock = (VectorClock) getRemoteMetadata(nodeId, key).getVersion();
 
             updateRemoteMetadata(nodeId,
-                                 key,
-                                 new Versioned<String>(Boolean.toString(false),
-                                                       currentClock.incremented(nodeId, 1)));
+                    key,
+                    new Versioned<String>(Boolean.toString(false),
+                            currentClock.incremented(nodeId, 1)));
         }
 
         /**
          * Helper method to fetch the current stores xml list and update the
          * specified stores. This is done for all the nodes in the current
          * cluster.
-         * 
+         *
          * @param updatedStores New version of the stores to be updated
          */
         public synchronized void fetchAndUpdateRemoteStores(List<StoreDefinition> updatedStores) {
-            for(Integer nodeId: currentCluster.getNodeIds()) {
+            for (Integer nodeId : currentCluster.getNodeIds()) {
                 fetchAndUpdateRemoteStore(nodeId, updatedStores);
             }
         }
@@ -1638,7 +1655,7 @@ public class AdminClient implements Closeable {
          * <li>Server states <br <br>
          * See {@link voldemort.store.metadata.MetadataStore} for more
          * information.
-         * 
+         *
          * @param remoteNodeId Id of the node
          * @param key Metadata key to update
          * @return Metadata with its associated
@@ -1647,27 +1664,28 @@ public class AdminClient implements Closeable {
         public Versioned<String> getRemoteMetadata(int remoteNodeId, String key) {
             ByteArray keyBytes = new ByteArray(ByteUtils.getBytes(key, "UTF-8"));
             VAdminProto.VoldemortAdminRequest request = VAdminProto.VoldemortAdminRequest.newBuilder()
-                                                                                         .setType(VAdminProto.AdminRequestType.GET_METADATA)
-                                                                                         .setGetMetadata(VAdminProto.GetMetadataRequest.newBuilder()
-                                                                                                                                       .setKey(ByteString.copyFrom(keyBytes.get())))
-                                                                                         .build();
+                    .setType(VAdminProto.AdminRequestType.GET_METADATA)
+                    .setGetMetadata(VAdminProto.GetMetadataRequest.newBuilder()
+                            .setKey(ByteString.copyFrom(keyBytes.get())))
+                    .build();
             VAdminProto.GetMetadataResponse.Builder response = rpcOps.sendAndReceive(remoteNodeId,
-                                                                                     request,
-                                                                                     VAdminProto.GetMetadataResponse.newBuilder());
+                    request,
+                    VAdminProto.GetMetadataResponse.newBuilder());
 
-            if(response.hasError())
+            if (response.hasError()) {
                 helperOps.throwException(response.getError());
+            }
 
             Versioned<byte[]> value = ProtoUtils.decodeVersioned(response.getVersion());
             return new Versioned<String>(ByteUtils.getString(value.getValue(), "UTF-8"),
-                                         value.getVersion());
+                    value.getVersion());
         }
 
         /**
          * Update the cluster information {@link MetadataStore#CLUSTER_KEY} on a
          * remote node.
          * <p>
-         * 
+         *
          * @param nodeId Id of the remote node
          * @param cluster The new cluster object
          * @throws VoldemortException
@@ -1675,8 +1693,8 @@ public class AdminClient implements Closeable {
         public void updateRemoteCluster(int nodeId, Cluster cluster, Version clock)
                 throws VoldemortException {
             updateRemoteMetadata(nodeId,
-                                 MetadataStore.CLUSTER_KEY,
-                                 new Versioned<String>(clusterMapper.writeCluster(cluster), clock));
+                    MetadataStore.CLUSTER_KEY,
+                    new Versioned<String>(clusterMapper.writeCluster(cluster), clock));
 
             metadataMgmtOps.updateMetadataversion(Arrays.asList(nodeId), MetadataStore.CLUSTER_KEY);
         }
@@ -1684,7 +1702,7 @@ public class AdminClient implements Closeable {
         /**
          * Get the cluster information from a remote node.
          * <p>
-         * 
+         *
          * @param nodeId Node to retrieve information from
          * @return A cluster object with its
          *         {@link voldemort.versioning.Version}
@@ -1692,7 +1710,7 @@ public class AdminClient implements Closeable {
          */
         public Versioned<Cluster> getRemoteCluster(int nodeId) throws VoldemortException {
             Versioned<String> value = metadataMgmtOps.getRemoteMetadata(nodeId,
-                                                                        MetadataStore.CLUSTER_KEY);
+                    MetadataStore.CLUSTER_KEY);
             Cluster cluster = clusterMapper.readCluster(new StringReader(value.getValue()), false);
             return new Versioned<Cluster>(cluster, value.getVersion());
         }
@@ -1700,47 +1718,47 @@ public class AdminClient implements Closeable {
         /**
          * Update the store definitions on a list of remote nodes.
          * <p>
-         * 
+         *
          * @param storeDefs The new store definition list
          * @param nodeIds The node id of the machine
          * @throws VoldemortException
          */
         public void updateRemoteStoreDefList(List<StoreDefinition> storeDefs,
-                                             Collection<Integer> nodeIds) throws VoldemortException {
+                Collection<Integer> nodeIds) throws VoldemortException {
             // Check for backwards compatibility
             StoreDefinitionUtils.validateSchemasAsNeeded(storeDefs);
 
-            for(Integer nodeId: nodeIds) {
+            for (Integer nodeId : nodeIds) {
 
                 // Ensure it doesn't break the store
                 Versioned<List<StoreDefinition>> remoteStoreDefList = metadataMgmtOps.getRemoteStoreDefList(nodeId);
                 StoreDefinitionUtils.validateNewStoreDefsAreNonBreaking(remoteStoreDefList.getValue(), storeDefs);
 
                 logger.info("Updating stores.xml for "
-                            + currentCluster.getNodeById(nodeId).getHost() + ":" + nodeId);
+                        + currentCluster.getNodeById(nodeId).getHost() + ":" + nodeId);
                 // get current version.
                 VectorClock oldClock = (VectorClock) remoteStoreDefList.getVersion();
 
                 Versioned<String> value = new Versioned<String>(storeMapper.writeStoreList(storeDefs),
-                                                                oldClock.incremented(nodeId, 1));
+                        oldClock.incremented(nodeId, 1));
 
                 ByteArray keyBytes = new ByteArray(ByteUtils.getBytes(MetadataStore.STORES_KEY,
-                                                                      "UTF-8"));
+                        "UTF-8"));
                 Versioned<byte[]> valueBytes = new Versioned<byte[]>(ByteUtils.getBytes(value.getValue(),
-                                                                                        "UTF-8"),
-                                                                     value.getVersion());
+                        "UTF-8"),
+                        value.getVersion());
 
                 VAdminProto.VoldemortAdminRequest request = VAdminProto.VoldemortAdminRequest.newBuilder()
-                                                                                             .setType(VAdminProto.AdminRequestType.UPDATE_STORE_DEFINITIONS)
-                                                                                             .setUpdateMetadata(VAdminProto.UpdateMetadataRequest.newBuilder()
-                                                                                                                                                 .setKey(ByteString.copyFrom(keyBytes.get()))
-                                                                                                                                                 .setVersioned(ProtoUtils.encodeVersioned(valueBytes))
-                                                                                                                                                 .build())
-                                                                                             .build();
+                        .setType(VAdminProto.AdminRequestType.UPDATE_STORE_DEFINITIONS)
+                        .setUpdateMetadata(VAdminProto.UpdateMetadataRequest.newBuilder()
+                                .setKey(ByteString.copyFrom(keyBytes.get()))
+                                .setVersioned(ProtoUtils.encodeVersioned(valueBytes))
+                                .build())
+                        .build();
                 VAdminProto.UpdateMetadataResponse.Builder response = rpcOps.sendAndReceive(nodeId,
-                                                                                            request,
-                                                                                            VAdminProto.UpdateMetadataResponse.newBuilder());
-                if(response.hasError()) {
+                        request,
+                        VAdminProto.UpdateMetadataResponse.newBuilder());
+                if (response.hasError()) {
                     helperOps.throwException(response.getError());
                 }
             }
@@ -1749,7 +1767,7 @@ public class AdminClient implements Closeable {
         /**
          * Update the store definitions on a remote node.
          * <p>
-         * 
+         *
          * @param nodeId The node id of the machine
          * @param storeDefs The new store definition list
          * @throws VoldemortException
@@ -1762,7 +1780,7 @@ public class AdminClient implements Closeable {
         /**
          * Wrapper for updateRemoteStoreDefList : update this for all nodes
          * <p>
-         * 
+         *
          * @param storeDefs The new store list
          * @throws VoldemortException
          */
@@ -1770,21 +1788,21 @@ public class AdminClient implements Closeable {
                 throws VoldemortException {
             updateRemoteStoreDefList(storeDefs, currentCluster.getNodeIds());
         }
-        
+
         private Versioned<List<StoreDefinition>> getRemoteStoreDefList(int nodeId,
-                                                                       String metadataKey)
+                String metadataKey)
                 throws VoldemortException {
             Versioned<String> value = metadataMgmtOps.getRemoteMetadata(nodeId,
-                                                                        metadataKey);
+                    metadataKey);
             List<StoreDefinition> storeList = storeMapper.readStoreList(new StringReader(value.getValue()),
-                                                                        false);
+                    false);
             return new Versioned<List<StoreDefinition>>(storeList, value.getVersion());
         }
 
         /**
          * Retrieve the store definitions from a remote node.
          * <p>
-         * 
+         *
          * @param nodeId The node id from which we can to remote the store
          *        definition
          * @return The list of store definitions from the remote machine
@@ -1816,7 +1834,7 @@ public class AdminClient implements Closeable {
 
         /**
          * Retrieve the storeDefinition from a particular node.
-         * 
+         *
          * @param nodeId node to retrieve the store from
          * @param storeName name of the store.
          * @return null if it does not exist, StoreDefinition if it exists.
@@ -1861,26 +1879,26 @@ public class AdminClient implements Closeable {
          */
         public Map<String, String> getServerConfig(int nodeId, Set<String> configKeys) {
             VAdminProto.VoldemortAdminRequest request = VAdminProto.VoldemortAdminRequest
-                                                                   .newBuilder()
-                                                                   .setType(VAdminProto.AdminRequestType.GET_CONFIG)
-                                                                   .setGetConfig(VAdminProto.GetConfigRequest
-                                                                                            .newBuilder()
-                                                                                            .addAllConfigKey(configKeys))
-                                                                   .build();
+                    .newBuilder()
+                    .setType(VAdminProto.AdminRequestType.GET_CONFIG)
+                    .setGetConfig(VAdminProto.GetConfigRequest
+                            .newBuilder()
+                            .addAllConfigKey(configKeys))
+                    .build();
             VAdminProto.GetConfigResponse.Builder response = rpcOps.sendAndReceive(nodeId,
-                                                                                   request,
-                                                                                   VAdminProto.GetConfigResponse.newBuilder());
+                    request,
+                    VAdminProto.GetConfigResponse.newBuilder());
 
             if (response.getInvalidConfigMapCount() > 0) {
                 String nodeName = currentCluster.getNodeById(nodeId).briefToString();
-                for (VAdminProto.MapFieldEntry entry: response.getInvalidConfigMapList()) {
+                for (VAdminProto.MapFieldEntry entry : response.getInvalidConfigMapList()) {
                     logger.error(nodeName + " responded with an error to our GetConfigRequest for key '" +
-                                 entry.getKey() + "': " + entry.getValue());
+                            entry.getKey() + "': " + entry.getValue());
                 }
             }
 
             Map<String, String> serverConfig = Maps.newHashMap();
-            for (VAdminProto.MapFieldEntry entry: response.getConfigMapList()) {
+            for (VAdminProto.MapFieldEntry entry : response.getConfigMapList()) {
                 serverConfig.put(entry.getKey(), entry.getValue());
             }
 
@@ -1911,19 +1929,19 @@ public class AdminClient implements Closeable {
             boolean configIsValid = true;
             int currentAmountOfUnreachableNodes = 0;
 
-            for (Node node: currentCluster.getNodes()) {
+            for (Node node : currentCluster.getNodes()) {
                 try {
                     Map<String, String> serverConfigs = getServerConfig(node.getId(), configKeysToRequest);
-                    for (Entry expectedConfig: expectedConfigMap.entrySet()) {
+                    for (Entry expectedConfig : expectedConfigMap.entrySet()) {
                         String serverConfigValue = serverConfigs.get(expectedConfig.getKey());
                         if (serverConfigValue == null) {
                             logger.error(node.briefToString() + " does not contain config key '" +
-                                         expectedConfig.getKey() + "'.");
+                                    expectedConfig.getKey() + "'.");
                             configIsValid = false;
                         } else if (!serverConfigValue.equals(expectedConfig.getValue())) {
                             logger.error(node.briefToString() + " contains the wrong value for config key '" +
-                                         expectedConfig.getKey() + "'. Expected: '" + expectedConfig.getValue() +
-                                         "'. Actual: '" + serverConfigValue + "'.");
+                                    expectedConfig.getKey() + "'. Expected: '" + expectedConfig.getValue() +
+                                    "'. Actual: '" + serverConfigValue + "'.");
                             configIsValid = false;
                         } // else, we're good, moving on to the next config to validate on that node!
                     }
@@ -1933,15 +1951,16 @@ public class AdminClient implements Closeable {
                 } catch (Exception e) {
                     // TODO: Might want to refine this error handling further...
                     logger.error("Got an exception when trying to validateServerConfig() against " +
-                                 node.briefToString() + ". The server may be running an old version.", e);
+                            node.briefToString() + ". The server may be running an old version.", e);
                     return false;
                 }
             }
 
             if (currentAmountOfUnreachableNodes > maxAmountOfUnreachableNodes) {
-                throw new UnreachableStoreException("As part of validateServerConfig(), " + currentAmountOfUnreachableNodes +
-                                                    " nodes were unreachable which exceeds the maximum (" +
-                                                    maxAmountOfUnreachableNodes + ").");
+                throw new UnreachableStoreException(
+                        "As part of validateServerConfig(), " + currentAmountOfUnreachableNodes +
+                                " nodes were unreachable which exceeds the maximum (" +
+                                maxAmountOfUnreachableNodes + ").");
             }
 
             return configIsValid;
@@ -1951,14 +1970,14 @@ public class AdminClient implements Closeable {
     /**
      * Encapsulates all operations related to store management (addition,
      * deletion)
-     * 
+     *
      */
     public class StoreManagementOperations {
 
         /**
          * Add a new store definition to all active nodes in the cluster.
          * <p>
-         * 
+         *
          * @param def the definition of the store to add
          */
         public void addStore(StoreDefinition def) {
@@ -1968,7 +1987,7 @@ public class AdminClient implements Closeable {
         /**
          * Add a new store definition to a particular node
          * <p>
-         * 
+         *
          * @param def the definition of the store to add
          * @param nodeId Node on which to add the store
          */
@@ -1999,7 +2018,7 @@ public class AdminClient implements Closeable {
         }
 
         public void addStore(StoreDefinition def, Collection<Integer> nodeIds) {
-            for(Integer nodeId: nodeIds) {
+            for (Integer nodeId : nodeIds) {
                 addStore(def, nodeId);
             }
         }
@@ -2027,14 +2046,14 @@ public class AdminClient implements Closeable {
          * Ideally this function should be in the SerializerDefinition class,
          * but that class already has different way of comparing Serializers.
          * Not sure what will be the impact of refactoring that code.
-         * 
+         *
          * @param oldDef
          * @param newDef
          * @return
          */
         private boolean seriailizerMetadataEquals(SerializerDefinition oldDef,
-                                                 SerializerDefinition newDef) {
-            if(!oldDef.getName().equals(newDef.getName())) {
+                SerializerDefinition newDef) {
+            if (!oldDef.getName().equals(newDef.getName())) {
                 return false;
             }
             return Objects.equal(oldDef.getCompression(), newDef.getCompression());
@@ -2072,8 +2091,8 @@ public class AdminClient implements Closeable {
             SerializerDefinition remoteValueSerializerDef = remoteStoreDef.getValueSerializer();
             String newValSerDeName = newValueSerializerDef.getName();
 
-            if(seriailizerMetadataEquals(remoteKeySerializerDef,newKeySerializerDef)
-               && seriailizerMetadataEquals(remoteValueSerializerDef,newValueSerializerDef)) {
+            if (seriailizerMetadataEquals(remoteKeySerializerDef, newKeySerializerDef)
+                    && seriailizerMetadataEquals(remoteValueSerializerDef, newValueSerializerDef)) {
                 Object remoteKeyDef, remoteValDef, localKeyDef, localValDef;
                 if (newValSerDeName.equals(DefaultSerializerFactory.AVRO_GENERIC_VERSIONED_TYPE_NAME) ||
                         newValSerDeName.equals(DefaultSerializerFactory.AVRO_GENERIC_TYPE_NAME)) {
@@ -2087,10 +2106,12 @@ public class AdminClient implements Closeable {
                     localKeyDef = JsonTypeDefinition.fromJson(newKeySerializerDef.getCurrentSchemaInfo());
                     localValDef = JsonTypeDefinition.fromJson(newValueSerializerDef.getCurrentSchemaInfo());
                 } else {
-                    throw new VoldemortException("verifyOrAddStore() only works with Avro Generic and JSON serialized stores!");
+                    throw new VoldemortException(
+                            "verifyOrAddStore() only works with Avro Generic and JSON serialized stores!");
                 }
-                boolean serializerDefinitionsAreEqual = remoteKeyDef.equals(localKeyDef) && remoteValDef.equals(localValDef);
-                
+                boolean serializerDefinitionsAreEqual = remoteKeyDef.equals(localKeyDef) && remoteValDef.equals(
+                        localValDef);
+
                 if (serializerDefinitionsAreEqual) {
                     StoreDefinition newStoreDefWithRemoteSerializer =
                             getNewStoreWithRemoteSerializer(remoteStoreDef, newStoreDef);
@@ -2102,7 +2123,8 @@ public class AdminClient implements Closeable {
                         // OTHER than the key/value serializer
                         String errorMessage = "Your store schema is identical, " +
                                 "but the store definition does not match on " + node.briefToString();
-                        logger.error(errorMessage + diffMessage(newStoreDefWithRemoteSerializer, remoteStoreDef, localProcessName));
+                        logger.error(errorMessage +
+                                diffMessage(newStoreDefWithRemoteSerializer, remoteStoreDef, localProcessName));
                         throw new VoldemortException(errorMessage);
                     }
                 } else {
@@ -2135,7 +2157,8 @@ public class AdminClient implements Closeable {
 
             String storeName = remoteStoreDef.getName();
             if (!storeName.equals(newStoreDef.getName())) {
-                throw new IllegalArgumentException(" Remote Store " + storeName + " New Store " + newStoreDef.getName());
+                throw new IllegalArgumentException(
+                        " Remote Store " + storeName + " New Store " + newStoreDef.getName());
             }
 
             if (remoteStoreDef.equals(newStoreDef)) {
@@ -2155,7 +2178,7 @@ public class AdminClient implements Closeable {
             }
             return storeDefs;
         }
-        
+
         // unreachableNodes gets passed in as empty list, unreachable nodes are added to that list.
         private List<Integer> getNodesMissingNewStore(StoreDefinition newStoreDef, String localProcessName,
                 ExecutorService executor, List<Node> unreachableNodes) {
@@ -2199,7 +2222,8 @@ public class AdminClient implements Closeable {
                     // SocketException and possibly other subclasses of IOException, so we check for IOException
                     // to catch all of these cases...
                     if (ExceptionUtils.recursiveClassEquals(e, UnreachableStoreException.class, IOException.class)) {
-                        logger.warn("Failed to contact " + node.briefToString() + " in order to validate the StoreDefinition.");
+                        logger.warn("Failed to contact " + node.briefToString() +
+                                " in order to validate the StoreDefinition.");
                         unreachableNodes.add(node);
                         continue;
                     } else {
@@ -2224,7 +2248,7 @@ public class AdminClient implements Closeable {
 
             return nodesMissingNewStore;
         }
-        
+
         private void addStoresViaExecutorService(final StoreDefinition newStoreDef, List<Integer> nodesMissingNewStore,
                 ExecutorService executor) {
             if (executor == null) {
@@ -2241,9 +2265,9 @@ public class AdminClient implements Closeable {
                 });
                 nodeTasks.put(nodeId, future);
             }
-            
+
             RuntimeException lastEx = null;
-            for(final Integer nodeId : nodesMissingNewStore) {
+            for (final Integer nodeId : nodesMissingNewStore) {
                 try {
                     validateTaskCompleted(nodeId, nodeTasks);
                 } catch (RuntimeException ex) {
@@ -2299,13 +2323,13 @@ public class AdminClient implements Closeable {
             long verifyCompletionTime = System.currentTimeMillis();
             long elapsedTime = verifyCompletionTime - startTime;
             String timingInfo = "verifyOrAddStore() " + AdminClient.this.debugInfo + " Store: "
-                                + newStoreDef.getName() + " Verification Time: " + elapsedTime
-                                + " ms";
+                    + newStoreDef.getName() + " Verification Time: " + elapsedTime
+                    + " ms";
 
-            if(!nodesMissingNewStore.isEmpty()) {
-                if(!createStore) {
+            if (!nodesMissingNewStore.isEmpty()) {
+                if (!createStore) {
                     throw new VoldemortException("Store: " + newStoreDef.getName()
-                                                 + " is not found in the current cluster.");
+                            + " is not found in the current cluster.");
                 }
                 if (executor == null) {
                     storeMgmtOps.addStore(newStoreDef, nodesMissingNewStore);
@@ -2323,7 +2347,7 @@ public class AdminClient implements Closeable {
             if (unreachableNodes.size() > 0) {
                 String errorMessage = "verifyOrAddStore() failed against the following nodes: ";
                 boolean first = true;
-                for (Node node: unreachableNodes) {
+                for (Node node : unreachableNodes) {
                     if (first) {
                         first = false;
                     } else {
@@ -2347,7 +2371,8 @@ public class AdminClient implements Closeable {
             verifyOrAddStore(newStoreDef, localProcessName, true, service);
         }
 
-        private String diffMessage(StoreDefinition newStoreDef, StoreDefinition remoteStoreDef, String localProcessName) {
+        private String diffMessage(StoreDefinition newStoreDef, StoreDefinition remoteStoreDef,
+                String localProcessName) {
             String thisName = localProcessName + " has";
             String otherName = "Voldemort server has";
             String message = "\n" + thisName + ":\t" + newStoreDef +
@@ -2396,16 +2421,16 @@ public class AdminClient implements Closeable {
          */
         public Map<Integer, VoldemortException> deleteStore(String storeName, List<Integer> nodeIds) {
             VAdminProto.DeleteStoreRequest.Builder deleteStoreRequest = VAdminProto.DeleteStoreRequest.newBuilder()
-                                                                                                      .setStoreName(storeName);
+                    .setStoreName(storeName);
             VAdminProto.VoldemortAdminRequest request = VAdminProto.VoldemortAdminRequest.newBuilder()
-                                                                                         .setType(VAdminProto.AdminRequestType.DELETE_STORE)
-                                                                                         .setDeleteStore(deleteStoreRequest)
-                                                                                         .build();
+                    .setType(VAdminProto.AdminRequestType.DELETE_STORE)
+                    .setDeleteStore(deleteStoreRequest)
+                    .build();
             Map<Integer, VoldemortException> exceptionMap = Maps.newHashMap();
 
-            for(Integer nodeId: nodeIds) {
+            for (Integer nodeId : nodeIds) {
                 Node node = currentCluster.getNodeById(nodeId);
-                if(node == null) {
+                if (node == null) {
                     throw new VoldemortException("Invalid node id (" + nodeId + ") specified");
                 }
 
@@ -2413,12 +2438,12 @@ public class AdminClient implements Closeable {
                 VoldemortException ex = null;
                 try {
                     VAdminProto.DeleteStoreResponse.Builder response = rpcOps.sendAndReceive(nodeId,
-                                                                                             request,
-                                                                                             VAdminProto.DeleteStoreResponse.newBuilder());
-                    if(response.hasError()) {
+                            request,
+                            VAdminProto.DeleteStoreResponse.newBuilder());
+                    if (response.hasError()) {
                         VProto.Error error = response.getError();
                         ex = AdminClient.this.errorMapper.getError((short) error.getErrorCode(),
-                                                                                      error.getErrorMessage());
+                                error.getErrorMessage());
                     }
                 } catch (UnreachableStoreException e) {
                     ex = e;
@@ -2437,7 +2462,7 @@ public class AdminClient implements Closeable {
     /**
      * Encapsulates all operations that aid in performing maintenance on the
      * actual store's data
-     * 
+     *
      */
     public class StoreMaintenanceOperations {
 
@@ -2449,8 +2474,8 @@ public class AdminClient implements Closeable {
          * See
          * {@link #migratePartitions(int, int, String, List, VoldemortFilter, Cluster)}
          * for more details.
-         * 
-         * 
+         *
+         *
          * @param donorNodeId Node <em>from</em> which the partitions are to be
          *        streamed.
          * @param stealerNodeId Node <em>to</em> which the partitions are to be
@@ -2464,16 +2489,16 @@ public class AdminClient implements Closeable {
          *         created on stealerNodeId which is performing the operation.
          */
         public int migratePartitions(int donorNodeId,
-                                     int stealerNodeId,
-                                     String storeName,
-                                     List<Integer> stealPartitionList,
-                                     VoldemortFilter filter) {
+                int stealerNodeId,
+                String storeName,
+                List<Integer> stealPartitionList,
+                VoldemortFilter filter) {
             return migratePartitions(donorNodeId,
-                                     stealerNodeId,
-                                     storeName,
-                                     stealPartitionList,
-                                     filter,
-                                     null);
+                    stealerNodeId,
+                    storeName,
+                    stealPartitionList,
+                    filter,
+                    null);
         }
 
         /**
@@ -2485,7 +2510,7 @@ public class AdminClient implements Closeable {
          * {@link voldemort.server.protocol.admin.AsyncOperation} that runs on
          * the stealer node where updates are performed.
          * <p>
-         * 
+         *
          * @param donorNodeId Node <em>from</em> which the partitions are to be
          *        streamed.
          * @param stealerNodeId Node <em>to</em> which the partitions are to be
@@ -2501,37 +2526,38 @@ public class AdminClient implements Closeable {
          *         created on stealer node which is performing the operation.
          */
         public int migratePartitions(int donorNodeId,
-                                     int stealerNodeId,
-                                     String storeName,
-                                     List<Integer> partitionIds,
-                                     VoldemortFilter filter,
-                                     Cluster initialCluster) {
-            VAdminProto.InitiateFetchAndUpdateRequest.Builder initiateFetchAndUpdateRequest = VAdminProto.InitiateFetchAndUpdateRequest.newBuilder()
-                                                                                                                                       .setNodeId(donorNodeId)
-                                                                                                                                       .addAllPartitionIds(partitionIds)
-                                                                                                                                       .setStore(storeName);
+                int stealerNodeId,
+                String storeName,
+                List<Integer> partitionIds,
+                VoldemortFilter filter,
+                Cluster initialCluster) {
+            VAdminProto.InitiateFetchAndUpdateRequest.Builder initiateFetchAndUpdateRequest =
+                    VAdminProto.InitiateFetchAndUpdateRequest.newBuilder()
+                            .setNodeId(donorNodeId)
+                            .addAllPartitionIds(partitionIds)
+                            .setStore(storeName);
 
             try {
-                if(filter != null) {
+                if (filter != null) {
                     initiateFetchAndUpdateRequest.setFilter(helperOps.encodeFilter(filter));
                 }
-            } catch(IOException e) {
+            } catch (IOException e) {
                 throw new VoldemortException(e);
             }
 
-            if(initialCluster != null) {
+            if (initialCluster != null) {
                 initiateFetchAndUpdateRequest.setInitialCluster(new ClusterMapper().writeCluster(initialCluster));
             }
 
             VAdminProto.VoldemortAdminRequest adminRequest = VAdminProto.VoldemortAdminRequest.newBuilder()
-                                                                                              .setInitiateFetchAndUpdate(initiateFetchAndUpdateRequest)
-                                                                                              .setType(VAdminProto.AdminRequestType.INITIATE_FETCH_AND_UPDATE)
-                                                                                              .build();
+                    .setInitiateFetchAndUpdate(initiateFetchAndUpdateRequest)
+                    .setType(VAdminProto.AdminRequestType.INITIATE_FETCH_AND_UPDATE)
+                    .build();
             VAdminProto.AsyncOperationStatusResponse.Builder response = rpcOps.sendAndReceive(stealerNodeId,
-                                                                                              adminRequest,
-                                                                                              VAdminProto.AsyncOperationStatusResponse.newBuilder());
+                    adminRequest,
+                    VAdminProto.AsyncOperationStatusResponse.newBuilder());
 
-            if(response.hasError()) {
+            if (response.hasError()) {
                 helperOps.throwException(response.getError());
             }
 
@@ -2542,41 +2568,41 @@ public class AdminClient implements Closeable {
          * Delete the store completely (<b>Deletes all data</b>) from the remote
          * node.
          * <p>
-         * 
+         *
          * @param nodeId The node id on which the store is present
          * @param storeName The name of the store
          */
         public void truncate(int nodeId, String storeName) {
             VAdminProto.TruncateEntriesRequest.Builder truncateRequest = VAdminProto.TruncateEntriesRequest.newBuilder()
-                                                                                                           .setStore(storeName);
+                    .setStore(storeName);
 
             VAdminProto.VoldemortAdminRequest request = VAdminProto.VoldemortAdminRequest.newBuilder()
-                                                                                         .setType(VAdminProto.AdminRequestType.TRUNCATE_ENTRIES)
-                                                                                         .setTruncateEntries(truncateRequest)
-                                                                                         .build();
+                    .setType(VAdminProto.AdminRequestType.TRUNCATE_ENTRIES)
+                    .setTruncateEntries(truncateRequest)
+                    .build();
             VAdminProto.TruncateEntriesResponse.Builder response = rpcOps.sendAndReceive(nodeId,
-                                                                                         request,
-                                                                                         VAdminProto.TruncateEntriesResponse.newBuilder());
+                    request,
+                    VAdminProto.TruncateEntriesResponse.newBuilder());
 
-            if(response.hasError()) {
+            if (response.hasError()) {
                 helperOps.throwException(response.getError());
             }
         }
 
         public void truncate(List<Integer> nodeIds, String storeName) {
             VAdminProto.TruncateEntriesRequest.Builder truncateRequest = VAdminProto.TruncateEntriesRequest.newBuilder()
-                                                                                                           .setStore(storeName);
+                    .setStore(storeName);
 
             VAdminProto.VoldemortAdminRequest request = VAdminProto.VoldemortAdminRequest.newBuilder()
-                                                                                         .setType(VAdminProto.AdminRequestType.TRUNCATE_ENTRIES)
-                                                                                         .setTruncateEntries(truncateRequest)
-                                                                                         .build();
-            for(Integer nodeId: nodeIds) {
+                    .setType(VAdminProto.AdminRequestType.TRUNCATE_ENTRIES)
+                    .setTruncateEntries(truncateRequest)
+                    .build();
+            for (Integer nodeId : nodeIds) {
                 VAdminProto.TruncateEntriesResponse.Builder response = rpcOps.sendAndReceive(nodeId,
-                                                                                             request,
-                                                                                             VAdminProto.TruncateEntriesResponse.newBuilder());
+                        request,
+                        VAdminProto.TruncateEntriesResponse.newBuilder());
 
-                if(response.hasError()) {
+                if (response.hasError()) {
                     helperOps.throwException(response.getError());
                 }
             }
@@ -2584,7 +2610,7 @@ public class AdminClient implements Closeable {
 
         /**
          * Delete all entries belonging to a list of partitions
-         * 
+         *
          * @param nodeId Node on which the entries to be deleted
          * @param storeName Name of the store holding the entries
          * @param partitionList List of partitions to delete.
@@ -2593,16 +2619,16 @@ public class AdminClient implements Closeable {
          * @return Number of entries deleted
          */
         public long deletePartitions(int nodeId,
-                                     String storeName,
-                                     List<Integer> partitionList,
-                                     VoldemortFilter filter) {
+                String storeName,
+                List<Integer> partitionList,
+                VoldemortFilter filter) {
             return deletePartitions(nodeId, storeName, partitionList, null, filter);
         }
 
         /**
          * Delete all entries belonging to all the partitions passed as a map of
          * replica_type to partition list. Works only for RW stores.
-         * 
+         *
          * @param nodeId Node on which the entries to be deleted
          * @param storeName Name of the store holding the entries
          * @param partitionIds List of partition Ids
@@ -2611,63 +2637,65 @@ public class AdminClient implements Closeable {
          * @return Number of entries deleted
          */
         public long deletePartitions(int nodeId,
-                                     String storeName,
-                                     List<Integer> partitionIds,
-                                     Cluster initialCluster,
-                                     VoldemortFilter filter) {
-            VAdminProto.DeletePartitionEntriesRequest.Builder deleteRequest = VAdminProto.DeletePartitionEntriesRequest.newBuilder()
-                                                                                                                       .addAllPartitionIds(partitionIds)
-                                                                                                                       .setStore(storeName);
+                String storeName,
+                List<Integer> partitionIds,
+                Cluster initialCluster,
+                VoldemortFilter filter) {
+            VAdminProto.DeletePartitionEntriesRequest.Builder deleteRequest =
+                    VAdminProto.DeletePartitionEntriesRequest.newBuilder()
+                            .addAllPartitionIds(partitionIds)
+                            .setStore(storeName);
 
             try {
-                if(filter != null) {
+                if (filter != null) {
                     deleteRequest.setFilter(helperOps.encodeFilter(filter));
                 }
-            } catch(IOException e) {
+            } catch (IOException e) {
                 throw new VoldemortException(e);
             }
 
-            if(initialCluster != null) {
+            if (initialCluster != null) {
                 deleteRequest.setInitialCluster(new ClusterMapper().writeCluster(initialCluster));
             }
 
             VAdminProto.VoldemortAdminRequest request = VAdminProto.VoldemortAdminRequest.newBuilder()
-                                                                                         .setType(VAdminProto.AdminRequestType.DELETE_PARTITION_ENTRIES)
-                                                                                         .setDeletePartitionEntries(deleteRequest)
-                                                                                         .build();
+                    .setType(VAdminProto.AdminRequestType.DELETE_PARTITION_ENTRIES)
+                    .setDeletePartitionEntries(deleteRequest)
+                    .build();
             VAdminProto.DeletePartitionEntriesResponse.Builder response = rpcOps.sendAndReceive(nodeId,
-                                                                                                request,
-                                                                                                VAdminProto.DeletePartitionEntriesResponse.newBuilder());
+                    request,
+                    VAdminProto.DeletePartitionEntriesResponse.newBuilder());
 
-            if(response.hasError())
+            if (response.hasError()) {
                 helperOps.throwException(response.getError());
+            }
 
             return response.getCount();
         }
 
         /**
          * See {@link RepairJob}
-         * 
+         *
          * @param nodeId The id of the node on which to do the repair
          */
         public void repairJob(int nodeId) {
             VAdminProto.RepairJobRequest.Builder repairJobRequest = VAdminProto.RepairJobRequest.newBuilder();
 
             VAdminProto.VoldemortAdminRequest adminRequest = VAdminProto.VoldemortAdminRequest.newBuilder()
-                                                                                              .setRepairJob(repairJobRequest)
-                                                                                              .setType(VAdminProto.AdminRequestType.REPAIR_JOB)
-                                                                                              .build();
+                    .setRepairJob(repairJobRequest)
+                    .setType(VAdminProto.AdminRequestType.REPAIR_JOB)
+                    .build();
             Node node = AdminClient.this.getAdminClientCluster().getNodeById(nodeId);
             SocketDestination destination = new SocketDestination(node.getHost(),
-                                                                  node.getAdminPort(),
-                                                                  RequestFormatType.ADMIN_PROTOCOL_BUFFERS);
+                    node.getAdminPort(),
+                    RequestFormatType.ADMIN_PROTOCOL_BUFFERS);
             SocketAndStreams sands = socketPool.checkout(destination);
 
             try {
                 DataOutputStream outputStream = sands.getOutputStream();
                 ProtoUtils.writeMessage(outputStream, adminRequest);
                 outputStream.flush();
-            } catch(IOException e) {
+            } catch (IOException e) {
                 helperOps.close(sands.getSocket());
                 throw new VoldemortException(e);
             } finally {
@@ -2678,32 +2706,32 @@ public class AdminClient implements Closeable {
 
         /**
          * See {@link VersionedPutPruneJob}
-         * 
+         *
          * @param nodeId server on which to prune
          * @param store store to prune
          */
         public void pruneJob(int nodeId, String store) {
             logger.info("Kicking off prune job on Node " + nodeId + " for store " + store);
             VAdminProto.PruneJobRequest.Builder jobRequest = VAdminProto.PruneJobRequest.newBuilder()
-                                                                                        .setStoreName(store);
+                    .setStoreName(store);
 
             VAdminProto.VoldemortAdminRequest adminRequest = VAdminProto.VoldemortAdminRequest.newBuilder()
-                                                                                              .setPruneJob(jobRequest)
-                                                                                              .setType(VAdminProto.AdminRequestType.PRUNE_JOB)
-                                                                                              .build();
+                    .setPruneJob(jobRequest)
+                    .setType(VAdminProto.AdminRequestType.PRUNE_JOB)
+                    .build();
             // TODO probably need a helper to do all this, at some point.. all
             // of this file has repeated code
             Node node = AdminClient.this.getAdminClientCluster().getNodeById(nodeId);
             SocketDestination destination = new SocketDestination(node.getHost(),
-                                                                  node.getAdminPort(),
-                                                                  RequestFormatType.ADMIN_PROTOCOL_BUFFERS);
+                    node.getAdminPort(),
+                    RequestFormatType.ADMIN_PROTOCOL_BUFFERS);
             SocketAndStreams sands = socketPool.checkout(destination);
 
             try {
                 DataOutputStream outputStream = sands.getOutputStream();
                 ProtoUtils.writeMessage(outputStream, adminRequest);
                 outputStream.flush();
-            } catch(IOException e) {
+            } catch (IOException e) {
                 helperOps.close(sands.getSocket());
                 throw new VoldemortException(e);
             } finally {
@@ -2713,44 +2741,44 @@ public class AdminClient implements Closeable {
 
         /**
          * See {@link VersionedPutPruneJob}
-         * 
-         * 
+         *
+         *
          * @param nodeId The id of the node on which to do the pruning
          * @param stores the list of stores to prune
          */
         public void pruneJob(int nodeId, List<String> stores) {
-            for(String store: stores) {
+            for (String store : stores) {
                 pruneJob(nodeId, store);
             }
         }
 
         public void slopPurgeJob(int destinationNodeId,
-                                 List<Integer> nodeList,
-                                 int zoneId,
-                                 List<String> storeNames) {
+                List<Integer> nodeList,
+                int zoneId,
+                List<String> storeNames) {
             VAdminProto.SlopPurgeJobRequest.Builder jobRequest = VAdminProto.SlopPurgeJobRequest.newBuilder();
-            if(nodeList != null) {
+            if (nodeList != null) {
                 jobRequest.addAllFilterNodeIds(nodeList);
             }
-            if(zoneId != Zone.UNSET_ZONE_ID) {
+            if (zoneId != Zone.UNSET_ZONE_ID) {
                 jobRequest.setFilterZoneId(zoneId);
             }
-            if(storeNames != null) {
+            if (storeNames != null) {
                 jobRequest.addAllFilterStoreNames(storeNames);
             }
 
             VAdminProto.VoldemortAdminRequest adminRequest = VAdminProto.VoldemortAdminRequest.newBuilder()
-                                                                                              .setSlopPurgeJob(jobRequest)
-                                                                                              .setType(VAdminProto.AdminRequestType.SLOP_PURGE_JOB)
-                                                                                              .build();
+                    .setSlopPurgeJob(jobRequest)
+                    .setType(VAdminProto.AdminRequestType.SLOP_PURGE_JOB)
+                    .build();
             helperOps.sendAdminRequest(adminRequest, destinationNodeId);
         }
 
         public void slopPurgeJob(List<Integer> nodesToPurge,
-                                 int zoneToPurge,
-                                 List<String> storesToPurge) {
+                int zoneToPurge,
+                List<String> storesToPurge) {
             // Run this on all the nodes in the cluster
-            for(Node node: currentCluster.getNodes()) {
+            for (Node node : currentCluster.getNodes()) {
                 logger.info("Submitting SlopPurgeJob on node " + node.getId());
                 slopPurgeJob(node.getId(), nodesToPurge, zoneToPurge, storesToPurge);
             }
@@ -2758,7 +2786,7 @@ public class AdminClient implements Closeable {
 
         /**
          * Native backup a store
-         * 
+         *
          * @param nodeId The node id to backup
          * @param storeName The name of the store to backup
          * @param destinationDirPath The destination path
@@ -2767,27 +2795,27 @@ public class AdminClient implements Closeable {
          * @param isIncremental is the backup incremental
          */
         public void nativeBackup(int nodeId,
-                                 String storeName,
-                                 String destinationDirPath,
-                                 int timeOut,
-                                 boolean verify,
-                                 boolean isIncremental) {
+                String storeName,
+                String destinationDirPath,
+                int timeOut,
+                boolean verify,
+                boolean isIncremental) {
 
             VAdminProto.NativeBackupRequest nativeBackupRequest = VAdminProto.NativeBackupRequest.newBuilder()
-                                                                                                 .setStoreName(storeName)
-                                                                                                 .setBackupDir(destinationDirPath)
-                                                                                                 .setIncremental(isIncremental)
-                                                                                                 .setVerifyFiles(verify)
-                                                                                                 .build();
+                    .setStoreName(storeName)
+                    .setBackupDir(destinationDirPath)
+                    .setIncremental(isIncremental)
+                    .setVerifyFiles(verify)
+                    .build();
             VAdminProto.VoldemortAdminRequest adminRequest = VAdminProto.VoldemortAdminRequest.newBuilder()
-                                                                                              .setNativeBackup(nativeBackupRequest)
-                                                                                              .setType(VAdminProto.AdminRequestType.NATIVE_BACKUP)
-                                                                                              .build();
+                    .setNativeBackup(nativeBackupRequest)
+                    .setType(VAdminProto.AdminRequestType.NATIVE_BACKUP)
+                    .build();
             VAdminProto.AsyncOperationStatusResponse.Builder response = rpcOps.sendAndReceive(nodeId,
-                                                                                              adminRequest,
-                                                                                              VAdminProto.AsyncOperationStatusResponse.newBuilder());
+                    adminRequest,
+                    VAdminProto.AsyncOperationStatusResponse.newBuilder());
 
-            if(response.hasError()) {
+            if (response.hasError()) {
                 helperOps.throwException(response.getError());
             }
 
@@ -2798,51 +2826,53 @@ public class AdminClient implements Closeable {
 
     /**
      * Encapsulates all the operations to forklift data from the cluster
-     * 
+     *
      */
     public class BulkStreamingFetchOperations {
 
         private void initiateFetchRequest(DataOutputStream outputStream,
-                                          String storeName,
-                                          List<Integer> partitionIds,
-                                          VoldemortFilter filter,
-                                          boolean fetchValues,
-                                          boolean fetchMasterEntries,
-                                          Cluster initialCluster,
-                                          long recordsPerPartition) throws IOException {
-            VAdminProto.FetchPartitionEntriesRequest.Builder fetchRequest = VAdminProto.FetchPartitionEntriesRequest.newBuilder()
-                                                                                                                    .setFetchValues(fetchValues)
-                                                                                                                    .addAllPartitionIds(partitionIds)
-                                                                                                                    .setStore(storeName)
-                                                                                                                    .setRecordsPerPartition(recordsPerPartition);
+                String storeName,
+                List<Integer> partitionIds,
+                VoldemortFilter filter,
+                boolean fetchValues,
+                boolean fetchMasterEntries,
+                Cluster initialCluster,
+                long recordsPerPartition) throws IOException {
+            VAdminProto.FetchPartitionEntriesRequest.Builder fetchRequest =
+                    VAdminProto.FetchPartitionEntriesRequest.newBuilder()
+                            .setFetchValues(fetchValues)
+                            .addAllPartitionIds(partitionIds)
+                            .setStore(storeName)
+                            .setRecordsPerPartition(recordsPerPartition);
 
             try {
-                if(filter != null) {
+                if (filter != null) {
                     fetchRequest.setFilter(helperOps.encodeFilter(filter));
                 }
-            } catch(IOException e) {
+            } catch (IOException e) {
                 throw new VoldemortException(e);
             }
 
-            if(initialCluster != null) {
+            if (initialCluster != null) {
                 fetchRequest.setInitialCluster(new ClusterMapper().writeCluster(initialCluster));
             }
 
             VAdminProto.VoldemortAdminRequest request = VAdminProto.VoldemortAdminRequest.newBuilder()
-                                                                                         .setType(VAdminProto.AdminRequestType.FETCH_PARTITION_ENTRIES)
-                                                                                         .setFetchPartitionEntries(fetchRequest)
-                                                                                         .build();
+                    .setType(VAdminProto.AdminRequestType.FETCH_PARTITION_ENTRIES)
+                    .setFetchPartitionEntries(fetchRequest)
+                    .build();
             ProtoUtils.writeMessage(outputStream, request);
             outputStream.flush();
 
         }
 
         private VAdminProto.FetchPartitionEntriesResponse responseFromStream(DataInputStream inputStream,
-                                                                             int size)
+                int size)
                 throws IOException {
             byte[] input = new byte[size];
             ByteUtils.read(inputStream, input);
-            VAdminProto.FetchPartitionEntriesResponse.Builder response = VAdminProto.FetchPartitionEntriesResponse.newBuilder();
+            VAdminProto.FetchPartitionEntriesResponse.Builder response =
+                    VAdminProto.FetchPartitionEntriesResponse.newBuilder();
             response.mergeFrom(input);
 
             return response.build();
@@ -2851,36 +2881,37 @@ public class AdminClient implements Closeable {
         /**
          * Fetches entries that don't belong to the node, based on current
          * metadata and yet persisted on the node
-         * 
+         *
          * @param nodeId Id of the node to fetch from
          * @param storeName Name of the store
          * @return An iterator which allows entries to be streamed as they're
          *         being iterated over.
          */
         public Iterator<Pair<ByteArray, Versioned<byte[]>>> fetchOrphanedEntries(int nodeId,
-                                                                                 String storeName) {
+                String storeName) {
 
             Node node = AdminClient.this.getAdminClientCluster().getNodeById(nodeId);
             final SocketDestination destination = new SocketDestination(node.getHost(),
-                                                                        node.getAdminPort(),
-                                                                        RequestFormatType.ADMIN_PROTOCOL_BUFFERS);
+                    node.getAdminPort(),
+                    RequestFormatType.ADMIN_PROTOCOL_BUFFERS);
             final SocketAndStreams sands = socketPool.checkout(destination);
             DataOutputStream outputStream = sands.getOutputStream();
             final DataInputStream inputStream = sands.getInputStream();
 
             try {
-                VAdminProto.FetchPartitionEntriesRequest.Builder fetchOrphanedRequest = VAdminProto.FetchPartitionEntriesRequest.newBuilder()
-                                                                                                                                .setFetchValues(true)
-                                                                                                                                .setStore(storeName)
-                                                                                                                                .setFetchOrphaned(true);
+                VAdminProto.FetchPartitionEntriesRequest.Builder fetchOrphanedRequest =
+                        VAdminProto.FetchPartitionEntriesRequest.newBuilder()
+                                .setFetchValues(true)
+                                .setStore(storeName)
+                                .setFetchOrphaned(true);
 
                 VAdminProto.VoldemortAdminRequest request = VAdminProto.VoldemortAdminRequest.newBuilder()
-                                                                                             .setType(VAdminProto.AdminRequestType.FETCH_PARTITION_ENTRIES)
-                                                                                             .setFetchPartitionEntries(fetchOrphanedRequest)
-                                                                                             .build();
+                        .setType(VAdminProto.AdminRequestType.FETCH_PARTITION_ENTRIES)
+                        .setFetchPartitionEntries(fetchOrphanedRequest)
+                        .build();
                 ProtoUtils.writeMessage(outputStream, request);
                 outputStream.flush();
-            } catch(IOException e) {
+            } catch (IOException e) {
                 helperOps.close(sands.getSocket());
                 socketPool.checkin(destination, sands);
                 throw new VoldemortException(e);
@@ -2892,15 +2923,15 @@ public class AdminClient implements Closeable {
                 public Pair<ByteArray, Versioned<byte[]>> computeNext() {
                     try {
                         int size = inputStream.readInt();
-                        if(size == -1) {
+                        if (size == -1) {
                             socketPool.checkin(destination, sands);
                             return endOfData();
                         }
 
                         VAdminProto.FetchPartitionEntriesResponse response = responseFromStream(inputStream,
-                                                                                                size);
+                                size);
 
-                        if(response.hasError()) {
+                        if (response.hasError()) {
                             socketPool.checkin(destination, sands);
                             helperOps.throwException(response.getError());
                         }
@@ -2908,8 +2939,8 @@ public class AdminClient implements Closeable {
                         VAdminProto.PartitionEntry partitionEntry = response.getPartitionEntry();
 
                         return Pair.create(ProtoUtils.decodeBytes(partitionEntry.getKey()),
-                                           ProtoUtils.decodeVersioned(partitionEntry.getVersioned()));
-                    } catch(IOException e) {
+                                ProtoUtils.decodeVersioned(partitionEntry.getVersioned()));
+                    } catch (IOException e) {
                         helperOps.close(sands.getSocket());
                         socketPool.checkin(destination, sands);
                         throw new VoldemortException(e);
@@ -2922,7 +2953,7 @@ public class AdminClient implements Closeable {
          * Legacy interface for fetching entries. See
          * {@link #fetchEntries(int, String, List, VoldemortFilter, boolean, Cluster, long)}
          * for more information.
-         * 
+         *
          * @param nodeId Id of the node to fetch from
          * @param storeName Name of the store
          * @param partitionIds List of the partitions
@@ -2933,25 +2964,25 @@ public class AdminClient implements Closeable {
          *         being iterated over.
          */
         public Iterator<Pair<ByteArray, Versioned<byte[]>>> fetchEntries(int nodeId,
-                                                                         String storeName,
-                                                                         List<Integer> partitionIds,
-                                                                         VoldemortFilter filter,
-                                                                         boolean fetchMasterEntries,
-                                                                         long recordsPerPartition) {
+                String storeName,
+                List<Integer> partitionIds,
+                VoldemortFilter filter,
+                boolean fetchMasterEntries,
+                long recordsPerPartition) {
             return fetchEntries(nodeId,
-                                storeName,
-                                partitionIds,
-                                filter,
-                                fetchMasterEntries,
-                                null,
-                                recordsPerPartition);
+                    storeName,
+                    partitionIds,
+                    filter,
+                    fetchMasterEntries,
+                    null,
+                    recordsPerPartition);
         }
 
         /**
          * Legacy interface for fetching entries. See
          * {@link #fetchEntries(int, String, List, VoldemortFilter, boolean, Cluster, long)}
          * for more information.
-         * 
+         *
          * @param nodeId Id of the node to fetch from
          * @param storeName Name of the store
          * @param partitionList List of the partitions
@@ -2962,30 +2993,31 @@ public class AdminClient implements Closeable {
          *         being iterated over.
          */
         public Iterator<Pair<ByteArray, Versioned<byte[]>>> fetchEntries(int nodeId,
-                                                                         String storeName,
-                                                                         List<Integer> partitionList,
-                                                                         VoldemortFilter filter,
-                                                                         boolean fetchMasterEntries) {
+                String storeName,
+                List<Integer> partitionList,
+                VoldemortFilter filter,
+                boolean fetchMasterEntries) {
             return fetchEntries(nodeId, storeName, partitionList, filter, fetchMasterEntries, 0);
         }
 
         // TODO: The use of "Pair" in the return for a fundamental type is
         // awkward. We should have a core KeyValue type that effectively wraps
         // up a ByteArray and a Versioned<byte[]>.
+
         /**
          * Fetch key/value tuples belonging to this list of partition ids
          * <p>
-         * 
+         *
          * <b>Streaming API</b> - The server keeps sending the messages as it's
          * iterating over the data. Once iteration has finished, the server
          * sends an "end of stream" marker and flushes its buffer. A response
          * indicating a {@link VoldemortException} may be sent at any time
          * during the process. <br>
-         * 
+         *
          * <p>
          * Entries are being streamed <em>as the iteration happens</em> i.e. the
          * whole result set is <b>not</b> buffered in memory.
-         * 
+         *
          * @param nodeId Id of the node to fetch from
          * @param storeName Name of the store
          * @param partitionIds List of partition ids
@@ -3000,31 +3032,31 @@ public class AdminClient implements Closeable {
          *         being iterated over.
          */
         public Iterator<Pair<ByteArray, Versioned<byte[]>>> fetchEntries(int nodeId,
-                                                                         String storeName,
-                                                                         List<Integer> partitionIds,
-                                                                         VoldemortFilter filter,
-                                                                         boolean fetchMasterEntries,
-                                                                         Cluster initialCluster,
-                                                                         long recordsPerPartition) {
+                String storeName,
+                List<Integer> partitionIds,
+                VoldemortFilter filter,
+                boolean fetchMasterEntries,
+                Cluster initialCluster,
+                long recordsPerPartition) {
 
             Node node = AdminClient.this.getAdminClientCluster().getNodeById(nodeId);
             final SocketDestination destination = new SocketDestination(node.getHost(),
-                                                                        node.getAdminPort(),
-                                                                        RequestFormatType.ADMIN_PROTOCOL_BUFFERS);
+                    node.getAdminPort(),
+                    RequestFormatType.ADMIN_PROTOCOL_BUFFERS);
             final SocketAndStreams sands = socketPool.checkout(destination);
             DataOutputStream outputStream = sands.getOutputStream();
             final DataInputStream inputStream = sands.getInputStream();
 
             try {
                 initiateFetchRequest(outputStream,
-                                     storeName,
-                                     partitionIds,
-                                     filter,
-                                     true,
-                                     fetchMasterEntries,
-                                     initialCluster,
-                                     recordsPerPartition);
-            } catch(IOException e) {
+                        storeName,
+                        partitionIds,
+                        filter,
+                        true,
+                        fetchMasterEntries,
+                        initialCluster,
+                        recordsPerPartition);
+            } catch (IOException e) {
                 helperOps.close(sands.getSocket());
                 socketPool.checkin(destination, sands);
                 throw new VoldemortException(e);
@@ -3036,15 +3068,15 @@ public class AdminClient implements Closeable {
                 public Pair<ByteArray, Versioned<byte[]>> computeNext() {
                     try {
                         int size = inputStream.readInt();
-                        if(size == -1) {
+                        if (size == -1) {
                             socketPool.checkin(destination, sands);
                             return endOfData();
                         }
 
                         VAdminProto.FetchPartitionEntriesResponse response = responseFromStream(inputStream,
-                                                                                                size);
+                                size);
 
-                        if(response.hasError()) {
+                        if (response.hasError()) {
                             socketPool.checkin(destination, sands);
                             helperOps.throwException(response.getError());
                         }
@@ -3052,8 +3084,8 @@ public class AdminClient implements Closeable {
                         VAdminProto.PartitionEntry partitionEntry = response.getPartitionEntry();
 
                         return Pair.create(ProtoUtils.decodeBytes(partitionEntry.getKey()),
-                                           ProtoUtils.decodeVersioned(partitionEntry.getVersioned()));
-                    } catch(IOException e) {
+                                ProtoUtils.decodeVersioned(partitionEntry.getVersioned()));
+                    } catch (IOException e) {
                         helperOps.close(sands.getSocket());
                         socketPool.checkin(destination, sands);
                         throw new VoldemortException(e);
@@ -3067,7 +3099,7 @@ public class AdminClient implements Closeable {
          * Fetch all the keys on the node that don't belong to it, based on its
          * current metadata and yet stored on the node. i.e all keys orphaned on
          * the node due to say not running the repair job after a rebalance
-         * 
+         *
          * @param nodeId Id of the node to fetch from
          * @param storeName Name of the store
          * @return An iterator which allows keys to be streamed as they're being
@@ -3076,25 +3108,26 @@ public class AdminClient implements Closeable {
         public Iterator<ByteArray> fetchOrphanedKeys(int nodeId, String storeName) {
             Node node = AdminClient.this.getAdminClientCluster().getNodeById(nodeId);
             final SocketDestination destination = new SocketDestination(node.getHost(),
-                                                                        node.getAdminPort(),
-                                                                        RequestFormatType.ADMIN_PROTOCOL_BUFFERS);
+                    node.getAdminPort(),
+                    RequestFormatType.ADMIN_PROTOCOL_BUFFERS);
             final SocketAndStreams sands = socketPool.checkout(destination);
             DataOutputStream outputStream = sands.getOutputStream();
             final DataInputStream inputStream = sands.getInputStream();
 
             try {
-                VAdminProto.FetchPartitionEntriesRequest.Builder fetchOrphanedRequest = VAdminProto.FetchPartitionEntriesRequest.newBuilder()
-                                                                                                                                .setFetchValues(false)
-                                                                                                                                .setStore(storeName)
-                                                                                                                                .setFetchOrphaned(true);
+                VAdminProto.FetchPartitionEntriesRequest.Builder fetchOrphanedRequest =
+                        VAdminProto.FetchPartitionEntriesRequest.newBuilder()
+                                .setFetchValues(false)
+                                .setStore(storeName)
+                                .setFetchOrphaned(true);
 
                 VAdminProto.VoldemortAdminRequest request = VAdminProto.VoldemortAdminRequest.newBuilder()
-                                                                                             .setType(VAdminProto.AdminRequestType.FETCH_PARTITION_ENTRIES)
-                                                                                             .setFetchPartitionEntries(fetchOrphanedRequest)
-                                                                                             .build();
+                        .setType(VAdminProto.AdminRequestType.FETCH_PARTITION_ENTRIES)
+                        .setFetchPartitionEntries(fetchOrphanedRequest)
+                        .build();
                 ProtoUtils.writeMessage(outputStream, request);
                 outputStream.flush();
-            } catch(IOException e) {
+            } catch (IOException e) {
                 helperOps.close(sands.getSocket());
                 socketPool.checkin(destination, sands);
                 throw new VoldemortException(e);
@@ -3106,21 +3139,21 @@ public class AdminClient implements Closeable {
                 public ByteArray computeNext() {
                     try {
                         int size = inputStream.readInt();
-                        if(size == -1) {
+                        if (size == -1) {
                             socketPool.checkin(destination, sands);
                             return endOfData();
                         }
 
                         VAdminProto.FetchPartitionEntriesResponse response = responseFromStream(inputStream,
-                                                                                                size);
+                                size);
 
-                        if(response.hasError()) {
+                        if (response.hasError()) {
                             socketPool.checkin(destination, sands);
                             helperOps.throwException(response.getError());
                         }
 
                         return ProtoUtils.decodeBytes(response.getKey());
-                    } catch(IOException e) {
+                    } catch (IOException e) {
                         helperOps.close(sands.getSocket());
                         socketPool.checkin(destination, sands);
                         throw new VoldemortException(e);
@@ -3134,7 +3167,7 @@ public class AdminClient implements Closeable {
          * Legacy interface for fetching entries. See
          * {@link #fetchKeys(int, String, List, VoldemortFilter, boolean, Cluster, long)}
          * for more information.
-         * 
+         *
          * @param nodeId Id of the node to fetch from
          * @param storeName Name of the store
          * @param partitionIds List of the partitions to retrieve
@@ -3145,25 +3178,25 @@ public class AdminClient implements Closeable {
          *         iterated over.
          */
         public Iterator<ByteArray> fetchKeys(int nodeId,
-                                             String storeName,
-                                             List<Integer> partitionIds,
-                                             VoldemortFilter filter,
-                                             boolean fetchMasterEntries,
-                                             long recordsPerPartition) {
+                String storeName,
+                List<Integer> partitionIds,
+                VoldemortFilter filter,
+                boolean fetchMasterEntries,
+                long recordsPerPartition) {
             return fetchKeys(nodeId,
-                             storeName,
-                             partitionIds,
-                             filter,
-                             fetchMasterEntries,
-                             null,
-                             recordsPerPartition);
+                    storeName,
+                    partitionIds,
+                    filter,
+                    fetchMasterEntries,
+                    null,
+                    recordsPerPartition);
         }
 
         /**
          * Legacy interface for fetching entries. See
          * {@link #fetchKeys(int, String, List, VoldemortFilter, boolean, Cluster, long)}
          * for more information.
-         * 
+         *
          * @param nodeId Id of the node to fetch from
          * @param storeName Name of the store
          * @param partitionList List of the partitions to retrieve
@@ -3174,17 +3207,17 @@ public class AdminClient implements Closeable {
          *         iterated over.
          */
         public Iterator<ByteArray> fetchKeys(int nodeId,
-                                             String storeName,
-                                             List<Integer> partitionList,
-                                             VoldemortFilter filter,
-                                             boolean fetchMasterEntries) {
+                String storeName,
+                List<Integer> partitionList,
+                VoldemortFilter filter,
+                boolean fetchMasterEntries) {
             return fetchKeys(nodeId, storeName, partitionList, filter, fetchMasterEntries, 0);
         }
 
         /**
          * Fetch all keys belonging to the list of partition ids. Identical to
          * {@link #fetchEntries} but <em>only fetches the keys</em>
-         * 
+         *
          * @param nodeId The node id from where to fetch the keys
          * @param storeName The store name whose keys we want to retrieve
          * @param partitionIds List of partitionIds
@@ -3194,30 +3227,30 @@ public class AdminClient implements Closeable {
          * @return Returns an iterator of the keys
          */
         public Iterator<ByteArray> fetchKeys(int nodeId,
-                                             String storeName,
-                                             List<Integer> partitionIds,
-                                             VoldemortFilter filter,
-                                             boolean fetchMasterEntries,
-                                             Cluster initialCluster,
-                                             long recordsPerPartition) {
+                String storeName,
+                List<Integer> partitionIds,
+                VoldemortFilter filter,
+                boolean fetchMasterEntries,
+                Cluster initialCluster,
+                long recordsPerPartition) {
             Node node = AdminClient.this.getAdminClientCluster().getNodeById(nodeId);
             final SocketDestination destination = new SocketDestination(node.getHost(),
-                                                                        node.getAdminPort(),
-                                                                        RequestFormatType.ADMIN_PROTOCOL_BUFFERS);
+                    node.getAdminPort(),
+                    RequestFormatType.ADMIN_PROTOCOL_BUFFERS);
             final SocketAndStreams sands = socketPool.checkout(destination);
             DataOutputStream outputStream = sands.getOutputStream();
             final DataInputStream inputStream = sands.getInputStream();
 
             try {
                 initiateFetchRequest(outputStream,
-                                     storeName,
-                                     partitionIds,
-                                     filter,
-                                     false,
-                                     fetchMasterEntries,
-                                     initialCluster,
-                                     recordsPerPartition);
-            } catch(IOException e) {
+                        storeName,
+                        partitionIds,
+                        filter,
+                        false,
+                        fetchMasterEntries,
+                        initialCluster,
+                        recordsPerPartition);
+            } catch (IOException e) {
                 helperOps.close(sands.getSocket());
                 socketPool.checkin(destination, sands);
                 throw new VoldemortException(e);
@@ -3229,21 +3262,21 @@ public class AdminClient implements Closeable {
                 public ByteArray computeNext() {
                     try {
                         int size = inputStream.readInt();
-                        if(size == -1) {
+                        if (size == -1) {
                             socketPool.checkin(destination, sands);
                             return endOfData();
                         }
 
                         VAdminProto.FetchPartitionEntriesResponse response = responseFromStream(inputStream,
-                                                                                                size);
+                                size);
 
-                        if(response.hasError()) {
+                        if (response.hasError()) {
                             socketPool.checkin(destination, sands);
                             helperOps.throwException(response.getError());
                         }
 
                         return ProtoUtils.decodeBytes(response.getKey());
-                    } catch(IOException e) {
+                    } catch (IOException e) {
                         helperOps.close(sands.getSocket());
                         socketPool.checkin(destination, sands);
                         throw new VoldemortException(e);
@@ -3268,10 +3301,12 @@ public class AdminClient implements Closeable {
 
             @Override
             public boolean equals(Object obj) {
-                if(this == obj)
+                if (this == obj) {
                     return true;
-                if(!(obj instanceof NodeStore))
+                }
+                if (!(obj instanceof NodeStore)) {
                     return false;
+                }
                 NodeStore other = (NodeStore) obj;
                 return nodeId.equals(other.nodeId) && storeName.equals(other.storeName);
             }
@@ -3290,12 +3325,12 @@ public class AdminClient implements Closeable {
         AdminStoreClient(ClientConfig clientConfig) {
             this.clientConfig = clientConfig;
             clientPool = new ClientRequestExecutorPool(clientConfig.getSelectors(),
-                                                       clientConfig.getMaxConnectionsPerNode(),
-                                                       clientConfig.getConnectionTimeout(TimeUnit.MILLISECONDS),
-                                                       clientConfig.getSocketTimeout(TimeUnit.MILLISECONDS),
-                                                       clientConfig.getSocketBufferSize(),
-                                                       clientConfig.getSocketKeepAlive(),
-                                                       "-admin");
+                    clientConfig.getMaxConnectionsPerNode(),
+                    clientConfig.getConnectionTimeout(TimeUnit.MILLISECONDS),
+                    clientConfig.getSocketTimeout(TimeUnit.MILLISECONDS),
+                    clientConfig.getSocketBufferSize(),
+                    clientConfig.getSocketKeepAlive(),
+                    "-admin");
             nodeStoreSocketCache = new ConcurrentHashMap<NodeStore, SocketStore>();
         }
 
@@ -3303,7 +3338,7 @@ public class AdminClient implements Closeable {
             NodeStore nodeStore = new NodeStore(nodeId, storeName);
 
             SocketStore socketStore = nodeStoreSocketCache.get(nodeStore);
-            if(socketStore == null) {
+            if (socketStore == null) {
                 Node node = getAdminClientCluster().getNodeById(nodeId);
 
                 SocketStore newSocketStore = null;
@@ -3311,17 +3346,17 @@ public class AdminClient implements Closeable {
                     // Unless request format is protobuf, IGNORE_CHECKS
                     // will not work otherwise
                     newSocketStore = clientPool.create(storeName,
-                                                       node.getHost(),
-                                                       node.getSocketPort(),
-                                                       clientConfig.getRequestFormatType(),
-                                                       RequestRoutingType.IGNORE_CHECKS);
-                } catch(Exception e) {
+                            node.getHost(),
+                            node.getSocketPort(),
+                            clientConfig.getRequestFormatType(),
+                            RequestRoutingType.IGNORE_CHECKS);
+                } catch (Exception e) {
                     clientPool.close();
                     throw new VoldemortException(e);
                 }
 
                 socketStore = nodeStoreSocketCache.putIfAbsent(nodeStore, newSocketStore);
-                if(socketStore == null) {
+                if (socketStore == null) {
                     socketStore = newSocketStore;
                 } else {
                     newSocketStore.close();
@@ -3341,14 +3376,14 @@ public class AdminClient implements Closeable {
         /**
          * This method updates exactly one key/value for a specific store on a
          * specific node.
-         * 
+         *
          * @param storeName Name of the store
          * @param nodeKeyValue A specific key/value to update on a specific
          *        node.
          */
         public void putNodeKeyValue(String storeName, NodeValue<ByteArray, byte[]> nodeKeyValue) {
             SocketStore socketStore = adminStoreClient.getSocketStore(nodeKeyValue.getNodeId(),
-                                                                      storeName);
+                    storeName);
 
             socketStore.put(nodeKeyValue.getKey(), nodeKeyValue.getVersioned(), null);
         }
@@ -3356,7 +3391,7 @@ public class AdminClient implements Closeable {
         /**
          * Fetch key/value tuple for given key for a specific store on specified
          * node.
-         * 
+         *
          * @param storeName Name of the store
          * @param nodeId Id of the node to query from
          * @param key for which to query
@@ -3369,7 +3404,7 @@ public class AdminClient implements Closeable {
 
         /**
          * Fetch values for given keys on a specific store present on a specific node.
-         * 
+         *
          * @param storeName Name of the Store
          * @param nodeId Id of the node to query from
          * @param keys List of keys to be required.
@@ -3385,7 +3420,7 @@ public class AdminClient implements Closeable {
 
         /**
          * Delete a given key
-         * 
+         *
          * @param storeName
          * @param nodeId
          * @param key
@@ -3395,7 +3430,7 @@ public class AdminClient implements Closeable {
             SocketStore socketStore = adminStoreClient.getSocketStore(nodeId, storeName);
             List<Versioned<byte[]>> values = getNodeKey(storeName, nodeId, key);
             boolean result = true;
-            for(Versioned<byte[]> value: values) {
+            for (Versioned<byte[]> value : values) {
                 Version version = value.getVersion();
                 result = result && socketStore.delete(key, version);
             }
@@ -3406,7 +3441,7 @@ public class AdminClient implements Closeable {
     /**
      * Encapsulates all steaming operations that actually read and write
      * key-value pairs into the cluster
-     * 
+     *
      */
     public class StreamingOperations {
 
@@ -3435,9 +3470,9 @@ public class AdminClient implements Closeable {
          * @throws VoldemortException
          */
         public void updateEntries(int nodeId,
-                                  String storeName,
-                                  Iterator<Pair<ByteArray, Versioned<byte[]>>> entryIterator,
-                                  VoldemortFilter filter) {
+                String storeName,
+                Iterator<Pair<ByteArray, Versioned<byte[]>>> entryIterator,
+                VoldemortFilter filter) {
             streamingUpdateEntries(nodeId, storeName, entryIterator, filter, false);
         }
 
@@ -3445,23 +3480,23 @@ public class AdminClient implements Closeable {
          * Update a stream of key/value entries at the given node in the same
          * way as
          * {@link StreamingOperations#updateEntries(int, String, Iterator, VoldemortFilter)}
-         * 
+         *
          * The only difference being the resolving on the server will happen
          * based on timestamp and not the vector clock.
-         * 
+         *
          * @param nodeId Id of the remote node (where we wish to update the
          *        entries)
          * @param storeName Store name for the entries
          * @param entryIterator Iterator of key-value pairs for the entries
          * @param filter Custom filter implementation to filter out entries
          *        which should not be updated.
-         * 
+         *
          * @throws VoldemortException
          */
         public void updateEntriesTimeBased(int nodeId,
-                                           String storeName,
-                                           Iterator<Pair<ByteArray, Versioned<byte[]>>> entryIterator,
-                                           VoldemortFilter filter) {
+                String storeName,
+                Iterator<Pair<ByteArray, Versioned<byte[]>>> entryIterator,
+                VoldemortFilter filter) {
             streamingUpdateEntries(nodeId, storeName, entryIterator, filter, true);
         }
 
@@ -3492,14 +3527,14 @@ public class AdminClient implements Closeable {
          * @throws VoldemortException
          */
         private void streamingUpdateEntries(int nodeId,
-                                            String storeName,
-                                            Iterator<Pair<ByteArray, Versioned<byte[]>>> entryIterator,
-                                            VoldemortFilter filter,
-                                            boolean overWriteIfLatestTs) {
+                String storeName,
+                Iterator<Pair<ByteArray, Versioned<byte[]>>> entryIterator,
+                VoldemortFilter filter,
+                boolean overWriteIfLatestTs) {
             Node node = AdminClient.this.getAdminClientCluster().getNodeById(nodeId);
             SocketDestination destination = new SocketDestination(node.getHost(),
-                                                                  node.getAdminPort(),
-                                                                  RequestFormatType.ADMIN_PROTOCOL_BUFFERS);
+                    node.getAdminPort(),
+                    RequestFormatType.ADMIN_PROTOCOL_BUFFERS);
             SocketAndStreams sands = socketPool.checkout(destination);
             DataOutputStream outputStream = sands.getOutputStream();
             DataInputStream inputStream = sands.getInputStream();
@@ -3508,57 +3543,58 @@ public class AdminClient implements Closeable {
             long entryCount = 0;
 
             try {
-                if(entryIterator.hasNext()) {
-                    while(entryIterator.hasNext()) {
+                if (entryIterator.hasNext()) {
+                    while (entryIterator.hasNext()) {
                         Pair<ByteArray, Versioned<byte[]>> entry = entryIterator.next();
                         VAdminProto.PartitionEntry partitionEntry = VAdminProto.PartitionEntry.newBuilder()
-                                                                                              .setKey(ProtoUtils.encodeBytes(entry.getFirst()))
-                                                                                              .setVersioned(ProtoUtils.encodeVersioned(entry.getSecond()))
-                                                                                              .build();
+                                .setKey(ProtoUtils.encodeBytes(entry.getFirst()))
+                                .setVersioned(ProtoUtils.encodeVersioned(entry.getSecond()))
+                                .build();
                         VAdminProto.UpdatePartitionEntriesRequest.Builder updateRequest = null;
 
-                        if(overWriteIfLatestTs) {
+                        if (overWriteIfLatestTs) {
                             updateRequest = VAdminProto.UpdatePartitionEntriesRequest.newBuilder()
-                                                                                     .setStore(storeName)
-                                                                                     .setPartitionEntry(partitionEntry)
-                                                                                     .setOverwriteIfLatestTs(overWriteIfLatestTs);
+                                    .setStore(storeName)
+                                    .setPartitionEntry(partitionEntry)
+                                    .setOverwriteIfLatestTs(overWriteIfLatestTs);
                         } else {
                             updateRequest = VAdminProto.UpdatePartitionEntriesRequest.newBuilder()
-                                                                                     .setStore(storeName)
-                                                                                     .setPartitionEntry(partitionEntry);
+                                    .setStore(storeName)
+                                    .setPartitionEntry(partitionEntry);
                         }
                         entryCount++;
-                        if(firstMessage) {
-                            if(filter != null) {
+                        if (firstMessage) {
+                            if (filter != null) {
                                 updateRequest.setFilter(helperOps.encodeFilter(filter));
                             }
 
                             ProtoUtils.writeMessage(outputStream,
-                                                    VAdminProto.VoldemortAdminRequest.newBuilder()
-                                                                                     .setType(VAdminProto.AdminRequestType.UPDATE_PARTITION_ENTRIES)
-                                                                                     .setUpdatePartitionEntries(updateRequest)
-                                                                                     .build());
+                                    VAdminProto.VoldemortAdminRequest.newBuilder()
+                                            .setType(VAdminProto.AdminRequestType.UPDATE_PARTITION_ENTRIES)
+                                            .setUpdatePartitionEntries(updateRequest)
+                                            .build());
                             outputStream.flush();
                             firstMessage = false;
                         } else {
                             ProtoUtils.writeMessage(outputStream, updateRequest.build());
-                            if(printStatsTimer <= System.currentTimeMillis()
-                               || 0 == entryCount % PRINT_STATS_THRESHOLD) {
+                            if (printStatsTimer <= System.currentTimeMillis()
+                                    || 0 == entryCount % PRINT_STATS_THRESHOLD) {
                                 logger.info("UpdatePartitionEntries: fetched " + entryCount
-                                            + " to node " + nodeId + " for store " + storeName);
+                                        + " to node " + nodeId + " for store " + storeName);
                                 printStatsTimer = System.currentTimeMillis() + PRINT_STATS_INTERVAL;
                             }
                         }
                     }
                     ProtoUtils.writeEndOfStream(outputStream);
                     outputStream.flush();
-                    VAdminProto.UpdatePartitionEntriesResponse.Builder updateResponse = ProtoUtils.readToBuilder(inputStream,
-                                                                                                                 VAdminProto.UpdatePartitionEntriesResponse.newBuilder());
-                    if(updateResponse.hasError()) {
+                    VAdminProto.UpdatePartitionEntriesResponse.Builder updateResponse = ProtoUtils.readToBuilder(
+                            inputStream,
+                            VAdminProto.UpdatePartitionEntriesResponse.newBuilder());
+                    if (updateResponse.hasError()) {
                         helperOps.throwException(updateResponse.getError());
                     }
                 }
-            } catch(IOException e) {
+            } catch (IOException e) {
                 helperOps.close(sands.getSocket());
                 throw new VoldemortException(e);
             } finally {
@@ -3569,12 +3605,12 @@ public class AdminClient implements Closeable {
         /**
          * Fetch key/value tuples from a given server, directly from storage
          * engine
-         * 
+         *
          * <p>
          * Entries are being queried synchronously
          * <em>as the iteration happens</em> i.e. the whole result set is
          * <b>not</b> buffered in memory.
-         * 
+         *
          * @param nodeId Id of the node to fetch from
          * @param storeName Name of the store
          * @param keys An Iterable of keys
@@ -3582,14 +3618,14 @@ public class AdminClient implements Closeable {
          *         being iterated over.
          */
         public Iterator<QueryKeyResult> queryKeys(int nodeId,
-                                                  String storeName,
-                                                  final Iterator<ByteArray> keys) {
+                String storeName,
+                final Iterator<ByteArray> keys) {
 
             final Store<ByteArray, byte[], byte[]> store;
 
             try {
                 store = adminStoreClient.getSocketStore(nodeId, storeName);
-            } catch(Exception e) {
+            } catch (Exception e) {
                 throw new VoldemortException(e);
             }
 
@@ -3599,7 +3635,7 @@ public class AdminClient implements Closeable {
                 public QueryKeyResult computeNext() {
                     ByteArray key;
                     List<Versioned<byte[]>> value = null;
-                    if(!keys.hasNext()) {
+                    if (!keys.hasNext()) {
                         return endOfData();
                     } else {
                         key = keys.next();
@@ -3607,7 +3643,7 @@ public class AdminClient implements Closeable {
                     try {
                         value = store.get(key, null);
                         return new QueryKeyResult(key, value);
-                    } catch(Exception e) {
+                    } catch (Exception e) {
                         return new QueryKeyResult(key, e);
                     }
                 }
@@ -3616,7 +3652,7 @@ public class AdminClient implements Closeable {
 
         /**
          * Update slops which may be meant for multiple stores
-         * 
+         *
          * @param nodeId The id of the node
          * @param entryIterator An iterator over all the slops for this
          *        particular node
@@ -3624,46 +3660,49 @@ public class AdminClient implements Closeable {
         public void updateSlopEntries(int nodeId, Iterator<Versioned<Slop>> entryIterator) {
             Node node = AdminClient.this.getAdminClientCluster().getNodeById(nodeId);
             SocketDestination destination = new SocketDestination(node.getHost(),
-                                                                  node.getAdminPort(),
-                                                                  RequestFormatType.ADMIN_PROTOCOL_BUFFERS);
+                    node.getAdminPort(),
+                    RequestFormatType.ADMIN_PROTOCOL_BUFFERS);
             SocketAndStreams sands = socketPool.checkout(destination);
             DataOutputStream outputStream = sands.getOutputStream();
             DataInputStream inputStream = sands.getInputStream();
             boolean firstMessage = true;
 
             try {
-                if(entryIterator.hasNext()) {
-                    while(entryIterator.hasNext()) {
+                if (entryIterator.hasNext()) {
+                    while (entryIterator.hasNext()) {
                         Versioned<Slop> versionedSlop = entryIterator.next();
                         Slop slop = versionedSlop.getValue();
 
                         // Build the message
                         RequestType requestType = null;
-                        if(slop.getOperation().equals(Operation.PUT)) {
+                        if (slop.getOperation().equals(Operation.PUT)) {
                             requestType = RequestType.PUT;
-                        } else if(slop.getOperation().equals(Operation.DELETE)) {
+                        } else if (slop.getOperation().equals(Operation.DELETE)) {
                             requestType = RequestType.DELETE;
                         } else {
                             logger.error("Unsupported operation. Skipping");
                             continue;
                         }
-                        VAdminProto.UpdateSlopEntriesRequest.Builder updateRequest = VAdminProto.UpdateSlopEntriesRequest.newBuilder()
-                                                                                                                         .setStore(slop.getStoreName())
-                                                                                                                         .setKey(ProtoUtils.encodeBytes(slop.getKey()))
-                                                                                                                         .setVersion(ProtoUtils.encodeClock(versionedSlop.getVersion()))
-                                                                                                                         .setRequestType(requestType);
+                        VAdminProto.UpdateSlopEntriesRequest.Builder updateRequest =
+                                VAdminProto.UpdateSlopEntriesRequest.newBuilder()
+                                        .setStore(slop.getStoreName())
+                                        .setKey(ProtoUtils.encodeBytes(slop.getKey()))
+                                        .setVersion(ProtoUtils.encodeClock(versionedSlop.getVersion()))
+                                        .setRequestType(requestType);
                         // Add transforms and value only if required
-                        if(slop.getTransforms() != null)
+                        if (slop.getTransforms() != null) {
                             updateRequest.setTransform(ProtoUtils.encodeTransform(slop.getTransforms()));
-                        if(slop.getValue() != null)
+                        }
+                        if (slop.getValue() != null) {
                             updateRequest.setValue(ByteString.copyFrom(slop.getValue()));
+                        }
 
-                        if(firstMessage) {
+                        if (firstMessage) {
                             ProtoUtils.writeMessage(outputStream,
-                                                    VAdminProto.VoldemortAdminRequest.newBuilder()
-                                                                                     .setType(VAdminProto.AdminRequestType.UPDATE_SLOP_ENTRIES)
-                                                                                     .setUpdateSlopEntries(updateRequest)
-                                                                                     .build());
+                                    VAdminProto.VoldemortAdminRequest.newBuilder()
+                                            .setType(VAdminProto.AdminRequestType.UPDATE_SLOP_ENTRIES)
+                                            .setUpdateSlopEntries(updateRequest)
+                                            .build());
                             outputStream.flush();
                             firstMessage = false;
                         } else {
@@ -3673,17 +3712,17 @@ public class AdminClient implements Closeable {
                     ProtoUtils.writeEndOfStream(outputStream);
                     outputStream.flush();
                     VAdminProto.UpdateSlopEntriesResponse.Builder updateResponse = ProtoUtils.readToBuilder(inputStream,
-                                                                                                            VAdminProto.UpdateSlopEntriesResponse.newBuilder());
-                    if(updateResponse.hasError()) {
+                            VAdminProto.UpdateSlopEntriesResponse.newBuilder());
+                    if (updateResponse.hasError()) {
                         helperOps.throwException(updateResponse.getError());
                     }
                 }
-            } catch(IOException e) {
+            } catch (IOException e) {
                 helperOps.close(sands.getSocket());
-                if(e instanceof SocketException) {
+                if (e instanceof SocketException) {
                     throw new SlopStreamingDisabledException("Failed to update slop entries to node "
-                                                                     + node.getId(),
-                                                             e);
+                            + node.getId(),
+                            e);
                 } else {
                     throw new VoldemortException(e);
                 }
@@ -3696,34 +3735,36 @@ public class AdminClient implements Closeable {
 
     /**
      * Encapsulates all operations concerning cluster expansion
-     * 
+     *
      */
     public class RebalancingOperations {
 
         /**
          * Rebalance a stealer-donor node pair for a set of stores. This is run
          * on the stealer node.
-         * 
+         *
          * @param stealInfo Partition steal information
          * @return The request id of the async operation
          */
         public int rebalanceNode(RebalanceTaskInfo stealInfo) {
             VAdminProto.RebalanceTaskInfoMap rebalanceTaskInfoMap = ProtoUtils.encodeRebalanceTaskInfoMap(stealInfo);
-            VAdminProto.InitiateRebalanceNodeRequest rebalanceNodeRequest = VAdminProto.InitiateRebalanceNodeRequest.newBuilder()
-                                                                                                                    .setRebalanceTaskInfo(rebalanceTaskInfoMap)
-                                                                                                                    .build();
+            VAdminProto.InitiateRebalanceNodeRequest rebalanceNodeRequest =
+                    VAdminProto.InitiateRebalanceNodeRequest.newBuilder()
+                            .setRebalanceTaskInfo(rebalanceTaskInfoMap)
+                            .build();
 
             VAdminProto.VoldemortAdminRequest adminRequest = VAdminProto.VoldemortAdminRequest.newBuilder()
-                                                                                              .setType(VAdminProto.AdminRequestType.INITIATE_REBALANCE_NODE)
-                                                                                              .setInitiateRebalanceNode(rebalanceNodeRequest)
-                                                                                              .build();
+                    .setType(VAdminProto.AdminRequestType.INITIATE_REBALANCE_NODE)
+                    .setInitiateRebalanceNode(rebalanceNodeRequest)
+                    .build();
 
             VAdminProto.AsyncOperationStatusResponse.Builder response = rpcOps.sendAndReceive(stealInfo.getStealerId(),
-                                                                                              adminRequest,
-                                                                                              VAdminProto.AsyncOperationStatusResponse.newBuilder());
+                    adminRequest,
+                    VAdminProto.AsyncOperationStatusResponse.newBuilder());
 
-            if(response.hasError())
+            if (response.hasError()) {
                 helperOps.throwException(response.getError());
+            }
 
             return response.getRequestId();
         }
@@ -3731,7 +3772,7 @@ public class AdminClient implements Closeable {
         /**
          * Delete the rebalancing metadata related to the store on the stealer
          * node
-         * 
+         *
          * @param donorNodeId The donor node id
          * @param stealerNodeId The stealer node id
          * @param storeName The name of the store
@@ -3739,17 +3780,18 @@ public class AdminClient implements Closeable {
         public void deleteStoreRebalanceState(int donorNodeId, int stealerNodeId, String storeName) {
 
             VAdminProto.VoldemortAdminRequest request = VAdminProto.VoldemortAdminRequest.newBuilder()
-                                                                                         .setType(VAdminProto.AdminRequestType.DELETE_STORE_REBALANCE_STATE)
-                                                                                         .setDeleteStoreRebalanceState(VAdminProto.DeleteStoreRebalanceStateRequest.newBuilder()
-                                                                                                                                                                   .setNodeId(donorNodeId)
-                                                                                                                                                                   .setStoreName(storeName)
-                                                                                                                                                                   .build())
-                                                                                         .build();
+                    .setType(VAdminProto.AdminRequestType.DELETE_STORE_REBALANCE_STATE)
+                    .setDeleteStoreRebalanceState(VAdminProto.DeleteStoreRebalanceStateRequest.newBuilder()
+                            .setNodeId(donorNodeId)
+                            .setStoreName(storeName)
+                            .build())
+                    .build();
             VAdminProto.DeleteStoreRebalanceStateResponse.Builder response = rpcOps.sendAndReceive(stealerNodeId,
-                                                                                                   request,
-                                                                                                   VAdminProto.DeleteStoreRebalanceStateResponse.newBuilder());
-            if(response.hasError())
+                    request,
+                    VAdminProto.DeleteStoreRebalanceStateResponse.newBuilder());
+            if (response.hasError()) {
                 helperOps.throwException(response.getError());
+            }
 
         }
 
@@ -3757,22 +3799,22 @@ public class AdminClient implements Closeable {
          * Retrieve the server
          * {@link voldemort.store.metadata.MetadataStore.VoldemortState} from a
          * remote node.
-         * 
+         *
          * @param nodeId The node from which we want to retrieve the state
          * @return The server state
          */
         // TODO: this method should be moved to helperOps
         public Versioned<VoldemortState> getRemoteServerState(int nodeId) {
             Versioned<String> value = metadataMgmtOps.getRemoteMetadata(nodeId,
-                                                                        MetadataStore.SERVER_STATE_KEY);
+                    MetadataStore.SERVER_STATE_KEY);
             return new Versioned<VoldemortState>(VoldemortState.valueOf(value.getValue()),
-                                                 value.getVersion());
+                    value.getVersion());
         }
 
         /**
          * Used in rebalancing to indicate change in states. Groups the
          * partition plans on the basis of stealer nodes and sends them over.
-         * 
+         *
          * The various combinations and their order of execution is given below
          * where:
          * <ul>
@@ -3780,7 +3822,7 @@ public class AdminClient implements Closeable {
          * <li>'rebalance' means rebalance flag is set.
          * <li>'swap' means stores are swapped.
          * </ul>
-         * 
+         *
          * <pre>
          * | swapRO | changeClusterMetadata | changeRebalanceState | Order                        |
          * |   f    |         t             |          t           | cluster -> rebalance         |
@@ -3788,15 +3830,15 @@ public class AdminClient implements Closeable {
          * |   t    |         t             |          f           | cluster -> swap              |
          * |   t    |         t             |          t           | cluster -> swap -> rebalance |
          * </pre>
-         * 
-         * 
+         *
+         *
          * Similarly for rollback, order means the following:
          * <ul>
          * <li>'remove from rebalance' means set rebalance flag false
          * <li>'cluster' means cluster is rolled back
          * <li>'swap' means stores are swapped
          * </ul>
-         * 
+         *
          * <pre>
          * | swapRO | changeClusterMetadata | changeRebalanceState | Order                                    |
          * |   f    |         t             |          t           | remove from rebalance -> cluster         |
@@ -3804,8 +3846,8 @@ public class AdminClient implements Closeable {
          * |   t    |         t             |          f           | cluster -> swap                          |
          * |   t    |         t             |          t           | remove from rebalance -> cluster -> swap |
          * </pre>
-         * 
-         * 
+         *
+         *
          * @param existingCluster Current cluster
          * @param transitionCluster Transition cluster
          * @param existingStoreDefs current store defs
@@ -3821,98 +3863,100 @@ public class AdminClient implements Closeable {
          * @param failEarly Do we want to fail early while doing state change?
          */
         public void rebalanceStateChange(Cluster existingCluster,
-                                         Cluster transitionCluster,
-                                         List<StoreDefinition> existingStoreDefs,
-                                         List<StoreDefinition> targetStoreDefs,
-                                         List<RebalanceTaskInfo> rebalanceTaskPlanList,
-                                         boolean swapRO,
-                                         boolean changeClusterMetadata,
-                                         boolean changeRebalanceState,
-                                         boolean rollback,
-                                         boolean failEarly) {
-            HashMap<Integer, List<RebalanceTaskInfo>> stealerNodeToRebalanceTasks = RebalanceUtils.groupPartitionsTaskByNode(rebalanceTaskPlanList,
-                                                                                                                             true);
+                Cluster transitionCluster,
+                List<StoreDefinition> existingStoreDefs,
+                List<StoreDefinition> targetStoreDefs,
+                List<RebalanceTaskInfo> rebalanceTaskPlanList,
+                boolean swapRO,
+                boolean changeClusterMetadata,
+                boolean changeRebalanceState,
+                boolean rollback,
+                boolean failEarly) {
+            HashMap<Integer, List<RebalanceTaskInfo>> stealerNodeToRebalanceTasks =
+                    RebalanceUtils.groupPartitionsTaskByNode(rebalanceTaskPlanList,
+                            true);
             Set<Integer> completedNodeIds = Sets.newHashSet();
 
             HashMap<Integer, Exception> exceptions = Maps.newHashMap();
 
             try {
-                for(Node node: transitionCluster.getNodes()) {
+                for (Node node : transitionCluster.getNodes()) {
                     try {
                         individualStateChange(node.getId(),
-                                              transitionCluster,
-                                              targetStoreDefs,
-                                              stealerNodeToRebalanceTasks.get(node.getId()),
-                                              swapRO,
-                                              changeClusterMetadata,
-                                              changeRebalanceState,
-                                              false);
+                                transitionCluster,
+                                targetStoreDefs,
+                                stealerNodeToRebalanceTasks.get(node.getId()),
+                                swapRO,
+                                changeClusterMetadata,
+                                changeRebalanceState,
+                                false);
                         completedNodeIds.add(node.getId());
-                    } catch(Exception e) {
+                    } catch (Exception e) {
                         logger.error("Error during rebalance on node " + node.getId(), e);
                         exceptions.put(node.getId(), e);
-                        if(failEarly) {
+                        if (failEarly) {
                             throw e;
                         }
                     }
                 }
 
-                if(exceptions.size() > 0) {
+                if (exceptions.size() > 0) {
                     throw new VoldemortRebalancingException("Got exceptions from nodes "
-                                                            + exceptions.keySet());
+                            + exceptions.keySet());
                 }
 
                 /*
                  * If everything went smoothly, update the version of the
                  * cluster metadata
                  */
-                if(changeClusterMetadata) {
+                if (changeClusterMetadata) {
                     try {
                         metadataMgmtOps.updateMetadataversion(getAdminClientCluster().getNodeIds(),
-                                                              SystemStoreConstants.CLUSTER_VERSION_KEY);
-                    } catch(Exception e) {
-                        logger.info("Exception occurred while setting cluster metadata version during Rebalance state change !!!");
+                                SystemStoreConstants.CLUSTER_VERSION_KEY);
+                    } catch (Exception e) {
+                        logger.info(
+                                "Exception occurred while setting cluster metadata version during Rebalance state change !!!");
                     }
                 }
-            } catch(Exception e) {
+            } catch (Exception e) {
 
-                if(rollback) {
+                if (rollback) {
                     logger.error("Got exceptions from nodes " + exceptions.keySet()
-                                 + " while changing state. Rolling back state on "
-                                 + completedNodeIds);
+                            + " while changing state. Rolling back state on "
+                            + completedNodeIds);
 
                     // Rollback changes on completed nodes
-                    for(int completedNodeId: completedNodeIds) {
+                    for (int completedNodeId : completedNodeIds) {
                         try {
                             individualStateChange(completedNodeId,
-                                                  existingCluster,
-                                                  existingStoreDefs,
-                                                  stealerNodeToRebalanceTasks.get(completedNodeId),
-                                                  swapRO,
-                                                  changeClusterMetadata,
-                                                  changeRebalanceState,
-                                                  true);
-                        } catch(Exception exception) {
+                                    existingCluster,
+                                    existingStoreDefs,
+                                    stealerNodeToRebalanceTasks.get(completedNodeId),
+                                    swapRO,
+                                    changeClusterMetadata,
+                                    changeRebalanceState,
+                                    true);
+                        } catch (Exception exception) {
                             logger.error("Error while reverting back state change for completed node "
-                                                 + completedNodeId,
-                                         exception);
+                                            + completedNodeId,
+                                    exception);
                         }
                     }
                 } else {
                     logger.error("Got exceptions from nodes " + exceptions.keySet()
-                                 + " while changing state");
+                            + " while changing state");
                 }
                 throw new VoldemortRebalancingException("Got exceptions from nodes "
-                                                                + exceptions.keySet()
-                                                                + " while changing state",
-                                                        Lists.newArrayList(exceptions.values()));
+                        + exceptions.keySet()
+                        + " while changing state",
+                        Lists.newArrayList(exceptions.values()));
             }
 
         }
 
         /**
          * Single node rebalance state change
-         * 
+         *
          * @param nodeId Stealer node id
          * @param cluster Cluster information which we need to update
          * @param rebalanceTaskPlanList The list of rebalance partition info
@@ -3925,68 +3969,70 @@ public class AdminClient implements Closeable {
          * @param rollback Are we doing a rollback or a normal state?
          */
         private void individualStateChange(int nodeId,
-                                           Cluster cluster,
-                                           List<StoreDefinition> storeDefs,
-                                           List<RebalanceTaskInfo> rebalanceTaskPlanList,
-                                           boolean swapRO,
-                                           boolean changeClusterMetadata,
-                                           boolean changeRebalanceState,
-                                           boolean rollback) {
+                Cluster cluster,
+                List<StoreDefinition> storeDefs,
+                List<RebalanceTaskInfo> rebalanceTaskPlanList,
+                boolean swapRO,
+                boolean changeClusterMetadata,
+                boolean changeRebalanceState,
+                boolean rollback) {
 
             // If we do not want to change the metadata and are not one of the
             // stealer nodes, nothing to do
-            if(!changeClusterMetadata && rebalanceTaskPlanList == null) {
+            if (!changeClusterMetadata && rebalanceTaskPlanList == null) {
                 return;
             }
 
             logger.info("Node "
-                        + nodeId
-                        + "] Performing "
-                        + (rollback ? "rollback" : "normal")
-                        + " rebalance state change "
-                        + (swapRO ? "<swap RO>" : "")
-                        + (changeClusterMetadata ? "<change cluster - " + cluster + ">" : "")
-                        + (changeRebalanceState ? "<change rebalance state - "
-                                                  + rebalanceTaskPlanList + ">" : ""));
+                    + nodeId
+                    + "] Performing "
+                    + (rollback ? "rollback" : "normal")
+                    + " rebalance state change "
+                    + (swapRO ? "<swap RO>" : "")
+                    + (changeClusterMetadata ? "<change cluster - " + cluster + ">" : "")
+                    + (changeRebalanceState ? "<change rebalance state - "
+                    + rebalanceTaskPlanList + ">" : ""));
 
-            VAdminProto.RebalanceStateChangeRequest.Builder getRebalanceStateChangeRequestBuilder = VAdminProto.RebalanceStateChangeRequest.newBuilder();
+            VAdminProto.RebalanceStateChangeRequest.Builder getRebalanceStateChangeRequestBuilder =
+                    VAdminProto.RebalanceStateChangeRequest.newBuilder();
 
-            if(rebalanceTaskPlanList != null) {
+            if (rebalanceTaskPlanList != null) {
                 List<RebalanceTaskInfoMap> map = Lists.newArrayList();
-                for(RebalanceTaskInfo stealInfo: rebalanceTaskPlanList) {
+                for (RebalanceTaskInfo stealInfo : rebalanceTaskPlanList) {
                     RebalanceTaskInfoMap infoMap = ProtoUtils.encodeRebalanceTaskInfoMap(stealInfo);
                     map.add(infoMap);
                 }
                 getRebalanceStateChangeRequestBuilder.addAllRebalanceTaskList(map);
             }
 
-            VAdminProto.RebalanceStateChangeRequest getRebalanceStateChangeRequest = getRebalanceStateChangeRequestBuilder.setSwapRo(swapRO)
-                                                                                                                          .setChangeClusterMetadata(changeClusterMetadata)
-                                                                                                                          .setChangeRebalanceState(changeRebalanceState)
-                                                                                                                          .setClusterString(clusterMapper.writeCluster(cluster))
-                                                                                                                          .setRollback(rollback)
-                                                                                                                          .setStoresString(new StoreDefinitionsMapper().writeStoreList(storeDefs))
-                                                                                                                          .build();
+            VAdminProto.RebalanceStateChangeRequest getRebalanceStateChangeRequest =
+                    getRebalanceStateChangeRequestBuilder.setSwapRo(swapRO)
+                            .setChangeClusterMetadata(changeClusterMetadata)
+                            .setChangeRebalanceState(changeRebalanceState)
+                            .setClusterString(clusterMapper.writeCluster(cluster))
+                            .setRollback(rollback)
+                            .setStoresString(new StoreDefinitionsMapper().writeStoreList(storeDefs))
+                            .build();
             VAdminProto.VoldemortAdminRequest adminRequest = VAdminProto.VoldemortAdminRequest.newBuilder()
-                                                                                              .setRebalanceStateChange(getRebalanceStateChangeRequest)
-                                                                                              .setType(VAdminProto.AdminRequestType.REBALANCE_STATE_CHANGE)
-                                                                                              .build();
+                    .setRebalanceStateChange(getRebalanceStateChangeRequest)
+                    .setType(VAdminProto.AdminRequestType.REBALANCE_STATE_CHANGE)
+                    .build();
             VAdminProto.RebalanceStateChangeResponse.Builder response = rpcOps.sendAndReceive(nodeId,
-                                                                                              adminRequest,
-                                                                                              VAdminProto.RebalanceStateChangeResponse.newBuilder());
-            if(response.hasError()) {
+                    adminRequest,
+                    VAdminProto.RebalanceStateChangeResponse.newBuilder());
+            if (response.hasError()) {
                 helperOps.throwException(response.getError());
             }
         }
 
         /**
          * Get the latest cluster from all available nodes in the cluster<br>
-         * 
+         *
          * Throws exception if:<br>
          * A) Any node in the required nodes list fails to respond.<br>
          * B) Cluster is in inconsistent state with concurrent versions for
          * cluster metadata on any two nodes.<br>
-         * 
+         *
          * @param requiredNodes List of nodes from which we definitely need an
          *        answer
          * @return Returns the latest cluster metadata
@@ -3994,20 +4040,21 @@ public class AdminClient implements Closeable {
         public Versioned<Cluster> getLatestCluster(List<Integer> requiredNodes) {
             Versioned<Cluster> latestCluster = new Versioned<Cluster>(getAdminClientCluster());
             Cluster cluster = latestCluster.getValue();
-            for(Node node: cluster.getNodes()) {
+            for (Node node : cluster.getNodes()) {
                 try {
                     Cluster nodesCluster = metadataMgmtOps.getRemoteCluster(node.getId())
-                                                          .getValue();
-                    if(!nodesCluster.equals(cluster)) {
+                            .getValue();
+                    if (!nodesCluster.equals(cluster)) {
                         throw new VoldemortException("Cluster is in inconsistent state because cluster xml on node "
-                                                     + node.getId()
-                                                     + " does not match cluster xml of adminClient.");
+                                + node.getId()
+                                + " does not match cluster xml of adminClient.");
                     }
-                } catch(Exception e) {
-                    if(null != requiredNodes && requiredNodes.contains(node.getId()))
+                } catch (Exception e) {
+                    if (null != requiredNodes && requiredNodes.contains(node.getId())) {
                         throw new VoldemortException("Failed on node " + node.getId(), e);
-                    else
+                    } else {
                         logger.info("Failed on node " + node.getId(), e);
+                    }
                 }
             }
             return latestCluster;
@@ -4016,27 +4063,27 @@ public class AdminClient implements Closeable {
         /**
          * Check the execution state of the server by checking the state of
          * {@link VoldemortState} <br>
-         * 
+         *
          * This function checks if the nodes are all in normal state (
          * {@link VoldemortState#NORMAL_SERVER}).
-         * 
+         *
          * @param cluster Cluster metadata whose nodes we are checking
          * @throws VoldemortRebalancingException if any node is not in normal
          *         state
          */
         public void checkEachServerInNormalState(final Cluster cluster) {
-            for(Node node: cluster.getNodes()) {
+            for (Node node : cluster.getNodes()) {
                 Versioned<VoldemortState> versioned = rebalanceOps.getRemoteServerState(node.getId());
 
-                if(!VoldemortState.NORMAL_SERVER.equals(versioned.getValue())) {
+                if (!VoldemortState.NORMAL_SERVER.equals(versioned.getValue())) {
                     throw new VoldemortRebalancingException("Cannot rebalance since node "
-                                                            + node.getId() + " (" + node.getHost()
-                                                            + ") is not in normal state, but in "
-                                                            + versioned.getValue());
+                            + node.getId() + " (" + node.getHost()
+                            + ") is not in normal state, but in "
+                            + versioned.getValue());
                 } else {
-                    if(logger.isInfoEnabled()) {
+                    if (logger.isInfoEnabled()) {
                         logger.info("Node " + node.getId() + " (" + node.getHost()
-                                    + ") is ready for rebalance.");
+                                + ") is ready for rebalance.");
                     }
                 }
             }
@@ -4054,24 +4101,25 @@ public class AdminClient implements Closeable {
          */
         public List<StoreDefinition> getCurrentStoreDefinitionsExcept(Cluster cluster, int nodeId) {
             List<StoreDefinition> storeDefs = null;
-            for(Node node: cluster.getNodes()) {
-                if (node.getId() == nodeId)
+            for (Node node : cluster.getNodes()) {
+                if (node.getId() == nodeId) {
                     continue;
+                }
                 List<StoreDefinition> storeDefList = metadataMgmtOps.getRemoteStoreDefList(node.getId())
-                                                                    .getValue();
-                if(storeDefs == null) {
+                        .getValue();
+                if (storeDefs == null) {
                     storeDefs = storeDefList;
                 } else {
 
                     // Compare against the previous store definitions
-                    if(!Utils.compareList(storeDefs, storeDefList)) {
+                    if (!Utils.compareList(storeDefs, storeDefList)) {
                         throw new VoldemortException("Store definitions on node " + node.getId()
-                                                     + " does not match those on other nodes");
+                                + " does not match those on other nodes");
                     }
                 }
             }
 
-            if(storeDefs == null) {
+            if (storeDefs == null) {
                 throw new VoldemortException("Could not retrieve list of store definitions correctly");
             } else {
                 return storeDefs;
@@ -4093,39 +4141,39 @@ public class AdminClient implements Closeable {
         /**
          * Given a list of store definitions, cluster and admin client returns a
          * boolean indicating if all RO stores are in the correct format.
-         * 
+         *
          * <br>
-         * 
+         *
          * This function also takes into consideration nodes which are being
          * bootstrapped for the first time, in which case we can safely ignore
          * checking them ( as they will have default to ro0 )
-         * 
+         *
          * @param cluster Cluster metadata
          * @param storeDefs Complete list of store definitions
          */
         public void validateReadOnlyStores(Cluster cluster, List<StoreDefinition> storeDefs) {
             List<StoreDefinition> readOnlyStores = StoreDefinitionUtils.filterStores(storeDefs,
-                                                                                     true);
+                    true);
 
-            if(readOnlyStores.size() == 0) {
+            if (readOnlyStores.size() == 0) {
                 // No read-only stores
                 return;
             }
 
             List<String> storeNames = StoreDefinitionUtils.getStoreNames(readOnlyStores);
-            for(Node node: cluster.getNodes()) {
-                if(node.getNumberOfPartitions() != 0) {
-                    for(Entry<String, String> storeToStorageFormat: readonlyOps.getROStorageFormat(node.getId(),
-                                                                                                   storeNames)
-                                                                               .entrySet()) {
-                        if(storeToStorageFormat.getValue()
-                                               .compareTo(ReadOnlyStorageFormat.READONLY_V2.getCode()) != 0) {
+            for (Node node : cluster.getNodes()) {
+                if (node.getNumberOfPartitions() != 0) {
+                    for (Entry<String, String> storeToStorageFormat : readonlyOps.getROStorageFormat(node.getId(),
+                            storeNames)
+                            .entrySet()) {
+                        if (storeToStorageFormat.getValue()
+                                .compareTo(ReadOnlyStorageFormat.READONLY_V2.getCode()) != 0) {
                             throw new VoldemortRebalancingException("Cannot rebalance since node "
-                                                                    + node.getId()
-                                                                    + " has store "
-                                                                    + storeToStorageFormat.getKey()
-                                                                    + " not using format "
-                                                                    + ReadOnlyStorageFormat.READONLY_V2);
+                                    + node.getId()
+                                    + " has store "
+                                    + storeToStorageFormat.getKey()
+                                    + " not using format "
+                                    + ReadOnlyStorageFormat.READONLY_V2);
                         }
                     }
                 }
@@ -4145,7 +4193,7 @@ public class AdminClient implements Closeable {
          * <p>
          * Recovery mechanism to recover and restore data actively from
          * replicated copies in the cluster.<br>
-         * 
+         *
          * @param nodeId Id of the node to restoreData
          * @param parallelTransfers number of transfers
          * @throws InterruptedException
@@ -4159,7 +4207,7 @@ public class AdminClient implements Closeable {
          * <p>
          * Recovery mechanism to recover and restore data actively from
          * replicated copies in the cluster.<br>
-         * 
+         *
          * @param nodeId Id of the node to restoreData
          * @param parallelTransfers number of transfers
          * @param zoneId zone from which the nodes are chosen from, -1 means no
@@ -4168,44 +4216,44 @@ public class AdminClient implements Closeable {
          */
         public void restoreDataFromReplications(int nodeId, int parallelTransfers, int zoneId) {
             ExecutorService executors = Executors.newFixedThreadPool(parallelTransfers,
-                                                                     new ThreadFactory() {
+                    new ThreadFactory() {
 
-                                                                         @Override
-                                                                         public Thread newThread(Runnable r) {
-                                                                             Thread thread = new Thread(r);
-                                                                             thread.setName("restore-data-thread");
-                                                                             return thread;
-                                                                         }
-                                                                     });
+                        @Override
+                        public Thread newThread(Runnable r) {
+                            Thread thread = new Thread(r);
+                            thread.setName("restore-data-thread");
+                            return thread;
+                        }
+                    });
             try {
                 List<StoreDefinition> storeDefList = metadataMgmtOps.getRemoteStoreDefList(nodeId)
-                                                                    .getValue();
+                        .getValue();
                 Cluster cluster = metadataMgmtOps.getRemoteCluster(nodeId).getValue();
 
                 List<StoreDefinition> writableStores = Lists.newArrayList();
-                for(StoreDefinition def: storeDefList) {
-                    if(def.isView()) {
+                for (StoreDefinition def : storeDefList) {
+                    if (def.isView()) {
                         logger.info("Ignoring store " + def.getName() + " since it is a view");
-                    } else if(restoreStoreEngineBlackList.contains(def.getType())) {
+                    } else if (restoreStoreEngineBlackList.contains(def.getType())) {
                         logger.info("Ignoring store " + def.getName()
-                                    + " since we don't support restoring for " + def.getType()
-                                    + " storage engine");
-                    } else if(def.getReplicationFactor() == 1) {
+                                + " since we don't support restoring for " + def.getType()
+                                + " storage engine");
+                    } else if (def.getReplicationFactor() == 1) {
                         logger.info("Ignoring store " + def.getName()
-                                    + " since replication factor is set to 1");
+                                + " since replication factor is set to 1");
                     } else {
                         writableStores.add(def);
                     }
                 }
-                for(StoreDefinition def: writableStores) {
+                for (StoreDefinition def : writableStores) {
                     restoreStoreFromReplication(nodeId, cluster, def, executors, zoneId);
                 }
             } finally {
                 executors.shutdown();
                 try {
                     executors.awaitTermination(adminClientConfig.getRestoreDataTimeoutSec(),
-                                               TimeUnit.SECONDS);
-                } catch(InterruptedException e) {
+                            TimeUnit.SECONDS);
+                } catch (InterruptedException e) {
                     logger.error("Interrupted while waiting restore operation to finish.");
                 }
                 logger.info("Finished restoring data.");
@@ -4215,7 +4263,7 @@ public class AdminClient implements Closeable {
         /**
          * For a particular store and node, runs the replication job. This works
          * only for read-write stores
-         * 
+         *
          * @param restoringNodeId The node which we want to restore
          * @param cluster The cluster metadata
          * @param storeDef The definition of the store which we want to restore
@@ -4223,20 +4271,20 @@ public class AdminClient implements Closeable {
          *        job
          */
         private void restoreStoreFromReplication(final int restoringNodeId,
-                                                 final Cluster cluster,
-                                                 final StoreDefinition storeDef,
-                                                 final ExecutorService executorService,
-                                                 final int zoneId) {
+                final Cluster cluster,
+                final StoreDefinition storeDef,
+                final ExecutorService executorService,
+                final int zoneId) {
             logger.info("Restoring data for store " + storeDef.getName() + " on node "
-                        + restoringNodeId);
+                    + restoringNodeId);
 
             Map<Integer, List<Integer>> restoreMapping = replicaOps.getReplicationMapping(restoringNodeId,
-                                                                                          cluster,
-                                                                                          storeDef,
-                                                                                          zoneId);
+                    cluster,
+                    storeDef,
+                    zoneId);
 
             // migrate partition
-            for(final Entry<Integer, List<Integer>> replicationEntry: restoreMapping.entrySet()) {
+            for (final Entry<Integer, List<Integer>> replicationEntry : restoreMapping.entrySet()) {
                 final int donorNodeId = replicationEntry.getKey();
                 executorService.submit(new Runnable() {
 
@@ -4244,27 +4292,27 @@ public class AdminClient implements Closeable {
                     public void run() {
                         try {
                             logger.info("Restoring data for store " + storeDef.getName()
-                                        + " at node " + restoringNodeId + " from node "
-                                        + replicationEntry.getKey() + " partitions:"
-                                        + replicationEntry.getValue());
+                                    + " at node " + restoringNodeId + " from node "
+                                    + replicationEntry.getKey() + " partitions:"
+                                    + replicationEntry.getValue());
 
                             int migrateAsyncId = storeMntOps.migratePartitions(donorNodeId,
-                                                                               restoringNodeId,
-                                                                               storeDef.getName(),
-                                                                               replicationEntry.getValue(),
-                                                                               null,
-                                                                               null);
+                                    restoringNodeId,
+                                    storeDef.getName(),
+                                    replicationEntry.getValue(),
+                                    null,
+                                    null);
 
                             rpcOps.waitForCompletion(restoringNodeId,
-                                                     migrateAsyncId,
-                                                     adminClientConfig.getRestoreDataTimeoutSec(),
-                                                     TimeUnit.SECONDS);
+                                    migrateAsyncId,
+                                    adminClientConfig.getRestoreDataTimeoutSec(),
+                                    TimeUnit.SECONDS);
 
                             logger.info("Restoring data for store:" + storeDef.getName()
-                                        + " from node " + donorNodeId + " completed.");
-                        } catch(Exception e) {
+                                    + " from node " + donorNodeId + " completed.");
+                        } catch (Exception e) {
                             logger.error("Restore operation for store " + storeDef.getName()
-                                         + "from node " + donorNodeId + " failed.", e);
+                                    + "from node " + donorNodeId + " failed.", e);
                         }
                     }
                 });
@@ -4273,104 +4321,109 @@ public class AdminClient implements Closeable {
 
         /**
          * Mirror data from another voldemort server
-         * 
+         *
          * @param nodeId node in the current cluster to mirror to
          * @param nodeIdToMirrorFrom node from which to mirror data
          * @param urlToMirrorFrom cluster bootstrap url to mirror from
          * @param stores set of stores to be mirrored
-         * 
+         *
          */
         public void mirrorData(final int nodeId,
-                               final int nodeIdToMirrorFrom,
-                               final String urlToMirrorFrom,
-                               List<String> stores) {
+                final int nodeIdToMirrorFrom,
+                final String urlToMirrorFrom,
+                List<String> stores) {
             final AdminClient mirrorAdminClient = new AdminClient(urlToMirrorFrom);
             final AdminClient currentAdminClient = AdminClient.this;
 
             // determine the partitions residing on the mirror node
             Node mirrorNode = mirrorAdminClient.getAdminClientCluster()
-                                               .getNodeById(nodeIdToMirrorFrom);
+                    .getNodeById(nodeIdToMirrorFrom);
             Node currentNode = currentAdminClient.getAdminClientCluster().getNodeById(nodeId);
 
-            if(mirrorNode == null) {
+            if (mirrorNode == null) {
                 logger.error("Mirror node specified does not exist in the mirror cluster");
                 return;
             }
 
-            if(currentNode == null) {
+            if (currentNode == null) {
                 logger.error("node specified does not exist in the current cluster");
                 return;
             }
 
             // compare the mirror-from and mirrored-to nodes have same set of
             // stores
-            List<String> currentStoreList = StoreUtils.getStoreNames(currentAdminClient.metadataMgmtOps.getRemoteStoreDefList(nodeId)
-                                                                                                       .getValue(),
-                                                                     true);
-            List<String> mirrorStoreList = StoreUtils.getStoreNames(mirrorAdminClient.metadataMgmtOps.getRemoteStoreDefList(nodeIdToMirrorFrom)
-                                                                                                     .getValue(),
-                                                                    true);
-            if(stores == null)
+            List<String> currentStoreList = StoreUtils.getStoreNames(
+                    currentAdminClient.metadataMgmtOps.getRemoteStoreDefList(nodeId)
+                            .getValue(),
+                    true);
+            List<String> mirrorStoreList = StoreUtils.getStoreNames(
+                    mirrorAdminClient.metadataMgmtOps.getRemoteStoreDefList(nodeIdToMirrorFrom)
+                            .getValue(),
+                    true);
+            if (stores == null) {
                 stores = currentStoreList;
+            }
 
-            if(!currentStoreList.containsAll(stores) || !mirrorStoreList.containsAll(stores)) {
+            if (!currentStoreList.containsAll(stores) || !mirrorStoreList.containsAll(stores)) {
                 logger.error("Make sure the set of stores match on both sides");
                 return;
             }
 
             // check if the partitions are same on both the nodes
-            if(!currentNode.getPartitionIds().equals(mirrorNode.getPartitionIds())) {
+            if (!currentNode.getPartitionIds().equals(mirrorNode.getPartitionIds())) {
                 logger.error("Make sure the same set of partitions exist on both sides");
                 return;
             }
 
             ExecutorService executors = Executors.newFixedThreadPool(stores.size(),
-                                                                     new ThreadFactory() {
+                    new ThreadFactory() {
 
-                                                                         @Override
-                                                                         public Thread newThread(Runnable r) {
-                                                                             Thread thread = new Thread(r);
-                                                                             thread.setName("mirror-data-thread");
-                                                                             return thread;
-                                                                         }
-                                                                     });
+                        @Override
+                        public Thread newThread(Runnable r) {
+                            Thread thread = new Thread(r);
+                            thread.setName("mirror-data-thread");
+                            return thread;
+                        }
+                    });
 
             final List<Integer> partitionIdList = mirrorNode.getPartitionIds();
             final CountDownLatch waitLatch = new CountDownLatch(stores.size());
             try {
-                for(final String storeName: stores)
+                for (final String storeName : stores) {
                     executors.submit(new Runnable() {
 
                         @Override
                         public void run() {
                             try {
                                 logger.info("Mirroring data for store " + storeName + " from node "
-                                            + nodeIdToMirrorFrom + "(" + urlToMirrorFrom
-                                            + ") to node " + nodeId + " partitions:"
-                                            + partitionIdList);
+                                        + nodeIdToMirrorFrom + "(" + urlToMirrorFrom
+                                        + ") to node " + nodeId + " partitions:"
+                                        + partitionIdList);
 
-                                Iterator<Pair<ByteArray, Versioned<byte[]>>> iterator = mirrorAdminClient.bulkFetchOps.fetchEntries(nodeIdToMirrorFrom,
-                                                                                                                                    storeName,
-                                                                                                                                    partitionIdList,
-                                                                                                                                    null,
-                                                                                                                                    false);
+                                Iterator<Pair<ByteArray, Versioned<byte[]>>> iterator =
+                                        mirrorAdminClient.bulkFetchOps.fetchEntries(nodeIdToMirrorFrom,
+                                                storeName,
+                                                partitionIdList,
+                                                null,
+                                                false);
                                 currentAdminClient.streamingOps.updateEntries(nodeId,
-                                                                              storeName,
-                                                                              iterator,
-                                                                              null);
+                                        storeName,
+                                        iterator,
+                                        null);
 
                                 logger.info("Mirroring data for store:" + storeName + " from node "
-                                            + nodeIdToMirrorFrom + " completed.");
-                            } catch(Exception e) {
+                                        + nodeIdToMirrorFrom + " completed.");
+                            } catch (Exception e) {
                                 logger.error("Mirroring operation for store " + storeName
-                                             + "from node " + nodeIdToMirrorFrom + " failed.", e);
+                                        + "from node " + nodeIdToMirrorFrom + " failed.", e);
                             } finally {
                                 waitLatch.countDown();
                             }
                         }
                     });
+                }
                 waitLatch.await();
-            } catch(Exception e) {
+            } catch (Exception e) {
                 logger.error("Mirroring operation failed.", e);
             } finally {
                 executors.shutdown();
@@ -4381,50 +4434,52 @@ public class AdminClient implements Closeable {
 
     /**
      * Encapsulates all operations specific to read-only stores alone
-     * 
+     *
      */
     public class ReadOnlySpecificOperations {
 
         /**
          * Rollback RO store to most recent backup of the current store
          * <p>
-         * 
+         *
          * @param nodeId The node id on which to rollback
          * @param storeName The name of the RO Store to rollback
          * @param pushVersion The version of the push to revert back to
          */
         public void rollbackStore(int nodeId, String storeName, long pushVersion) {
-            VAdminProto.RollbackStoreRequest.Builder rollbackStoreRequest = VAdminProto.RollbackStoreRequest.newBuilder()
-                                                                                                            .setStoreName(storeName)
-                                                                                                            .setPushVersion(pushVersion);
+            VAdminProto.RollbackStoreRequest.Builder rollbackStoreRequest =
+                    VAdminProto.RollbackStoreRequest.newBuilder()
+                            .setStoreName(storeName)
+                            .setPushVersion(pushVersion);
 
             VAdminProto.VoldemortAdminRequest adminRequest = VAdminProto.VoldemortAdminRequest.newBuilder()
-                                                                                              .setRollbackStore(rollbackStoreRequest)
-                                                                                              .setType(VAdminProto.AdminRequestType.ROLLBACK_STORE)
-                                                                                              .build();
+                    .setRollbackStore(rollbackStoreRequest)
+                    .setType(VAdminProto.AdminRequestType.ROLLBACK_STORE)
+                    .build();
             VAdminProto.RollbackStoreResponse.Builder response = rpcOps.sendAndReceive(nodeId,
-                                                                                       adminRequest,
-                                                                                       VAdminProto.RollbackStoreResponse.newBuilder());
-            if(response.hasError()) {
+                    adminRequest,
+                    VAdminProto.RollbackStoreResponse.newBuilder());
+            if (response.hasError()) {
                 helperOps.throwException(response.getError());
             }
             return;
         }
 
         public void rollbackStore(List<Integer> nodeIds, String storeName, long pushVersion) {
-            VAdminProto.RollbackStoreRequest.Builder rollbackStoreRequest = VAdminProto.RollbackStoreRequest.newBuilder()
-                                                                                                            .setStoreName(storeName)
-                                                                                                            .setPushVersion(pushVersion);
+            VAdminProto.RollbackStoreRequest.Builder rollbackStoreRequest =
+                    VAdminProto.RollbackStoreRequest.newBuilder()
+                            .setStoreName(storeName)
+                            .setPushVersion(pushVersion);
 
             VAdminProto.VoldemortAdminRequest adminRequest = VAdminProto.VoldemortAdminRequest.newBuilder()
-                                                                                              .setRollbackStore(rollbackStoreRequest)
-                                                                                              .setType(VAdminProto.AdminRequestType.ROLLBACK_STORE)
-                                                                                              .build();
-            for(Integer nodeId: nodeIds) {
+                    .setRollbackStore(rollbackStoreRequest)
+                    .setType(VAdminProto.AdminRequestType.ROLLBACK_STORE)
+                    .build();
+            for (Integer nodeId : nodeIds) {
                 VAdminProto.RollbackStoreResponse.Builder response = rpcOps.sendAndReceive(nodeId,
-                                                                                           adminRequest,
-                                                                                           VAdminProto.RollbackStoreResponse.newBuilder());
-                if(response.hasError()) {
+                        adminRequest,
+                        VAdminProto.RollbackStoreResponse.newBuilder());
+                if (response.hasError()) {
                     helperOps.throwException(response.getError());
                 }
             }
@@ -4433,7 +4488,7 @@ public class AdminClient implements Closeable {
         /**
          * Fetch data from directory 'storeDir' on node id
          * <p>
-         * 
+         *
          * @param nodeId The id of the node on which to fetch the data
          * @param storeName The name of the store
          * @param storeDir The directory from where to read the data
@@ -4442,26 +4497,26 @@ public class AdminClient implements Closeable {
          * @return The path of the directory where the data is stored finally
          */
         public String fetchStore(int nodeId,
-                                 String storeName,
-                                 String storeDir,
-                                 long pushVersion,
-                                 long timeoutMs) {
+                String storeName,
+                String storeDir,
+                long pushVersion,
+                long timeoutMs) {
             VAdminProto.FetchStoreRequest.Builder fetchStoreRequest = VAdminProto.FetchStoreRequest.newBuilder()
-                                                                                                   .setStoreName(storeName)
-                                                                                                   .setStoreDir(storeDir);
-            if(pushVersion > 0) {
+                    .setStoreName(storeName)
+                    .setStoreDir(storeDir);
+            if (pushVersion > 0) {
                 fetchStoreRequest.setPushVersion(pushVersion);
             }
 
             VAdminProto.VoldemortAdminRequest adminRequest = VAdminProto.VoldemortAdminRequest.newBuilder()
-                                                                                              .setFetchStore(fetchStoreRequest)
-                                                                                              .setType(VAdminProto.AdminRequestType.FETCH_STORE)
-                                                                                              .build();
+                    .setFetchStore(fetchStoreRequest)
+                    .setType(VAdminProto.AdminRequestType.FETCH_STORE)
+                    .build();
             VAdminProto.AsyncOperationStatusResponse.Builder response = rpcOps.sendAndReceive(nodeId,
-                                                                                              adminRequest,
-                                                                                              VAdminProto.AsyncOperationStatusResponse.newBuilder());
+                    adminRequest,
+                    VAdminProto.AsyncOperationStatusResponse.newBuilder());
 
-            if(response.hasError()) {
+            if (response.hasError()) {
                 helperOps.throwException(response.getError());
             }
 
@@ -4470,8 +4525,8 @@ public class AdminClient implements Closeable {
                 return rpcOps.waitForCompletion(nodeId, asyncId, timeoutMs, TimeUnit.MILLISECONDS);
             } catch (AsyncOperationTimeoutException aote) {
                 logger.error("Got an AsyncOperationTimeoutException for nodeId " + nodeId + " while waiting for"
-                             + " completion of Async Operation ID " + asyncId + ". Will attempt to kill the job"
-                             + " and rethrow the original exception afterwards.");
+                        + " completion of Async Operation ID " + asyncId + ". Will attempt to kill the job"
+                        + " and rethrow the original exception afterwards.");
                 try {
                     rpcOps.stopAsyncRequest(nodeId, asyncId);
                     logger.info("Successfully killed Async Operation ID " + asyncId);
@@ -4481,7 +4536,7 @@ public class AdminClient implements Closeable {
                 throw aote;
             } catch (VoldemortException ve) {
                 logger.error("Got a " + ve.getClass().getSimpleName() + " for nodeId " + nodeId + " while waiting for"
-                             + " completion of Async Operation ID " + asyncId + ". Bubbling up.");
+                        + " completion of Async Operation ID " + asyncId + ". Bubbling up.");
                 throw ve;
             }
         }
@@ -4489,24 +4544,25 @@ public class AdminClient implements Closeable {
         /**
          * When a fetch store fails, we don't need to keep the pushed data
          * around. This function deletes its...
-         * 
+         *
          * @param nodeId The node id on which to delete the data
          * @param storeName The name of the store
          * @param storeDir The directory to delete
          */
         public void failedFetchStore(int nodeId, String storeName, String storeDir) {
-            VAdminProto.FailedFetchStoreRequest.Builder failedFetchStoreRequest = VAdminProto.FailedFetchStoreRequest.newBuilder()
-                                                                                                                     .setStoreDir(storeDir)
-                                                                                                                     .setStoreName(storeName);
+            VAdminProto.FailedFetchStoreRequest.Builder failedFetchStoreRequest =
+                    VAdminProto.FailedFetchStoreRequest.newBuilder()
+                            .setStoreDir(storeDir)
+                            .setStoreName(storeName);
 
             VAdminProto.VoldemortAdminRequest adminRequest = VAdminProto.VoldemortAdminRequest.newBuilder()
-                                                                                              .setFailedFetchStore(failedFetchStoreRequest)
-                                                                                              .setType(VAdminProto.AdminRequestType.FAILED_FETCH_STORE)
-                                                                                              .build();
+                    .setFailedFetchStore(failedFetchStoreRequest)
+                    .setType(VAdminProto.AdminRequestType.FAILED_FETCH_STORE)
+                    .build();
             VAdminProto.FailedFetchStoreResponse.Builder response = rpcOps.sendAndReceive(nodeId,
-                                                                                          adminRequest,
-                                                                                          VAdminProto.FailedFetchStoreResponse.newBuilder());
-            if(response.hasError()) {
+                    adminRequest,
+                    VAdminProto.FailedFetchStoreResponse.newBuilder());
+            if (response.hasError()) {
                 helperOps.throwException(response.getError());
             }
             return;
@@ -4515,7 +4571,7 @@ public class AdminClient implements Closeable {
         /**
          * Swap store data atomically on a single node
          * <p>
-         * 
+         *
          * @param nodeId The node id where we would want to swap the data
          * @param storeName Name of the store
          * @param storeDir The directory where the data is present
@@ -4523,16 +4579,16 @@ public class AdminClient implements Closeable {
          */
         public String swapStore(int nodeId, String storeName, String storeDir) {
             VAdminProto.SwapStoreRequest.Builder swapStoreRequest = VAdminProto.SwapStoreRequest.newBuilder()
-                                                                                                .setStoreDir(storeDir)
-                                                                                                .setStoreName(storeName);
+                    .setStoreDir(storeDir)
+                    .setStoreName(storeName);
             VAdminProto.VoldemortAdminRequest adminRequest = VAdminProto.VoldemortAdminRequest.newBuilder()
-                                                                                              .setSwapStore(swapStoreRequest)
-                                                                                              .setType(VAdminProto.AdminRequestType.SWAP_STORE)
-                                                                                              .build();
+                    .setSwapStore(swapStoreRequest)
+                    .setType(VAdminProto.AdminRequestType.SWAP_STORE)
+                    .build();
             VAdminProto.SwapStoreResponse.Builder response = rpcOps.sendAndReceive(nodeId,
-                                                                                   adminRequest,
-                                                                                   VAdminProto.SwapStoreResponse.newBuilder());
-            if(response.hasError()) {
+                    adminRequest,
+                    VAdminProto.SwapStoreResponse.newBuilder());
+            if (response.hasError()) {
                 helperOps.throwException(response.getError());
             }
             return response.getPreviousStoreDir();
@@ -4541,29 +4597,30 @@ public class AdminClient implements Closeable {
         /**
          * Returns the read-only storage format - {@link ReadOnlyStorageFormat}
          * for a list of stores
-         * 
+         *
          * @param nodeId The id of the node on which the stores are present
          * @param storeNames List of all the store names
          * @return Returns a map of store name to its corresponding RO storage
          *         format
          */
         public Map<String, String> getROStorageFormat(int nodeId, List<String> storeNames) {
-            VAdminProto.GetROStorageFormatRequest.Builder getRORequest = VAdminProto.GetROStorageFormatRequest.newBuilder()
-                                                                                                              .addAllStoreName(storeNames);
+            VAdminProto.GetROStorageFormatRequest.Builder getRORequest =
+                    VAdminProto.GetROStorageFormatRequest.newBuilder()
+                            .addAllStoreName(storeNames);
             VAdminProto.VoldemortAdminRequest adminRequest = VAdminProto.VoldemortAdminRequest.newBuilder()
-                                                                                              .setGetRoStorageFormat(getRORequest)
-                                                                                              .setType(VAdminProto.AdminRequestType.GET_RO_STORAGE_FORMAT)
-                                                                                              .build();
+                    .setGetRoStorageFormat(getRORequest)
+                    .setType(VAdminProto.AdminRequestType.GET_RO_STORAGE_FORMAT)
+                    .build();
             VAdminProto.GetROStorageFormatResponse.Builder response = rpcOps.sendAndReceive(nodeId,
-                                                                                            adminRequest,
-                                                                                            VAdminProto.GetROStorageFormatResponse.newBuilder());
-            if(response.hasError()) {
+                    adminRequest,
+                    VAdminProto.GetROStorageFormatResponse.newBuilder());
+            if (response.hasError()) {
                 helperOps.throwException(response.getError());
             }
 
             Map<String, String> storeToValues = ProtoUtils.encodeROMap(response.getRoStoreVersionsList());
 
-            if(storeToValues.size() != storeNames.size()) {
+            if (storeToValues.size() != storeNames.size()) {
                 storeNames.removeAll(storeToValues.keySet());
                 throw new VoldemortException("Did not retrieve values for " + storeNames);
             }
@@ -4572,14 +4629,14 @@ public class AdminClient implements Closeable {
 
         /**
          * Wrapper to get RO storage format for single store on one node
-         * 
+         *
          * @param nodeId
          * @param storeName
          * @return
          */
         public String getROStorageFormat(int nodeId, String storeName) {
             Map<String, String> mapStoreToFormat = getROStorageFormat(nodeId,
-                                                                      Lists.newArrayList(storeName));
+                    Lists.newArrayList(storeName));
             return mapStoreToFormat.get(storeName);
         }
 
@@ -4588,28 +4645,29 @@ public class AdminClient implements Closeable {
          * store. Important to remember that this may not be the 'current'
          * version since multiple pushes (with greater version numbers) may be
          * in progress currently
-         * 
+         *
          * @param nodeId The id of the node on which the store is present
          * @param storeNames List of all the stores
          * @return Returns a map of store name to the respective store directory
          */
         public Map<String, String> getROMaxVersionDir(int nodeId, List<String> storeNames) {
-            VAdminProto.GetROMaxVersionDirRequest.Builder getRORequest = VAdminProto.GetROMaxVersionDirRequest.newBuilder()
-                                                                                                              .addAllStoreName(storeNames);
+            VAdminProto.GetROMaxVersionDirRequest.Builder getRORequest =
+                    VAdminProto.GetROMaxVersionDirRequest.newBuilder()
+                            .addAllStoreName(storeNames);
             VAdminProto.VoldemortAdminRequest adminRequest = VAdminProto.VoldemortAdminRequest.newBuilder()
-                                                                                              .setGetRoMaxVersionDir(getRORequest)
-                                                                                              .setType(VAdminProto.AdminRequestType.GET_RO_MAX_VERSION_DIR)
-                                                                                              .build();
+                    .setGetRoMaxVersionDir(getRORequest)
+                    .setType(VAdminProto.AdminRequestType.GET_RO_MAX_VERSION_DIR)
+                    .build();
             VAdminProto.GetROMaxVersionDirResponse.Builder response = rpcOps.sendAndReceive(nodeId,
-                                                                                            adminRequest,
-                                                                                            VAdminProto.GetROMaxVersionDirResponse.newBuilder());
-            if(response.hasError()) {
+                    adminRequest,
+                    VAdminProto.GetROMaxVersionDirResponse.newBuilder());
+            if (response.hasError()) {
                 helperOps.throwException(response.getError());
             }
 
             Map<String, String> storeToValues = ProtoUtils.encodeROMap(response.getRoStoreVersionsList());
 
-            if(storeToValues.size() != storeNames.size()) {
+            if (storeToValues.size() != storeNames.size()) {
                 storeNames.removeAll(storeToValues.keySet());
                 throw new VoldemortException("Did not retrieve values for " + storeNames);
             }
@@ -4618,29 +4676,30 @@ public class AdminClient implements Closeable {
 
         /**
          * Returns the 'current' versions of all RO stores provided
-         * 
+         *
          * @param nodeId The id of the node on which the store is present
          * @param storeNames List of all the RO stores
          * @return Returns a map of store name to the respective max version
          *         directory
          */
         public Map<String, String> getROCurrentVersionDir(int nodeId, List<String> storeNames) {
-            VAdminProto.GetROCurrentVersionDirRequest.Builder getRORequest = VAdminProto.GetROCurrentVersionDirRequest.newBuilder()
-                                                                                                                      .addAllStoreName(storeNames);
+            VAdminProto.GetROCurrentVersionDirRequest.Builder getRORequest =
+                    VAdminProto.GetROCurrentVersionDirRequest.newBuilder()
+                            .addAllStoreName(storeNames);
             VAdminProto.VoldemortAdminRequest adminRequest = VAdminProto.VoldemortAdminRequest.newBuilder()
-                                                                                              .setGetRoCurrentVersionDir(getRORequest)
-                                                                                              .setType(VAdminProto.AdminRequestType.GET_RO_CURRENT_VERSION_DIR)
-                                                                                              .build();
+                    .setGetRoCurrentVersionDir(getRORequest)
+                    .setType(VAdminProto.AdminRequestType.GET_RO_CURRENT_VERSION_DIR)
+                    .build();
             VAdminProto.GetROCurrentVersionDirResponse.Builder response = rpcOps.sendAndReceive(nodeId,
-                                                                                                adminRequest,
-                                                                                                VAdminProto.GetROCurrentVersionDirResponse.newBuilder());
-            if(response.hasError()) {
+                    adminRequest,
+                    VAdminProto.GetROCurrentVersionDirResponse.newBuilder());
+            if (response.hasError()) {
                 helperOps.throwException(response.getError());
             }
 
             Map<String, String> storeToValues = ProtoUtils.encodeROMap(response.getRoStoreVersionsList());
 
-            if(storeToValues.size() != storeNames.size()) {
+            if (storeToValues.size() != storeNames.size()) {
                 storeNames.removeAll(storeToValues.keySet());
                 throw new VoldemortException("Did not retrieve values for " + storeNames);
             }
@@ -4649,7 +4708,7 @@ public class AdminClient implements Closeable {
 
         /**
          * Returns the 'current' version of RO store
-         * 
+         *
          * @param nodeId The id of the node on which the store is present
          * @param storeNames List of all the stores
          * @return Returns a map of store name to the respective max version
@@ -4658,9 +4717,9 @@ public class AdminClient implements Closeable {
         public Map<String, Long> getROCurrentVersion(int nodeId, List<String> storeNames) {
             Map<String, Long> returnMap = Maps.newHashMapWithExpectedSize(storeNames.size());
             Map<String, String> versionDirs = getROCurrentVersionDir(nodeId, storeNames);
-            for(String storeName: versionDirs.keySet()) {
+            for (String storeName : versionDirs.keySet()) {
                 returnMap.put(storeName,
-                              ReadOnlyUtils.getVersionId(new File(versionDirs.get(storeName))));
+                        ReadOnlyUtils.getVersionId(new File(versionDirs.get(storeName))));
             }
             return returnMap;
         }
@@ -4670,7 +4729,7 @@ public class AdminClient implements Closeable {
          * store. Important to remember that this may not be the 'current'
          * version since multiple pushes (with greater version numbers) may be
          * in progress currently
-         * 
+         *
          * @param nodeId The id of the node on which the store is present
          * @param storeNames List of all the stores
          * @return Returns a map of store name to the respective max version
@@ -4679,9 +4738,9 @@ public class AdminClient implements Closeable {
         public Map<String, Long> getROMaxVersion(int nodeId, List<String> storeNames) {
             Map<String, Long> returnMap = Maps.newHashMapWithExpectedSize(storeNames.size());
             Map<String, String> versionDirs = getROMaxVersionDir(nodeId, storeNames);
-            for(String storeName: versionDirs.keySet()) {
+            for (String storeName : versionDirs.keySet()) {
                 returnMap.put(storeName,
-                              ReadOnlyUtils.getVersionId(new File(versionDirs.get(storeName))));
+                        ReadOnlyUtils.getVersionId(new File(versionDirs.get(storeName))));
             }
             return returnMap;
         }
@@ -4690,7 +4749,7 @@ public class AdminClient implements Closeable {
          * This is a wrapper around {@link #getROMaxVersion(java.util.List, int)} where-in
          * we find the max versions on each machine and then return the max of
          * all of them, without tolerating any node failures.
-         * 
+         *
          * @param storeNames List of all read-only stores
          * @return A map of store-name to their corresponding max version id
          */
@@ -4710,16 +4769,16 @@ public class AdminClient implements Closeable {
         public Map<String, Long> getROMaxVersion(List<String> storeNames, int maxNodeFailures) {
             int nodeFailures = 0;
             Map<String, Long> storeToMaxVersion = Maps.newHashMapWithExpectedSize(storeNames.size());
-            for(String storeName: storeNames) {
+            for (String storeName : storeNames) {
                 storeToMaxVersion.put(storeName, 0L);
             }
 
-            for(Node node: currentCluster.getNodes()) {
+            for (Node node : currentCluster.getNodes()) {
                 try {
                     Map<String, Long> currentNodeVersions = getROMaxVersion(node.getId(), storeNames);
-                    for(String storeName: currentNodeVersions.keySet()) {
+                    for (String storeName : currentNodeVersions.keySet()) {
                         Long maxVersion = storeToMaxVersion.get(storeName);
-                        if(maxVersion != null && maxVersion < currentNodeVersions.get(storeName)) {
+                        if (maxVersion != null && maxVersion < currentNodeVersions.get(storeName)) {
                             storeToMaxVersion.put(storeName, currentNodeVersions.get(storeName));
                         }
                     }
@@ -4741,7 +4800,7 @@ public class AdminClient implements Closeable {
 
         /**
          * Returns the file names of a specific store on one node.
-         * 
+         *
          * @param nodeId Id of the node to query from
          * @param storeName Name of the store to look up
          * @return A list of file names corresponding to the store and node
@@ -4749,53 +4808,53 @@ public class AdminClient implements Closeable {
 
         public List<String> getROStorageFileList(int nodeId, String storeName) {
             VAdminProto.GetROStorageFileListResponse.Builder response = getROMetadata(nodeId,
-                                                                                      storeName);
+                    storeName);
             return response.getFileNameList();
         }
 
         public List<ReadOnlyFileEntry> getROStorageFileMetadata(int nodeId, String storeName) {
             VAdminProto.GetROStorageFileListResponse.Builder response = getROMetadata(nodeId,
-                                                                                      storeName);
+                    storeName);
 
             List<String> fileNames = response.getFileNameList();
             List<Integer> indexSizes = response.getIndexFileSizeList();
             List<Integer> dataSizes = response.getDataFileSizeList();
 
             List<ReadOnlyFileEntry> files = Lists.newArrayList();
-            if(indexSizes.size() != dataSizes.size()) {
+            if (indexSizes.size() != dataSizes.size()) {
                 String errorMessage = " Node returned different counts for data and index" + nodeId
-                                      + " dataSize count " + dataSizes.size() + " indexSize count "
-                                      + indexSizes.size();
+                        + " dataSize count " + dataSizes.size() + " indexSize count "
+                        + indexSizes.size();
                 logger.error(errorMessage);
                 throw new VoldemortApplicationException(errorMessage);
             }
             // Server running older version of the Code, which does not have sizes;
-            if(indexSizes.size() == 0) {
-                for(String file: fileNames) {
+            if (indexSizes.size() == 0) {
+                for (String file : fileNames) {
                     ReadOnlyFileEntry dataFile = new ReadOnlyFileEntry(file, FileType.DATA);
                     ReadOnlyFileEntry indexFile = new ReadOnlyFileEntry(file, FileType.INDEX);
                     files.add(dataFile);
                     files.add(indexFile);
                 }
             } else {
-                if(indexSizes.size() != fileNames.size()) {
+                if (indexSizes.size() != fileNames.size()) {
                     String errorMessage = " Node returned different counts for fileNames and fileSize"
-                                          + nodeId + " fileNames count " + fileNames.size()
-                                          + " fileSizes count " + indexSizes.size();
+                            + nodeId + " fileNames count " + fileNames.size()
+                            + " fileSizes count " + indexSizes.size();
                     logger.error(errorMessage);
                     throw new VoldemortApplicationException(errorMessage);
                 }
-                for(int i = 0; i < fileNames.size(); i++) {
+                for (int i = 0; i < fileNames.size(); i++) {
                     String fileName = fileNames.get(i);
                     int dataFileSize = dataSizes.get(i);
                     int indexFileSize = indexSizes.get(i);
 
                     ReadOnlyFileEntry dataFile = new ReadOnlyFileEntry(fileName,
-                                                                       FileType.DATA,
-                                                                       dataFileSize);
+                            FileType.DATA,
+                            dataFileSize);
                     ReadOnlyFileEntry indexFile = new ReadOnlyFileEntry(fileName,
-                                                                        FileType.INDEX,
-                                                                        indexFileSize);
+                            FileType.INDEX,
+                            indexFileSize);
                     files.add(dataFile);
                     files.add(indexFile);
                 }
@@ -4805,17 +4864,18 @@ public class AdminClient implements Closeable {
         }
 
         private VAdminProto.GetROStorageFileListResponse.Builder getROMetadata(int nodeId,
-                                                                               String storeName) {
-            VAdminProto.GetROStorageFileListRequest.Builder getRORequest = VAdminProto.GetROStorageFileListRequest.newBuilder()
-                                                                                                                  .setStoreName(storeName);
+                String storeName) {
+            VAdminProto.GetROStorageFileListRequest.Builder getRORequest =
+                    VAdminProto.GetROStorageFileListRequest.newBuilder()
+                            .setStoreName(storeName);
             VAdminProto.VoldemortAdminRequest adminRequest = VAdminProto.VoldemortAdminRequest.newBuilder()
-                                                                                              .setGetRoStorageFileList(getRORequest)
-                                                                                              .setType(VAdminProto.AdminRequestType.GET_RO_STORAGE_FILE_LIST)
-                                                                                              .build();
+                    .setGetRoStorageFileList(getRORequest)
+                    .setType(VAdminProto.AdminRequestType.GET_RO_STORAGE_FILE_LIST)
+                    .build();
             VAdminProto.GetROStorageFileListResponse.Builder response = rpcOps.sendAndReceive(nodeId,
-                                                                                              adminRequest,
-                                                                                              VAdminProto.GetROStorageFileListResponse.newBuilder());
-            if(response.hasError()) {
+                    adminRequest,
+                    VAdminProto.GetROStorageFileListResponse.newBuilder());
+            if (response.hasError()) {
                 helperOps.throwException(response.getError());
             }
 
@@ -4843,19 +4903,22 @@ public class AdminClient implements Closeable {
                     lastException = e;
                 }
             }
-            throw new VoldemortException("Error while trying to ask the cluster for its compression settings. All nodes failed.", lastException);
+            throw new VoldemortException(
+                    "Error while trying to ask the cluster for its compression settings. All nodes failed.",
+                    lastException);
         }
 
         public List<String> getSupportedROStorageCompressionCodecs(int nodeId) {
-            VAdminProto.GetROStorageCompressionCodecListRequest.Builder getRORequest = VAdminProto.GetROStorageCompressionCodecListRequest.newBuilder();
+            VAdminProto.GetROStorageCompressionCodecListRequest.Builder getRORequest =
+                    VAdminProto.GetROStorageCompressionCodecListRequest.newBuilder();
             VAdminProto.VoldemortAdminRequest adminRequest = VAdminProto.VoldemortAdminRequest.newBuilder()
-                                                                                              .setGetRoCompressionCodecList(getRORequest)
-                                                                                              .setType(VAdminProto.AdminRequestType.GET_RO_COMPRESSION_CODEC_LIST)
-                                                                                              .build();
+                    .setGetRoCompressionCodecList(getRORequest)
+                    .setType(VAdminProto.AdminRequestType.GET_RO_COMPRESSION_CODEC_LIST)
+                    .build();
             VAdminProto.GetROStorageCompressionCodecListResponse.Builder response = rpcOps.sendAndReceive(nodeId,
-                                                                                                     adminRequest,
-                                                                                                          VAdminProto.GetROStorageCompressionCodecListResponse.newBuilder());
-            if(response.hasError()) {
+                    adminRequest,
+                    VAdminProto.GetROStorageCompressionCodecListResponse.newBuilder());
+            if (response.hasError()) {
                 helperOps.throwException(response.getError());
             }
 
@@ -4865,7 +4928,7 @@ public class AdminClient implements Closeable {
         /**
          * Fetch read-only store files to a specified directory. This is run on
          * the stealer node side
-         * 
+         *
          * @param nodeId The node id from where to copy
          * @param storeName The name of the read-only store
          * @param partitionIds List of partitionIds
@@ -4879,20 +4942,20 @@ public class AdminClient implements Closeable {
          *        copying
          */
         public void fetchPartitionFiles(int nodeId,
-                                        String storeName,
-                                        List<Integer> partitionIds,
-                                        String destinationDirPath,
-                                        Set<Object> notAcceptedBuckets,
-                                        AtomicBoolean running) {
-            if(!Utils.isReadableDir(destinationDirPath)) {
+                String storeName,
+                List<Integer> partitionIds,
+                String destinationDirPath,
+                Set<Object> notAcceptedBuckets,
+                AtomicBoolean running) {
+            if (!Utils.isReadableDir(destinationDirPath)) {
                 throw new VoldemortException("The destination path (" + destinationDirPath
-                                             + ") to store " + storeName + " does not exist");
+                        + ") to store " + storeName + " does not exist");
             }
 
             Node node = AdminClient.this.getAdminClientCluster().getNodeById(nodeId);
             final SocketDestination destination = new SocketDestination(node.getHost(),
-                                                                        node.getAdminPort(),
-                                                                        RequestFormatType.ADMIN_PROTOCOL_BUFFERS);
+                    node.getAdminPort(),
+                    RequestFormatType.ADMIN_PROTOCOL_BUFFERS);
             final SocketAndStreams sands = socketPool.checkout(destination);
             DataOutputStream outputStream = sands.getOutputStream();
             final DataInputStream inputStream = sands.getInputStream();
@@ -4904,36 +4967,37 @@ public class AdminClient implements Closeable {
                 // for new nodes the stores don't start with any metadata file
 
                 File metadataFile = new File(destinationDirPath, ".metadata");
-                if(!metadataFile.exists()) {
+                if (!metadataFile.exists()) {
                     ReadOnlyStorageMetadata metadata = new ReadOnlyStorageMetadata();
                     metadata.add(ReadOnlyStorageMetadata.FORMAT,
-                                 ReadOnlyStorageFormat.READONLY_V2.getCode());
+                            ReadOnlyStorageFormat.READONLY_V2.getCode());
                     FileUtils.writeStringToFile(metadataFile, metadata.toJsonString());
                 }
 
-                VAdminProto.FetchPartitionFilesRequest fetchPartitionFileRequest = VAdminProto.FetchPartitionFilesRequest.newBuilder()
-                                                                                                                         .setStoreName(storeName)
-                                                                                                                         .addAllPartitionIds(partitionIds)
-                                                                                                                         .build();
+                VAdminProto.FetchPartitionFilesRequest fetchPartitionFileRequest =
+                        VAdminProto.FetchPartitionFilesRequest.newBuilder()
+                                .setStoreName(storeName)
+                                .addAllPartitionIds(partitionIds)
+                                .build();
 
                 VAdminProto.VoldemortAdminRequest request = VAdminProto.VoldemortAdminRequest.newBuilder()
-                                                                                             .setFetchPartitionFiles(fetchPartitionFileRequest)
-                                                                                             .setType(VAdminProto.AdminRequestType.FETCH_PARTITION_FILES)
-                                                                                             .build();
+                        .setFetchPartitionFiles(fetchPartitionFileRequest)
+                        .setType(VAdminProto.AdminRequestType.FETCH_PARTITION_FILES)
+                        .build();
                 ProtoUtils.writeMessage(outputStream, request);
                 outputStream.flush();
 
-                while(true && running.get()) {
+                while (true && running.get()) {
                     int size = 0;
 
                     try {
                         size = inputStream.readInt();
-                    } catch(IOException e) {
+                    } catch (IOException e) {
                         logger.error("Received IOException while fetching files", e);
                         throw e;
                     }
 
-                    if(size == -1) {
+                    if (size == -1) {
                         helperOps.close(sands.getSocket());
                         break;
                     }
@@ -4941,21 +5005,22 @@ public class AdminClient implements Closeable {
                     byte[] input = new byte[size];
                     ByteUtils.read(inputStream, input);
                     VAdminProto.FileEntry fileEntry = VAdminProto.FileEntry.newBuilder()
-                                                                           .mergeFrom(input)
-                                                                           .build();
+                            .mergeFrom(input)
+                            .build();
 
-                    if(notAcceptedBuckets != null) {
-                        Pair<Integer, Integer> partitionReplicaTuple = ReadOnlyUtils.getPartitionReplicaTuple(fileEntry.getFileName());
-                        if(notAcceptedBuckets.contains(partitionReplicaTuple)) {
+                    if (notAcceptedBuckets != null) {
+                        Pair<Integer, Integer> partitionReplicaTuple = ReadOnlyUtils.getPartitionReplicaTuple(
+                                fileEntry.getFileName());
+                        if (notAcceptedBuckets.contains(partitionReplicaTuple)) {
                             throw new VoldemortException("Cannot copy file "
-                                                         + fileEntry.getFileName()
-                                                         + " since it is one of the mmap-ed files");
+                                    + fileEntry.getFileName()
+                                    + " since it is one of the mmap-ed files");
                         }
                     }
                     logger.info("Receiving file " + fileEntry.getFileName());
 
                     FileChannel fileChannel = new FileOutputStream(new File(destinationDirPath,
-                                                                            fileEntry.getFileName())).getChannel();
+                            fileEntry.getFileName())).getChannel();
                     ReadableByteChannel channelIn = Channels.newChannel(inputStream);
                     fileChannel.transferFrom(channelIn, 0, fileEntry.getFileSizeBytes());
                     fileChannel.force(true);
@@ -4964,7 +5029,7 @@ public class AdminClient implements Closeable {
                     logger.info("Completed file " + fileEntry.getFileName());
                 }
 
-            } catch(IOException e) {
+            } catch (IOException e) {
                 helperOps.close(sands.getSocket());
                 throw new VoldemortException(e);
             } finally {
@@ -4993,7 +5058,8 @@ public class AdminClient implements Closeable {
                     lastException = e;
                 }
             }
-            throw new VoldemortException("Error while trying to ask the cluster for its HA settings. All nodes failed.", lastException);
+            throw new VoldemortException("Error while trying to ask the cluster for its HA settings. All nodes failed.",
+                    lastException);
         }
 
         public VAdminProto.GetHighAvailabilitySettingsResponse getHighAvailabilitySettings(Integer nodeId) {
@@ -5009,35 +5075,37 @@ public class AdminClient implements Closeable {
         }
 
         /**
-          * @return the {@link voldemort.client.protocol.pb.VAdminProto.DisableStoreVersionResponse}
+         * @return the {@link voldemort.client.protocol.pb.VAdminProto.DisableStoreVersionResponse}
          */
-        public VAdminProto.DisableStoreVersionResponse disableStoreVersion(Integer nodeId, String storeName, Long storeVersion, String info) {
+        public VAdminProto.DisableStoreVersionResponse disableStoreVersion(Integer nodeId, String storeName,
+                Long storeVersion, String info) {
             VAdminProto.DisableStoreVersionRequest request = VAdminProto.DisableStoreVersionRequest.newBuilder()
-                                                                                                   .setStoreName(storeName)
-                                                                                                   .setPushVersion(storeVersion)
-                                                                                                   .setInfo(info)
-                                                                                                   .build();
+                    .setStoreName(storeName)
+                    .setPushVersion(storeVersion)
+                    .setInfo(info)
+                    .build();
 
             VAdminProto.VoldemortAdminRequest adminRequest = VAdminProto.VoldemortAdminRequest.newBuilder()
-                                                                        .setDisableStoreVersion(request)
-                                                                        .setType(VAdminProto.AdminRequestType.DISABLE_STORE_VERSION)
-                                                                        .build();
+                    .setDisableStoreVersion(request)
+                    .setType(VAdminProto.AdminRequestType.DISABLE_STORE_VERSION)
+                    .build();
 
             VAdminProto.DisableStoreVersionResponse response = null;
-            VAdminProto.DisableStoreVersionResponse.Builder responseBuilder = VAdminProto.DisableStoreVersionResponse.newBuilder();
+            VAdminProto.DisableStoreVersionResponse.Builder responseBuilder =
+                    VAdminProto.DisableStoreVersionResponse.newBuilder();
             try {
                 response = rpcOps.sendAndReceive(nodeId,
-                                                 adminRequest,
-                                                 responseBuilder).build();
+                        adminRequest,
+                        responseBuilder).build();
             } catch (UnreachableStoreException e) {
                 String errorMessage = "Got an UnreachableStoreException while trying to disableStoreVersion on node " +
                         nodeId + ", store " + storeName + ", version " + storeVersion + ". If the node is actually " +
                         "up and merely net-split from us, it might continue serving stale data...";
                 logger.warn(errorMessage, e);
                 response = responseBuilder.setDisableSuccess(false)
-                                          .setInfo(errorMessage)
-                                          .setNodeId(nodeId)
-                                          .build();
+                        .setInfo(errorMessage)
+                        .setNodeId(nodeId)
+                        .build();
             }
 
             return response;
@@ -5049,14 +5117,14 @@ public class AdminClient implements Closeable {
         public boolean handleFailedFetch(List<Integer> failedNodes, String storeName, Long storeVersion, String info) {
             VAdminProto.HandleFetchFailureRequest handleFetchFailureRequest =
                     VAdminProto.HandleFetchFailureRequest.newBuilder().setStoreName(storeName)
-                                                                      .setPushVersion(storeVersion)
-                                                                      .setInfo(info)
-                                                                      .addAllFailedNodes(failedNodes)
-                                                                      .build();
+                            .setPushVersion(storeVersion)
+                            .setInfo(info)
+                            .addAllFailedNodes(failedNodes)
+                            .build();
 
             List<Integer> liveNodes = Lists.newArrayList(currentCluster.getNodeIds());
             liveNodes.removeAll(failedNodes);
-            if(liveNodes.isEmpty()) {
+            if (liveNodes.isEmpty()) {
                 return false;
             }
             int randomIndex = new Random().nextInt(liveNodes.size());
@@ -5081,7 +5149,8 @@ public class AdminClient implements Closeable {
                             " returned failed HandleFetchFailureResponse: " + response.getInfo());
                 }
 
-                for (VAdminProto.DisableStoreVersionResponse disableStoreVersionResponse: response.getDisableStoreResponsesList()) {
+                for (VAdminProto.DisableStoreVersionResponse disableStoreVersionResponse : response
+                        .getDisableStoreResponsesList()) {
                     Node node = currentCluster.getNodeById(disableStoreVersionResponse.getNodeId());
                     String message = node.briefToString() + ": " + disableStoreVersionResponse.getInfo();
                     if (disableStoreVersionResponse.getDisableSuccess()) {
@@ -5123,22 +5192,22 @@ public class AdminClient implements Closeable {
     public class QuotaManagementOperations {
 
         private VectorClock makeDenseClock() {
-          // FIXME This is a temporary workaround for System store client not
-          // being able to do a second insert. We simply generate a super
-          // clock that will trump what is on storage
-          // But this will not work, if the nodes are ever removed or re-assigned.
-          // To complicate the issue further, SystemStore uses one clock for all
-          // keys in a file. When you remove nodes, go delete, all version files from the disk
-          // otherwise
-          return VectorClockUtils.makeClockWithCurrentTime(currentCluster.getNodeIds());
+            // FIXME This is a temporary workaround for System store client not
+            // being able to do a second insert. We simply generate a super
+            // clock that will trump what is on storage
+            // But this will not work, if the nodes are ever removed or re-assigned.
+            // To complicate the issue further, SystemStore uses one clock for all
+            // keys in a file. When you remove nodes, go delete, all version files from the disk
+            // otherwise
+            return VectorClockUtils.makeClockWithCurrentTime(currentCluster.getNodeIds());
         }
 
         public void setQuota(final String storeName, final QuotaType quotaType, final long quota,
                 ExecutorService executor) {
-            
+
             Map<Integer, Future> nodeTasks = new HashMap<Integer, Future>();
 
-            if(executor != null) {
+            if (executor != null) {
                 for (final Integer id : currentCluster.getNodeIds()) {
                     Runnable task = new Runnable() {
                         @Override
@@ -5160,17 +5229,17 @@ public class AdminClient implements Closeable {
                     } else {
                         validateTaskCompleted(nodeId, nodeTasks);
                     }
-                } catch(RuntimeException ex) {
+                } catch (RuntimeException ex) {
                     lastEx = ex;
                     failedNodes.add(nodeId);
                     logger.info("Setting Quota on Store " + storeName + " Type " + quotaType
-                                + " value " + quota + " failed. Reason " + ex.getMessage());
+                            + " value " + quota + " failed. Reason " + ex.getMessage());
                 }
             }
 
-            if(lastEx != null) {
+            if (lastEx != null) {
                 logger.info("Setting Quota failed on Nodes "
-                            + Arrays.toString(failedNodes.toArray()));
+                        + Arrays.toString(failedNodes.toArray()));
                 throw lastEx;
             }
         }
@@ -5211,17 +5280,17 @@ public class AdminClient implements Closeable {
             Versioned<byte[]> value = new Versioned<byte[]>(valueArray, clock);
 
             NodeValue<ByteArray, byte[]> nodeKeyValue = new NodeValue<ByteArray, byte[]>(nodeId,
-                                                                                         keyArray,
-                                                                                         value);
+                    keyArray,
+                    value);
             storeOps.putNodeKeyValue(SystemStoreConstants.SystemStoreName.voldsys$_store_quotas.name(),
-                                     nodeKeyValue);
+                    nodeKeyValue);
         }
-        
+
         public boolean deleteQuotaForNode(String storeName, QuotaType quotaType, Integer nodeId) {
             ByteArray keyArray = QuotaUtils.getByteArrayKey(storeName, quotaType);
             return storeOps.deleteNodeKeyValue(SystemStoreConstants.SystemStoreName.voldsys$_store_quotas.name(),
-                                                   nodeId,
-                                                   keyArray);
+                    nodeId,
+                    keyArray);
         }
 
         private Versioned<String> convertToString(List<Versioned<byte[]>> retrievedValue) {
@@ -5244,8 +5313,8 @@ public class AdminClient implements Closeable {
         }
 
         public Versioned<String> getQuotaForNode(String storeName,
-                                                 QuotaType quotaType,
-                                                 Integer nodeId) {
+                QuotaType quotaType,
+                Integer nodeId) {
             ByteArray keyArray = QuotaUtils.getByteArrayKey(storeName, quotaType);
             List<Versioned<byte[]>> valueObj =
                     storeOps.getNodeKey(SystemStoreConstants.SystemStoreName.voldsys$_store_quotas.name(), nodeId,
@@ -5265,17 +5334,17 @@ public class AdminClient implements Closeable {
                 ByteArray key = QuotaUtils.getByteArrayKey(storeName, quotaType);
                 storeToKeysMap.put(storeName, key);
             }
-            
+
             Map<ByteArray, List<Versioned<byte[]>>> storeToValueMap =
                     storeOps.getAllNodeKeys(SystemStoreConstants.SystemStoreName.voldsys$_store_quotas.name(), nodeId,
-                    storeToKeysMap.values());
+                            storeToKeysMap.values());
 
             Map<String, Versioned<String>> results = new HashMap<String, Versioned<String>>();
 
             for (Map.Entry<String, ByteArray> storeToKey : storeToKeysMap.entrySet()) {
                 String storeName = storeToKey.getKey();
                 ByteArray storeKey = storeToKey.getValue();
-                
+
                 Versioned<String> storeQuota = null;
                 if (storeToValueMap.containsKey(storeKey)) {
                     storeQuota = convertToString(storeToValueMap.get(storeKey));
@@ -5287,52 +5356,52 @@ public class AdminClient implements Closeable {
 
         /**
          * Reset quota based on number of nodes
-         * 
+         *
          * @param storeName
          * @param quotaType
          */
         public void rebalanceQuota(String storeName, QuotaType quotaType) {
             Integer totalQuota = null;
             Set<Integer> nodeIds = currentCluster.getNodeIds();
-            for(Integer nodeId: nodeIds) {
+            for (Integer nodeId : nodeIds) {
                 Versioned<String> quotaValue = getQuotaForNode(storeName, quotaType, nodeId);
-                if(quotaValue != null) {
+                if (quotaValue != null) {
                     Integer quota = Integer.parseInt(quotaValue.getValue());
-                    if(totalQuota == null) {
+                    if (totalQuota == null) {
                         totalQuota = 0;
                     }
                     totalQuota += quota;
                 }
             }
-            if(totalQuota == null) {
+            if (totalQuota == null) {
                 logger.info("No quota set for " + quotaType.toString() + " of store " + storeName
-                            + " ");
+                        + " ");
             } else {
                 long averageQuota = totalQuota / nodeIds.size();
                 logger.info("Resetting quota: Store: " + storeName + ", Quota: "
-                            + quotaType.toString() + ", Total: " + totalQuota.toString()
-                            + ", Average: " + averageQuota);
+                        + quotaType.toString() + ", Total: " + totalQuota.toString()
+                        + ", Average: " + averageQuota);
                 setQuota(storeName, quotaType, averageQuota);
             }
         }
-        
+
 
         /**
          * Reset quota based on number of nodes
-         * 
+         *
          * @param storeName
          */
         public void rebalanceQuota(String storeName) {
-            for(QuotaType quotaType: QuotaType.values()) {
+            for (QuotaType quotaType : QuotaType.values()) {
                 rebalanceQuota(storeName, quotaType);
             }
         }
 
         /**
          * Reserve memory for the stores
-         * 
+         *
          * TODO this should also now use the voldsys$_quotas system store
-         * 
+         *
          * @param nodeId The node id to reserve, -1 for entire cluster
          * @param stores list of stores for which to reserve
          * @param sizeInMB size of reservation
@@ -5340,29 +5409,31 @@ public class AdminClient implements Closeable {
         public void reserveMemory(int nodeId, List<String> stores, long sizeInMB) {
 
             List<Integer> reserveNodes = new ArrayList<Integer>();
-            if(nodeId == -1) {
+            if (nodeId == -1) {
                 // if no node is specified send it to the entire cluster
-                for(Node node: currentCluster.getNodes())
+                for (Node node : currentCluster.getNodes()) {
                     reserveNodes.add(node.getId());
+                }
             } else {
                 reserveNodes.add(nodeId);
             }
-            for(String storeName: stores) {
-                for(Integer reserveNodeId: reserveNodes) {
+            for (String storeName : stores) {
+                for (Integer reserveNodeId : reserveNodes) {
 
                     VAdminProto.ReserveMemoryRequest reserveRequest = VAdminProto.ReserveMemoryRequest.newBuilder()
-                                                                                                      .setStoreName(storeName)
-                                                                                                      .setSizeInMb(sizeInMB)
-                                                                                                      .build();
+                            .setStoreName(storeName)
+                            .setSizeInMb(sizeInMB)
+                            .build();
                     VAdminProto.VoldemortAdminRequest adminRequest = VAdminProto.VoldemortAdminRequest.newBuilder()
-                                                                                                      .setReserveMemory(reserveRequest)
-                                                                                                      .setType(VAdminProto.AdminRequestType.RESERVE_MEMORY)
-                                                                                                      .build();
+                            .setReserveMemory(reserveRequest)
+                            .setType(VAdminProto.AdminRequestType.RESERVE_MEMORY)
+                            .build();
                     VAdminProto.ReserveMemoryResponse.Builder response = rpcOps.sendAndReceive(reserveNodeId,
-                                                                                               adminRequest,
-                                                                                               VAdminProto.ReserveMemoryResponse.newBuilder());
-                    if(response.hasError())
+                            adminRequest,
+                            VAdminProto.ReserveMemoryResponse.newBuilder());
+                    if (response.hasError()) {
                         helperOps.throwException(response.getError());
+                    }
                 }
                 logger.info("Finished reserving memory for store : " + storeName);
             }
@@ -5370,30 +5441,31 @@ public class AdminClient implements Closeable {
 
         /**
          * Reserve memory for the stores
-         * 
+         *
          * TODO this should also now use the voldsys$_quotas system store
-         * 
+         *
          * @param nodeIds The node ids to reserve, -1 for entire cluster
          * @param storeNames list of stores for which to reserve
          * @param sizeInMB size of reservation
          */
         public void reserveMemory(List<Integer> nodeIds, List<String> storeNames, long sizeInMB) {
-            for(String storeName: storeNames) {
-                for(Integer nodeId: nodeIds) {
+            for (String storeName : storeNames) {
+                for (Integer nodeId : nodeIds) {
 
                     VAdminProto.ReserveMemoryRequest reserveRequest = VAdminProto.ReserveMemoryRequest.newBuilder()
-                                                                                                      .setStoreName(storeName)
-                                                                                                      .setSizeInMb(sizeInMB)
-                                                                                                      .build();
+                            .setStoreName(storeName)
+                            .setSizeInMb(sizeInMB)
+                            .build();
                     VAdminProto.VoldemortAdminRequest adminRequest = VAdminProto.VoldemortAdminRequest.newBuilder()
-                                                                                                      .setReserveMemory(reserveRequest)
-                                                                                                      .setType(VAdminProto.AdminRequestType.RESERVE_MEMORY)
-                                                                                                      .build();
+                            .setReserveMemory(reserveRequest)
+                            .setType(VAdminProto.AdminRequestType.RESERVE_MEMORY)
+                            .build();
                     VAdminProto.ReserveMemoryResponse.Builder response = rpcOps.sendAndReceive(nodeId,
-                                                                                               adminRequest,
-                                                                                               VAdminProto.ReserveMemoryResponse.newBuilder());
-                    if(response.hasError())
+                            adminRequest,
+                            VAdminProto.ReserveMemoryResponse.newBuilder());
+                    if (response.hasError()) {
                         helperOps.throwException(response.getError());
+                    }
                 }
                 logger.info("Finished reserving memory for store : " + storeName);
             }

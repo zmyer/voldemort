@@ -1,12 +1,7 @@
 package voldemort.store.socket.clientrequest;
 
-import java.io.DataInputStream;
-import java.io.IOException;
-import java.nio.ByteBuffer;
-
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
-
 import voldemort.VoldemortException;
 import voldemort.common.nio.ByteBufferBackedOutputStream;
 import voldemort.store.StoreTimeoutException;
@@ -18,6 +13,11 @@ import voldemort.utils.Time;
 import voldemort.utils.Utils;
 import voldemort.utils.pool.KeyedResourcePool;
 
+import java.io.DataInputStream;
+import java.io.IOException;
+import java.nio.ByteBuffer;
+
+// TODO: 2018/4/26 by zmyer
 public class NonblockingStoreCallbackClientRequest<T> implements ClientRequest<T> {
 
     private final SocketDestination destination;
@@ -31,12 +31,13 @@ public class NonblockingStoreCallbackClientRequest<T> implements ClientRequest<T
 
     private volatile boolean isComplete;
 
-    public NonblockingStoreCallbackClientRequest(KeyedResourcePool<SocketDestination, ClientRequestExecutor> executorPool,
-                                                 SocketDestination destination,
-                                                 ClientRequest<T> clientRequest,
-                                                 ClientRequestExecutor clientRequestExecutor,
-                                                 NonblockingStoreCallback callback,
-                                                 ClientSocketStats stats) {
+    public NonblockingStoreCallbackClientRequest(
+            KeyedResourcePool<SocketDestination, ClientRequestExecutor> executorPool,
+            SocketDestination destination,
+            ClientRequest<T> clientRequest,
+            ClientRequestExecutor clientRequestExecutor,
+            NonblockingStoreCallback callback,
+            ClientSocketStats stats) {
         this.executorPool = executorPool;
         this.destination = destination;
         this.clientRequest = clientRequest;
@@ -47,28 +48,29 @@ public class NonblockingStoreCallbackClientRequest<T> implements ClientRequest<T
     }
 
     private void invokeCallback(Object o, long requestTime) {
-        if(callback != null) {
+        if (callback != null) {
             try {
-                if(logger.isDebugEnabled()) {
+                if (logger.isDebugEnabled()) {
                     logger.debug("Async request end; requestRef: "
-                                 + System.identityHashCode(clientRequest)
-                                 + " time: "
-                                 + System.currentTimeMillis()
-                                 + " server: "
-                                 + clientRequestExecutor.getSocketChannel()
-                                                        .socket()
-                                                        .getRemoteSocketAddress()
-                                 + " local socket: "
-                                 + clientRequestExecutor.getSocketChannel()
-                                                        .socket()
-                                                        .getLocalAddress() + ":"
-                                 + clientRequestExecutor.getSocketChannel().socket().getLocalPort()
-                                 + " result: " + o);
+                            + System.identityHashCode(clientRequest)
+                            + " time: "
+                            + System.currentTimeMillis()
+                            + " server: "
+                            + clientRequestExecutor.getSocketChannel()
+                            .socket()
+                            .getRemoteSocketAddress()
+                            + " local socket: "
+                            + clientRequestExecutor.getSocketChannel()
+                            .socket()
+                            .getLocalAddress() + ":"
+                            + clientRequestExecutor.getSocketChannel().socket().getLocalPort()
+                            + " result: " + o);
                 }
                 callback.requestComplete(o, requestTime);
-            } catch(Exception e) {
-                if(logger.isEnabledFor(Level.WARN))
+            } catch (Exception e) {
+                if (logger.isEnabledFor(Level.WARN)) {
                     logger.warn(e, e);
+                }
             }
         }
     }
@@ -79,11 +81,11 @@ public class NonblockingStoreCallbackClientRequest<T> implements ClientRequest<T
             clientRequest.complete();
             Object result = clientRequest.getResult();
             long durationNs = Utils.elapsedTimeNs(startNs, System.nanoTime());
-            if(stats != null) {
+            if (stats != null) {
                 stats.recordAsyncOpTimeNs(destination, durationNs);
             }
             invokeCallback(result, durationNs / Time.NS_PER_MS);
-        } catch(Exception e) {
+        } catch (Exception e) {
             invokeCallback(e, (System.nanoTime() - startNs) / Time.NS_PER_MS);
         } finally {
             isComplete = true;
@@ -126,8 +128,8 @@ public class NonblockingStoreCallbackClientRequest<T> implements ClientRequest<T
     public void timeOut() {
         clientRequest.timeOut();
         invokeCallback(new StoreTimeoutException("ClientRequestExecutor timed out for destination "
-                                                 + destination),
-                       (System.nanoTime() - startNs) / Time.NS_PER_MS);
+                        + destination),
+                (System.nanoTime() - startNs) / Time.NS_PER_MS);
         executorPool.checkin(destination, clientRequestExecutor);
     }
 

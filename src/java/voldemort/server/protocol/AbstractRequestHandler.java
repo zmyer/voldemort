@@ -10,9 +10,10 @@ import voldemort.utils.ByteArray;
 /**
  * A base class with a few helper fields for writing a
  * {@link voldemort.server.protocol.RequestHandler}
- * 
- * 
+ *
+ *
  */
+// TODO: 2018/4/26 by zmyer
 public abstract class AbstractRequestHandler implements RequestHandler {
 
     private final ErrorCodeMapper errorMapper;
@@ -33,13 +34,15 @@ public abstract class AbstractRequestHandler implements RequestHandler {
 
     protected Store<ByteArray, byte[], byte[]> getStore(String name, RequestRoutingType type) {
 
-        switch(type) {
-            case ROUTED:
-                return storeRepository.getRoutedStore(name);
-            case NORMAL:
-                return storeRepository.getLocalStore(name);
-            case IGNORE_CHECKS:
-                return storeRepository.getStorageEngine(name);
+        switch (type) {
+        case ROUTED:
+            return storeRepository.getRoutedStore(name);
+        case NORMAL:
+            return storeRepository.getLocalStore(name);
+        case IGNORE_CHECKS:
+            return storeRepository.getStorageEngine(name);
+        default:
+            break;
         }
 
         throw new VoldemortException("Unhandled RoutingType found:" + type);

@@ -16,19 +16,7 @@
 
 package voldemort.server.niosocket;
 
-import java.io.Closeable;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.EOFException;
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.channels.SelectionKey;
-import java.nio.channels.Selector;
-import java.nio.channels.SocketChannel;
-import java.util.concurrent.atomic.AtomicBoolean;
-
 import org.apache.log4j.Level;
-
 import voldemort.VoldemortApplicationException;
 import voldemort.VoldemortException;
 import voldemort.client.protocol.RequestFormatType;
@@ -44,6 +32,17 @@ import voldemort.server.protocol.StreamRequestHandler.StreamRequestDirection;
 import voldemort.server.protocol.StreamRequestHandler.StreamRequestHandlerState;
 import voldemort.utils.ByteUtils;
 
+import java.io.Closeable;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.EOFException;
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.channels.SelectionKey;
+import java.nio.channels.Selector;
+import java.nio.channels.SocketChannel;
+import java.util.concurrent.atomic.AtomicBoolean;
+
 /**
  * AsyncRequestHandler manages a Selector, SocketChannel, and RequestHandler
  * implementation. At the point that the run method is invoked, the Selector
@@ -53,11 +52,12 @@ import voldemort.utils.ByteUtils;
  * The bulk of the complexity in this class surrounds partial reads and writes,
  * as well as determining when all the data needed for the request has been
  * read.
- * 
- * 
+ *
+ *
  * @see voldemort.server.protocol.RequestHandler
  */
 
+// TODO: 2018/4/26 by zmyer
 public class AsyncRequestHandler extends SelectorManagerWorker implements Closeable {
 
     private final RequestHandlerFactory requestHandlerFactory;
@@ -69,36 +69,38 @@ public class AsyncRequestHandler extends SelectorManagerWorker implements Closea
     private NioSelectorManagerStats nioStats;
 
     public AsyncRequestHandler(Selector selector,
-                               SocketChannel socketChannel,
-                               RequestHandlerFactory requestHandlerFactory,
-                               int socketBufferSize,
-                               NioSelectorManagerStats nioStats) {
+            SocketChannel socketChannel,
+            RequestHandlerFactory requestHandlerFactory,
+            int socketBufferSize,
+            NioSelectorManagerStats nioStats) {
         super(selector, socketChannel, socketBufferSize);
         this.requestHandlerFactory = requestHandlerFactory;
         this.nioStats = nioStats;
 
         initializeStreams(socketBufferSize, nioStats.getServerCommBufferStats());
-        if(this.inputStream == null || this.outputStream == null) {
+        if (this.inputStream == null || this.outputStream == null) {
             throw new VoldemortApplicationException("InputStream or OutputStream is null after initialization");
         }
     }
 
     /**
      * Flips the output buffer, and lets the Selector know we're ready to write.
-     * 
+     *
      * @param selectionKey
      */
 
     protected void prepForWrite(SelectionKey selectionKey) {
-        if(logger.isTraceEnabled())
+        if (logger.isTraceEnabled()) {
             traceInputBufferState("About to clear read buffer");
+        }
 
-        if(requestHandlerFactory.shareReadWriteBuffer() == false) {
+        if (requestHandlerFactory.shareReadWriteBuffer() == false) {
             inputStream.clear();
         }
 
-        if(logger.isTraceEnabled())
+        if (logger.isTraceEnabled()) {
             traceInputBufferState("Cleared read buffer");
+        }
 
         outputStream.getBuffer().flip();
         selectionKey.interestOps(SelectionKey.OP_WRITE);
@@ -108,15 +110,15 @@ public class AsyncRequestHandler extends SelectorManagerWorker implements Closea
     protected void initializeStreams(int socketBufferSize, CommBufferSizeStats commBufferStats) {
         ByteBufferContainer inputBufferContainer, outputBufferContainer;
         inputBufferContainer = new ByteBufferContainer(socketBufferSize,
-                                                       resizeThreshold,
-                                                       commBufferStats.getCommReadBufferSizeTracker());
+                resizeThreshold,
+                commBufferStats.getCommReadBufferSizeTracker());
 
-        if(requestHandlerFactory.shareReadWriteBuffer()) {
+        if (requestHandlerFactory.shareReadWriteBuffer()) {
             outputBufferContainer = inputBufferContainer;
         } else {
             outputBufferContainer = new ByteBufferContainer(socketBufferSize,
-                                                            resizeThreshold,
-                                                            commBufferStats.getCommWriteBufferSizeTracker());
+                    resizeThreshold,
+                    commBufferStats.getCommWriteBufferSizeTracker());
         }
         this.inputStream = new ByteBufferBackedInputStream(inputBufferContainer);
         this.outputStream = new ByteBufferBackedOutputStream(outputBufferContainer);
@@ -138,17 +140,21 @@ public class AsyncRequestHandler extends SelectorManagerWorker implements Closea
 
         long startNs = -1;
 
-        if(logger.isDebugEnabled())
+        if (logger.isDebugEnabled()) {
             startNs = System.nanoTime();
+        }
 
-        if((count = socketChannel.read(inputStream.getBuffer())) == -1)
+        if ((count = socketChannel.read(inputStream.getBuffer())) == -1) {
             throw new EOFException("EOF for " + socketChannel.socket());
+        }
 
-        if(logger.isTraceEnabled())
+        if (logger.isTraceEnabled()) {
             traceInputBufferState("Read " + count + " bytes");
+        }
 
-        if(count == 0)
+        if (count == 0) {
             return;
+        }
 
         // Take note of the position after we read the bytes. We'll need it in
         // case of incomplete reads later on down the method.
@@ -160,20 +166,20 @@ public class AsyncRequestHandler extends SelectorManagerWorker implements Closea
 
         // We have to do this on the first request as we don't know the protocol
         // yet.
-        if(requestHandler == null) {
-            if(!initRequestHandler(selectionKey)) {
+        if (requestHandler == null) {
+            if (!initRequestHandler(selectionKey)) {
                 return;
             }
         }
 
-        if(streamRequestHandler != null) {
+        if (streamRequestHandler != null) {
             // We're continuing an existing streaming request from our last pass
             // through. So handle it and return.
             handleStreamRequest(selectionKey);
             return;
         }
 
-        if(!requestHandler.isCompleteRequest(inputStream.getBuffer())) {
+        if (!requestHandler.isCompleteRequest(inputStream.getBuffer())) {
             // Ouch - we're missing some data for a full request, so handle that
             // and return.
             handleIncompleteRequest(position);
@@ -184,24 +190,25 @@ public class AsyncRequestHandler extends SelectorManagerWorker implements Closea
         // rewind the buffer for reading and execute the request.
         inputStream.getBuffer().rewind();
 
-        if(logger.isTraceEnabled())
+        if (logger.isTraceEnabled()) {
             logger.trace("Starting execution for " + socketChannel.socket());
+        }
 
         DataInputStream dataInputStream = new DataInputStream(inputStream);
         DataOutputStream dataOutputStream = new DataOutputStream(outputStream);
         streamRequestHandler = requestHandler.handleRequest(dataInputStream,
-                                                            dataOutputStream,
-                                                            outputStream.getBufferContainer());
+                dataOutputStream,
+                outputStream.getBufferContainer());
 
-        if(logger.isDebugEnabled()) {
+        if (logger.isDebugEnabled()) {
             logger.debug("AsyncRequestHandler:read finished request from "
-                         + socketChannel.socket().getRemoteSocketAddress() + " handlerRef: "
-                         + System.identityHashCode(outputStream) + " at time: "
-                         + System.currentTimeMillis() + " elapsed time: "
-                         + (System.nanoTime() - startNs) + " ns");
+                    + socketChannel.socket().getRemoteSocketAddress() + " handlerRef: "
+                    + System.identityHashCode(outputStream) + " at time: "
+                    + System.currentTimeMillis() + " elapsed time: "
+                    + (System.nanoTime() - startNs) + " ns");
         }
 
-        if(streamRequestHandler != null) {
+        if (streamRequestHandler != null) {
             // In the case of a StreamRequestHandler, we handle that separately
             // (attempting to process multiple "segments").
             handleStreamRequest(selectionKey);
@@ -210,25 +217,27 @@ public class AsyncRequestHandler extends SelectorManagerWorker implements Closea
 
         // At this point we've completed a full stand-alone request. So clear
         // our input buffer and prepare for outputting back to the client.
-        if(logger.isTraceEnabled())
+        if (logger.isTraceEnabled()) {
             logger.trace("Finished execution for " + socketChannel.socket());
+        }
 
         prepForWrite(selectionKey);
     }
 
     @Override
     protected void write(SelectionKey selectionKey) throws IOException {
-        if(outputStream.getBuffer().hasRemaining()) {
+        if (outputStream.getBuffer().hasRemaining()) {
             // If we have data, write what we can now...
             try {
                 int count = socketChannel.write(outputStream.getBuffer());
 
-                if(logger.isTraceEnabled())
+                if (logger.isTraceEnabled()) {
                     logger.trace("Wrote " + count + " bytes, remaining: "
-                                 + outputStream.getBuffer().remaining() + " for "
-                                 + socketChannel.socket());
-            } catch(IOException e) {
-                if(streamRequestHandler != null) {
+                            + outputStream.getBuffer().remaining() + " for "
+                            + socketChannel.socket());
+                }
+            } catch (IOException e) {
+                if (streamRequestHandler != null) {
                     streamRequestHandler.close(new DataOutputStream(outputStream));
                     streamRequestHandler = null;
                 }
@@ -237,28 +246,31 @@ public class AsyncRequestHandler extends SelectorManagerWorker implements Closea
             }
 
         } else {
-            if(logger.isTraceEnabled())
+            if (logger.isTraceEnabled()) {
                 logger.trace("Wrote no bytes for " + socketChannel.socket());
+            }
         }
 
         // If there's more to write but we didn't write it, we'll take that to
         // mean that we're done here. We don't clear or reset anything. We leave
         // our buffer state where it is and try our luck next time.
-        if(outputStream.getBuffer().hasRemaining())
+        if (outputStream.getBuffer().hasRemaining()) {
             return;
+        }
 
         // If we don't have anything else to write, that means we're done with
         // the request! So clear the buffers (resizing if necessary).
         outputStream.clear();
 
-        if(streamRequestHandler != null
-           && streamRequestHandler.getDirection() == StreamRequestDirection.WRITING) {
+        if (streamRequestHandler != null
+                && streamRequestHandler.getDirection() == StreamRequestDirection.WRITING) {
             // In the case of streaming writes, it's possible we can process
             // another segment of the stream. We process streaming writes this
             // way because there won't be any other notification for us to do
             // work as we won't be notified via reads.
-            if(logger.isTraceEnabled())
+            if (logger.isTraceEnabled()) {
                 logger.trace("Request is streaming for " + socketChannel.socket());
+            }
 
             handleStreamRequest(selectionKey);
         } else {
@@ -279,10 +291,10 @@ public class AsyncRequestHandler extends SelectorManagerWorker implements Closea
         int preRequestPosition = inputStream.getBuffer().position();
 
         StreamRequestHandlerState state = handleStreamRequestInternal(selectionKey,
-                                                                      dataInputStream,
-                                                                      dataOutputStream);
+                dataInputStream,
+                dataOutputStream);
 
-        if(state == StreamRequestHandlerState.READING) {
+        if (state == StreamRequestHandlerState.READING) {
             // We've read our request and handled one segment, but we aren't
             // ready to write anything just yet as we're streaming reads from
             // the client. So let's keep executing segments as much as we can
@@ -290,29 +302,29 @@ public class AsyncRequestHandler extends SelectorManagerWorker implements Closea
             do {
                 preRequestPosition = inputStream.getBuffer().position();
                 state = handleStreamRequestInternal(selectionKey, dataInputStream, dataOutputStream);
-            } while(state == StreamRequestHandlerState.READING);
-        } else if(state == StreamRequestHandlerState.WRITING) {
+            } while (state == StreamRequestHandlerState.READING);
+        } else if (state == StreamRequestHandlerState.WRITING) {
             // We've read our request and written one segment, but we're still
             // ready to stream writes to the client. So let's keep executing
             // segments as much as we can until we're there's nothing more to do
             // or until we blow past our buffer.
             do {
                 state = handleStreamRequestInternal(selectionKey, dataInputStream, dataOutputStream);
-            } while(state == StreamRequestHandlerState.WRITING && !outputStream.wasExpanded());
+            } while (state == StreamRequestHandlerState.WRITING && !outputStream.wasExpanded());
 
-            if(state != StreamRequestHandlerState.COMPLETE) {
+            if (state != StreamRequestHandlerState.COMPLETE) {
                 // We've read our request and are ready to start streaming
                 // writes to the client.
                 prepForWrite(selectionKey);
             }
         }
 
-        if(state == null) {
+        if (state == null) {
             // We got an error...
             return;
         }
 
-        if(state == StreamRequestHandlerState.INCOMPLETE_READ) {
+        if (state == StreamRequestHandlerState.INCOMPLETE_READ) {
             // We need the data that's in there so far and aren't ready to write
             // anything out yet, so don't clear the input buffer or signal that
             // we're ready to write. But we do want to compact the buffer as we
@@ -335,7 +347,7 @@ public class AsyncRequestHandler extends SelectorManagerWorker implements Closea
             // d) ...and reset the position to be ready for the rest of the
             // reads and the limit to allow more data.
             handleIncompleteRequest(currentPosition - preRequestPosition);
-        } else if(state == StreamRequestHandlerState.COMPLETE) {
+        } else if (state == StreamRequestHandlerState.COMPLETE) {
             streamRequestHandler.close(dataOutputStream);
             streamRequestHandler = null;
 
@@ -346,40 +358,44 @@ public class AsyncRequestHandler extends SelectorManagerWorker implements Closea
     }
 
     private StreamRequestHandlerState handleStreamRequestInternal(SelectionKey selectionKey,
-                                                                  DataInputStream dataInputStream,
-                                                                  DataOutputStream dataOutputStream)
+            DataInputStream dataInputStream,
+            DataOutputStream dataOutputStream)
             throws IOException {
         StreamRequestHandlerState state = null;
 
         try {
-            if(logger.isTraceEnabled())
+            if (logger.isTraceEnabled()) {
                 traceInputBufferState("Before streaming request handler");
+            }
 
             // this is the lowest level in the NioSocketServer stack at which we
             // still have a reference to the client IP address and port
             long startNs = -1;
 
-            if(logger.isDebugEnabled())
+            if (logger.isDebugEnabled()) {
                 startNs = System.nanoTime();
+            }
 
             state = streamRequestHandler.handleRequest(dataInputStream, dataOutputStream);
 
-            if(logger.isDebugEnabled()) {
+            if (logger.isDebugEnabled()) {
                 logger.debug("Handled request from "
-                             + socketChannel.socket().getRemoteSocketAddress() + " handlerRef: "
-                             + System.identityHashCode(dataInputStream) + " at time: "
-                             + System.currentTimeMillis() + " elapsed time: "
-                             + (System.nanoTime() - startNs) + " ns");
+                        + socketChannel.socket().getRemoteSocketAddress() + " handlerRef: "
+                        + System.identityHashCode(dataInputStream) + " at time: "
+                        + System.currentTimeMillis() + " elapsed time: "
+                        + (System.nanoTime() - startNs) + " ns");
             }
 
-            if(logger.isTraceEnabled())
+            if (logger.isTraceEnabled()) {
                 traceInputBufferState("After streaming request handler");
-        } catch(Exception e) {
-            if(logger.isEnabledFor(Level.WARN))
+            }
+        } catch (Exception e) {
+            if (logger.isEnabledFor(Level.WARN)) {
                 logger.warn(e.getMessage(), e);
+            }
 
             VoldemortException error = e instanceof VoldemortException ? (VoldemortException) e
-                                                                      : new VoldemortException(e);
+                    : new VoldemortException(e);
             streamRequestHandler.handleError(dataOutputStream, error);
             closeStreamRequestHandler(dataOutputStream);
             streamRequestHandler = null;
@@ -394,7 +410,7 @@ public class AsyncRequestHandler extends SelectorManagerWorker implements Closea
 
     /**
      * Returns true if the request should continue.
-     * 
+     *
      * @return
      */
 
@@ -403,8 +419,9 @@ public class AsyncRequestHandler extends SelectorManagerWorker implements Closea
         int remaining = inputBuffer.remaining();
 
         // Don't have enough bytes to determine the protocol yet...
-        if(remaining < 3)
+        if (remaining < 3) {
             return true;
+        }
 
         byte[] protoBytes = { inputBuffer.get(0), inputBuffer.get(1), inputBuffer.get(2) };
 
@@ -414,9 +431,10 @@ public class AsyncRequestHandler extends SelectorManagerWorker implements Closea
             RequestFormatType requestFormatType = RequestFormatType.fromCode(proto);
             requestHandler = requestHandlerFactory.getRequestHandler(requestFormatType);
 
-            if(logger.isInfoEnabled())
+            if (logger.isInfoEnabled()) {
                 logger.info("Protocol negotiated for " + socketChannel.socket() + ": "
-                            + requestFormatType.getDisplayName());
+                        + requestFormatType.getDisplayName());
+            }
 
             // The protocol negotiation is the first request, so respond by
             // sticking the bytes in the output buffer, signaling the Selector,
@@ -425,15 +443,16 @@ public class AsyncRequestHandler extends SelectorManagerWorker implements Closea
             prepForWrite(selectionKey);
 
             return false;
-        } catch(IllegalArgumentException e) {
+        } catch (IllegalArgumentException e) {
             // okay we got some nonsense. For backwards compatibility,
             // assume this is an old client who does not know how to negotiate
             RequestFormatType requestFormatType = RequestFormatType.VOLDEMORT_V0;
             requestHandler = requestHandlerFactory.getRequestHandler(requestFormatType);
 
-            if(logger.isInfoEnabled())
+            if (logger.isInfoEnabled()) {
                 logger.info("No protocol proposal given for " + socketChannel.socket()
-                            + ", assuming " + requestFormatType.getDisplayName());
+                        + ", assuming " + requestFormatType.getDisplayName());
+            }
 
             return true;
         }
@@ -442,8 +461,9 @@ public class AsyncRequestHandler extends SelectorManagerWorker implements Closea
     private AtomicBoolean isStreamClosed = new AtomicBoolean(false);
 
     private void closeStreamRequestHandler(DataOutputStream dataOutputStream) throws IOException {
-        if (!isStreamClosed.compareAndSet(false, true))
+        if (!isStreamClosed.compareAndSet(false, true)) {
             return;
+        }
 
         if (streamRequestHandler != null) {
             streamRequestHandler.close(dataOutputStream);
@@ -452,8 +472,9 @@ public class AsyncRequestHandler extends SelectorManagerWorker implements Closea
 
     @Override
     public void close() {
-        if(!isClosed.compareAndSet(false, true))
+        if (!isClosed.compareAndSet(false, true)) {
             return;
+        }
 
         nioStats.removeConnection();
         closeInternal();

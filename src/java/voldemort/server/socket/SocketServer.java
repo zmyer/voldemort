@@ -16,6 +16,14 @@
 
 package voldemort.server.socket;
 
+import org.apache.log4j.Logger;
+import voldemort.VoldemortException;
+import voldemort.annotations.jmx.JmxGetter;
+import voldemort.annotations.jmx.JmxManaged;
+import voldemort.annotations.jmx.JmxOperation;
+import voldemort.server.StatusManager;
+import voldemort.server.protocol.RequestHandlerFactory;
+
 import java.io.IOException;
 import java.net.BindException;
 import java.net.InetSocketAddress;
@@ -34,20 +42,12 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
-import org.apache.log4j.Logger;
-
-import voldemort.VoldemortException;
-import voldemort.annotations.jmx.JmxGetter;
-import voldemort.annotations.jmx.JmxManaged;
-import voldemort.annotations.jmx.JmxOperation;
-import voldemort.server.StatusManager;
-import voldemort.server.protocol.RequestHandlerFactory;
-
 /**
  * A simple socket-based server for serving voldemort requests
- * 
- * 
+ *
+ *
  */
+// TODO: 2018/4/26 by zmyer
 @JmxManaged
 public class SocketServer extends Thread {
 
@@ -71,23 +71,23 @@ public class SocketServer extends Thread {
     private ServerSocket serverSocket = null;
 
     public SocketServer(int port,
-                        int defaultThreads,
-                        int maxThreads,
-                        int socketBufferSize,
-                        RequestHandlerFactory handlerFactory,
-                        String serverName) {
+            int defaultThreads,
+            int maxThreads,
+            int socketBufferSize,
+            RequestHandlerFactory handlerFactory,
+            String serverName) {
         this.port = port;
         this.socketBufferSize = socketBufferSize;
         this.threadGroup = new ThreadGroup("voldemort-socket-server");
         this.handlerFactory = handlerFactory;
         this.maxThreads = maxThreads;
         this.threadPool = new ThreadPoolExecutor(defaultThreads,
-                                                 maxThreads,
-                                                 0,
-                                                 TimeUnit.MILLISECONDS,
-                                                 new SynchronousQueue<Runnable>(),
-                                                 threadFactory,
-                                                 rejectedExecutionHandler);
+                maxThreads,
+                0,
+                TimeUnit.MILLISECONDS,
+                new SynchronousQueue<Runnable>(),
+                threadFactory,
+                rejectedExecutionHandler);
         this.statusManager = new StatusManager(this.threadPool);
         this.sessionIdSequence = new AtomicLong(0);
         this.activeSessions = new ConcurrentHashMap<Long, SocketServerSession>();
@@ -111,19 +111,19 @@ public class SocketServer extends Thread {
 
         public void rejectedExecution(Runnable r, ThreadPoolExecutor executor) {
             SocketServerSession session = (SocketServerSession) r;
-            if(interrupted()) {
+            if (interrupted()) {
                 logger.info("Denying connection from "
-                            + session.getSocket().getRemoteSocketAddress()
-                            + ", server is shutting down.");
+                        + session.getSocket().getRemoteSocketAddress()
+                        + ", server is shutting down.");
             } else {
                 logger.error("Too many open connections, " + executor.getActiveCount() + " of "
-                             + executor.getLargestPoolSize()
-                             + " threads in use, denying connection from "
-                             + session.getSocket().getRemoteSocketAddress());
+                        + executor.getLargestPoolSize()
+                        + " threads in use, denying connection from "
+                        + session.getSocket().getRemoteSocketAddress());
             }
             try {
                 session.getSocket().close();
-            } catch(IOException e) {
+            } catch (IOException e) {
                 logger.error("Could not close socket.", e);
             }
         }
@@ -137,40 +137,42 @@ public class SocketServer extends Thread {
             serverSocket.bind(new InetSocketAddress(port));
             serverSocket.setReceiveBufferSize(this.socketBufferSize);
             startedStatusQueue.put(SUCCESS);
-            while(!isInterrupted() && !serverSocket.isClosed()) {
+            while (!isInterrupted() && !serverSocket.isClosed()) {
                 final Socket socket = serverSocket.accept();
                 configureSocket(socket);
                 long sessionId = this.sessionIdSequence.getAndIncrement();
                 this.threadPool.execute(new SocketServerSession(activeSessions,
-                                                                socket,
-                                                                handlerFactory,
-                                                                sessionId));
+                        socket,
+                        handlerFactory,
+                        sessionId));
             }
-        } catch(BindException e) {
+        } catch (BindException e) {
             logger.error("Could not bind to port " + port + ".");
             startedStatusQueue.offer(e);
             throw new VoldemortException(e);
-        } catch(SocketException e) {
+        } catch (SocketException e) {
             startedStatusQueue.offer(e);
             // If we have been manually shutdown, ignore
-            if(!isInterrupted())
+            if (!isInterrupted()) {
                 logger.error("Error in server: ", e);
-        } catch(IOException e) {
+            }
+        } catch (IOException e) {
             startedStatusQueue.offer(e);
             throw new VoldemortException(e);
-        } catch(Throwable t) {
+        } catch (Throwable t) {
             logger.error(t);
             startedStatusQueue.offer(t);
-            if(t instanceof Error)
+            if (t instanceof Error) {
                 throw (Error) t;
-            else if(t instanceof RuntimeException)
+            } else if (t instanceof RuntimeException) {
                 throw (RuntimeException) t;
+            }
             throw new VoldemortException(t);
         } finally {
-            if(serverSocket != null) {
+            if (serverSocket != null) {
                 try {
                     serverSocket.close();
-                } catch(IOException e) {
+                } catch (IOException e) {
                     logger.warn("Error while shutting down server.", e);
                 }
             }
@@ -181,12 +183,14 @@ public class SocketServer extends Thread {
     private void configureSocket(Socket socket) throws SocketException {
         socket.setTcpNoDelay(true);
         socket.setSendBufferSize(this.socketBufferSize);
-        if(socket.getReceiveBufferSize() != this.socketBufferSize)
+        if (socket.getReceiveBufferSize() != this.socketBufferSize) {
             logger.debug("Requested socket receive buffer size was " + this.socketBufferSize
-                         + " bytes but actual size is " + socket.getReceiveBufferSize() + " bytes.");
-        if(socket.getSendBufferSize() != this.socketBufferSize)
+                    + " bytes but actual size is " + socket.getReceiveBufferSize() + " bytes.");
+        }
+        if (socket.getSendBufferSize() != this.socketBufferSize) {
             logger.debug("Requested socket send buffer size was " + this.socketBufferSize
-                         + " bytes but actual size is " + socket.getSendBufferSize() + " bytes.");
+                    + " bytes but actual size is " + socket.getSendBufferSize() + " bytes.");
+        }
     }
 
     public void shutdown() {
@@ -195,9 +199,10 @@ public class SocketServer extends Thread {
         // first shut down the acceptor to stop new connections
         interrupt();
         try {
-            if(!serverSocket.isClosed())
+            if (!serverSocket.isClosed()) {
                 serverSocket.close();
-        } catch(IOException e) {
+            }
+        } catch (IOException e) {
             logger.error("Error while closing socket server: " + e.getMessage());
         }
 
@@ -207,9 +212,10 @@ public class SocketServer extends Thread {
 
         try {
             boolean completed = threadPool.awaitTermination(5, TimeUnit.SECONDS);
-            if(!completed)
+            if (!completed) {
                 logger.warn("Timed out waiting for threadpool to close.");
-        } catch(InterruptedException e) {
+            }
+        } catch (InterruptedException e) {
             logger.warn("Interrupted while waiting for socket server shutdown to complete: ", e);
         }
     }
@@ -218,11 +224,11 @@ public class SocketServer extends Thread {
     public void killActiveSessions() {
         // loop through and close the socket of all the active sessions
         logger.info("Killing all active sessions.");
-        for(Map.Entry<Long, SocketServerSession> entry: activeSessions.entrySet()) {
+        for (Map.Entry<Long, SocketServerSession> entry : activeSessions.entrySet()) {
             try {
                 logger.debug("Closing session " + entry.getKey());
                 entry.getValue().close();
-            } catch(IOException e) {
+            } catch (IOException e) {
                 logger.warn("Error while closing session socket: ", e);
             }
         }
@@ -243,7 +249,8 @@ public class SocketServer extends Thread {
         return this.threadPool.getActiveCount();
     }
 
-    @JmxGetter(name = "remainingThreadCapacity", description = "The number of additional threads that can be allocated before reaching the maximum.")
+    @JmxGetter(name = "remainingThreadCapacity",
+            description = "The number of additional threads that can be allocated before reaching the maximum.")
     public int getRemainingThreads() {
         return getMaxThreads() - getCurrentThreads();
     }
@@ -251,16 +258,17 @@ public class SocketServer extends Thread {
     /**
      * Blocks until the server has started successfully or an exception is
      * thrown.
-     * 
+     *
      * @throws VoldemortException if a problem occurs during start-up wrapping
      *         the original exception.
      */
     public void awaitStartupCompletion() {
         try {
             Object obj = startedStatusQueue.take();
-            if(obj instanceof Throwable)
+            if (obj instanceof Throwable) {
                 throw new VoldemortException((Throwable) obj);
-        } catch(InterruptedException e) {
+            }
+        } catch (InterruptedException e) {
             // this is okay, if we are interrupted we can stop waiting
         }
     }

@@ -16,15 +16,15 @@
 
 package voldemort.store.socket;
 
+import com.google.common.base.Objects;
 import voldemort.client.protocol.RequestFormatType;
 import voldemort.utils.Utils;
-
-import com.google.common.base.Objects;
 
 /**
  * A host + port + protocol
  */
 
+// TODO: 2018/4/26 by zmyer
 public class SocketDestination {
 
     private final String host;
@@ -51,15 +51,17 @@ public class SocketDestination {
 
     @Override
     public boolean equals(Object obj) {
-        if(obj == this)
+        if (obj == this) {
             return true;
+        }
 
-        if(obj == null || !obj.getClass().equals(SocketDestination.class))
+        if (obj == null || !obj.getClass().equals(SocketDestination.class)) {
             return false;
+        }
 
         SocketDestination d = (SocketDestination) obj;
         return getHost().equals(d.getHost()) && getPort() == d.getPort()
-               && getRequestFormatType().equals(d.getRequestFormatType());
+                && getRequestFormatType().equals(d.getRequestFormatType());
     }
 
     @Override

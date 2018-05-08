@@ -16,6 +16,8 @@
 
 package voldemort.serialization.json;
 
+import voldemort.serialization.SerializationException;
+
 import java.io.IOException;
 import java.io.Reader;
 import java.util.ArrayList;
@@ -23,12 +25,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import voldemort.serialization.SerializationException;
-
 /**
  * Read in JSON objects from a java.io.Reader
- * 
- * 
+ *
+ *
  */
 public class JsonReader {
 
@@ -63,17 +63,19 @@ public class JsonReader {
     public JsonReader(Reader reader, int contextBufferSize) {
         this.reader = reader;
         String newline = System.getProperty("line.separator");
-        if(newline.contains("\n"))
+        if (newline.contains("\n")) {
             lineBreak = '\n';
-        else
+        } else {
             lineBreak = '\r';
+        }
         this.line = 1;
         this.lineOffset = 0;
         this.charsRead = 0;
         // initialize contextBuffer to all whitespace
         this.contextBuffer = new char[contextBufferSize];
-        for(int i = 0; i < contextBufferSize; i++)
+        for (int i = 0; i < contextBufferSize; i++) {
             this.contextBuffer[i] = ' ';
+        }
         next();
     }
 
@@ -84,36 +86,36 @@ public class JsonReader {
     public Object read() {
         skipWhitespace();
         Object o = null;
-        switch(current()) {
-            case '{':
-                o = readObject();
-                break;
-            case '[':
-                o = readArray();
-                break;
-            case '"':
-            case '\'':
-                o = readString();
-                break;
-            case 't':
-            case 'f':
-                o = readBoolean();
-                break;
-            case 'n':
-                o = readNull();
-                break;
-            case -1:
-                throw new EndOfFileException();
-            default:
-                if(Character.isDigit(current()) || current() == '-') {
-                    o = readNumber();
-                } else {
-                    throw new SerializationException("Unacceptable initial character "
-                                                     + currentChar()
-                                                     + " found when parsing object at line "
-                                                     + getCurrentLineNumber() + " character "
-                                                     + getCurrentLineOffset());
-                }
+        switch (current()) {
+        case '{':
+            o = readObject();
+            break;
+        case '[':
+            o = readArray();
+            break;
+        case '"':
+        case '\'':
+            o = readString();
+            break;
+        case 't':
+        case 'f':
+            o = readBoolean();
+            break;
+        case 'n':
+            o = readNull();
+            break;
+        case -1:
+            throw new EndOfFileException();
+        default:
+            if (Character.isDigit(current()) || current() == '-') {
+                o = readNumber();
+            } else {
+                throw new SerializationException("Unacceptable initial character "
+                        + currentChar()
+                        + " found when parsing object at line "
+                        + getCurrentLineNumber() + " character "
+                        + getCurrentLineOffset());
+            }
         }
         skipWhitespace();
         return o;
@@ -123,7 +125,7 @@ public class JsonReader {
         skip('{');
         skipWhitespace();
         Map<String, Object> values = new HashMap<String, Object>();
-        while(current() != '}') {
+        while (current() != '}') {
             skipWhitespace();
             String key = readString();
             skipWhitespace();
@@ -132,16 +134,16 @@ public class JsonReader {
             Object value = read();
             values.put(key, value);
             skipWhitespace();
-            if(current() == ',') {
+            if (current() == ',') {
                 next();
                 skipWhitespace();
-            } else if(current() == '}') {
+            } else if (current() == '}') {
                 break;
             } else {
                 throw new SerializationException("Unexpected character '"
-                                                 + currentChar()
-                                                 + "' in object definition, expected '}' or ',' but found: "
-                                                 + getCurrentContext());
+                        + currentChar()
+                        + "' in object definition, expected '}' or ',' but found: "
+                        + getCurrentContext());
             }
         }
         skip('}');
@@ -152,10 +154,10 @@ public class JsonReader {
         skip('[');
         skipWhitespace();
         List<Object> l = new ArrayList<Object>();
-        while(current() != ']' && hasMore()) {
+        while (current() != ']' && hasMore()) {
             l.add(read());
             skipWhitespace();
-            if(current() == ',') {
+            if (current() == ',') {
                 next();
                 skipWhitespace();
             }
@@ -170,7 +172,7 @@ public class JsonReader {
     }
 
     public Boolean readBoolean() {
-        if(current() == 't') {
+        if (current() == 't') {
             skip("true");
             return Boolean.TRUE;
         } else {
@@ -183,11 +185,12 @@ public class JsonReader {
         int quote = current();
         StringBuilder buffer = new StringBuilder();
         next();
-        while(current() != quote && hasMore()) {
-            if(current() == '\\')
+        while (current() != quote && hasMore()) {
+            if (current() == '\\') {
                 appendControlSequence(buffer);
-            else
+            } else {
                 buffer.append(currentChar());
+            }
             next();
         }
         skip(quote);
@@ -196,51 +199,52 @@ public class JsonReader {
 
     private void appendControlSequence(StringBuilder buffer) {
         skip('\\');
-        switch(current()) {
-            case '"':
-            case '\\':
-            case '/':
-                buffer.append(currentChar());
-                break;
-            case 'b':
-                buffer.append('\b');
-                break;
-            case 'f':
-                buffer.append('\f');
-                break;
-            case 'n':
-                buffer.append('\n');
-                break;
-            case 'r':
-                buffer.append('\r');
-                break;
-            case 't':
-                buffer.append('\t');
-                break;
-            case 'u':
-                buffer.append(readUnicodeLiteral());
-                break;
-            default:
-                throw new SerializationException("Unrecognized control sequence on line "
-                                                 + getCurrentLineNumber() + ": '\\" + currentChar()
-                                                 + "'.");
+        switch (current()) {
+        case '"':
+        case '\\':
+        case '/':
+            buffer.append(currentChar());
+            break;
+        case 'b':
+            buffer.append('\b');
+            break;
+        case 'f':
+            buffer.append('\f');
+            break;
+        case 'n':
+            buffer.append('\n');
+            break;
+        case 'r':
+            buffer.append('\r');
+            break;
+        case 't':
+            buffer.append('\t');
+            break;
+        case 'u':
+            buffer.append(readUnicodeLiteral());
+            break;
+        default:
+            throw new SerializationException("Unrecognized control sequence on line "
+                    + getCurrentLineNumber() + ": '\\" + currentChar()
+                    + "'.");
         }
     }
 
     private char readUnicodeLiteral() {
         int value = 0;
-        for(int i = 0; i < 4; i++) {
+        for (int i = 0; i < 4; i++) {
             next();
             value <<= 4;
-            if(Character.isDigit(current()))
+            if (Character.isDigit(current())) {
                 value += current() - '0';
-            else if('a' <= current() && 'f' >= current())
+            } else if ('a' <= current() && 'f' >= current()) {
                 value += 10 + current() - 'a';
-            else if('A' <= current() && 'F' >= current())
+            } else if ('A' <= current() && 'F' >= current()) {
                 value += 10 + current() - 'A';
-            else
+            } else {
                 throw new SerializationException("Invalid character in unicode sequence on line "
-                                                 + getCurrentLineNumber() + ": " + currentChar());
+                        + getCurrentLineNumber() + ": " + currentChar());
+            }
         }
 
         return (char) value;
@@ -251,59 +255,64 @@ public class JsonReader {
         int intPiece = readInt();
 
         // if int is all we have, return it
-        if(isTerminator(current()))
+        if (isTerminator(current())) {
             return intPiece;
+        }
 
         // okay its a double, check for exponent
         double doublePiece = intPiece;
-        if(current() == '.')
+        if (current() == '.') {
             doublePiece += readFraction();
-        if(current() == 'e' || current() == 'E') {
+        }
+        if (current() == 'e' || current() == 'E') {
             next();
             skipIf('+');
             int frac = readInt();
             doublePiece *= Math.pow(10, frac);
         }
-        if(isTerminator(current()))
+        if (isTerminator(current())) {
             return doublePiece;
-        else
+        } else {
             throw new SerializationException("Invalid number format for number on line "
-                                             + lineOffset + ": " + getCurrentContext());
+                    + lineOffset + ": " + getCurrentContext());
+        }
     }
 
     private boolean isTerminator(int ch) {
         return Character.isWhitespace(ch) || ch == '{' || ch == '}' || ch == '[' || ch == ']'
-               || ch == ',' || ch == -1;
+                || ch == ',' || ch == -1;
     }
 
     public int readInt() {
         skipWhitespace();
         int val = 0;
         boolean isPositive;
-        if(current() == '-') {
+        if (current() == '-') {
             isPositive = false;
             next();
-        } else if(current() == '+') {
+        } else if (current() == '+') {
             isPositive = true;
             next();
         } else {
             isPositive = true;
         }
         skipWhitespace();
-        if(!Character.isDigit(current()))
+        if (!Character.isDigit(current())) {
             throw new SerializationException("Expected a digit while trying to parse number, but got '"
-                                             + currentChar()
-                                             + "' at line "
-                                             + getCurrentLineNumber()
-                                             + " character "
-                                             + getCurrentLineOffset() + ": " + getCurrentContext());
-        while(Character.isDigit(current())) {
+                    + currentChar()
+                    + "' at line "
+                    + getCurrentLineNumber()
+                    + " character "
+                    + getCurrentLineOffset() + ": " + getCurrentContext());
+        }
+        while (Character.isDigit(current())) {
             val *= 10;
             val += (current() - '0');
             next();
         }
-        if(!isPositive)
+        if (!isPositive) {
             val = -val;
+        }
         return val;
     }
 
@@ -311,7 +320,7 @@ public class JsonReader {
         skip('.');
         double position = 0.1;
         double val = 0;
-        while(Character.isDigit(current())) {
+        while (Character.isDigit(current())) {
             val += position * (current() - '0');
             position *= 0.1;
             next();
@@ -335,7 +344,7 @@ public class JsonReader {
             // increment the character count and maybe line number
             this.charsRead++;
             this.lineOffset++;
-            if(this.current == this.lineBreak) {
+            if (this.current == this.lineBreak) {
                 this.line++;
                 this.lineOffset = 1;
             }
@@ -344,32 +353,36 @@ public class JsonReader {
             this.contextOffset = (contextOffset + 1) % this.contextBuffer.length;
 
             return this.current;
-        } catch(IOException e) {
+        } catch (IOException e) {
             throw new SerializationException("Error reading from JSON stream.", e);
         }
     }
 
     private void skipIf(char c) {
-        if(current() == c)
+        if (current() == c) {
             next();
+        }
     }
 
     private void skip(String s) {
-        for(int i = 0; i < s.length(); i++)
+        for (int i = 0; i < s.length(); i++) {
             skip(s.charAt(i));
+        }
     }
 
     private void skipWhitespace() {
-        while(Character.isWhitespace(current()))
+        while (Character.isWhitespace(current())) {
             next();
+        }
     }
 
     private void skip(int c) {
-        if(current() != c)
+        if (current() != c) {
             throw new SerializationException("Expected '" + ((char) c)
-                                             + "' but current character is '" + currentChar()
-                                             + "' on line " + line + " character " + lineOffset
-                                             + ": " + getCurrentContext());
+                    + "' but current character is '" + currentChar()
+                    + "' on line " + line + " character " + lineOffset
+                    + ": " + getCurrentContext());
+        }
         next();
     }
 
@@ -383,14 +396,17 @@ public class JsonReader {
 
     public String getCurrentContext() {
         StringBuilder builder = new StringBuilder(this.contextBuffer.length);
-        for(int i = this.contextOffset; i < this.contextBuffer.length; i++)
+        for (int i = this.contextOffset; i < this.contextBuffer.length; i++) {
             builder.append(this.contextBuffer[i]);
-        for(int i = 0; i < contextOffset; i++)
+        }
+        for (int i = 0; i < contextOffset; i++) {
             builder.append(this.contextBuffer[i]);
-        if(this.charsRead < this.contextBuffer.length)
+        }
+        if (this.charsRead < this.contextBuffer.length) {
             return builder.toString().substring(this.contextBuffer.length - this.charsRead,
-                                                this.contextBuffer.length);
-        else
+                    this.contextBuffer.length);
+        } else {
             return builder.toString();
+        }
     }
 }

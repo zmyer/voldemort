@@ -24,8 +24,8 @@ import voldemort.versioning.Versioned;
 /**
  * A Serializer that removes the Versioned wrapper and delegates to a
  * user-supplied serializer to deal with the remaining bytes
- * 
- * 
+ *
+ *
  * @param <T> The Versioned type
  */
 public class VersionedSerializer<T> implements Serializer<Versioned<T>> {
@@ -38,10 +38,11 @@ public class VersionedSerializer<T> implements Serializer<Versioned<T>> {
 
     public byte[] toBytes(Versioned<T> versioned) {
         byte[] versionBytes = null;
-        if(versioned.getVersion() == null)
-            versionBytes = new byte[] { -1 };
-        else
+        if (versioned.getVersion() == null) {
+            versionBytes = new byte[]{ -1 };
+        } else {
             versionBytes = ((VectorClock) versioned.getVersion()).toBytes();
+        }
         byte[] objectBytes = innerSerializer.toBytes(versioned.getValue());
         return ByteUtils.cat(versionBytes, objectBytes);
     }
@@ -50,8 +51,9 @@ public class VersionedSerializer<T> implements Serializer<Versioned<T>> {
         VectorClock vectorClock = getVectorClock(bytes);
 
         int size = 1;
-        if(vectorClock != null)
+        if (vectorClock != null) {
             size = vectorClock.sizeInBytes();
+        }
 
         T t = innerSerializer.toObject(ByteUtils.copy(bytes, size, bytes.length));
         return new Versioned<T>(t, vectorClock);
@@ -62,8 +64,9 @@ public class VersionedSerializer<T> implements Serializer<Versioned<T>> {
     }
 
     private VectorClock getVectorClock(byte[] bytes) {
-        if(bytes[0] >= 0)
+        if (bytes[0] >= 0) {
             return new VectorClock(bytes);
+        }
         return null;
     }
 

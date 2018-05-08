@@ -1,16 +1,16 @@
 package voldemort.server.niosocket;
 
 import org.apache.commons.lang.mutable.MutableInt;
-
-import voldemort.common.nio.CommBufferSizeStats;
 import voldemort.common.nio.AbstractSelectorManager;
+import voldemort.common.nio.CommBufferSizeStats;
 import voldemort.store.stats.Histogram;
 
 /**
  * Encapsulates all the statistics about various metrics in the NIO Network
  * layer
- * 
+ *
  */
+// TODO: 2018/4/26 by zmyer
 public class NioSelectorManagerStats {
 
     private static long SELECTOR_STATS_RESET_INTERVAL = 60000;
@@ -32,8 +32,8 @@ public class NioSelectorManagerStats {
         // Theoretically, the delay can be only upto SELECTOR_POLL_MS.
         // But sometimes wallclock time can be higher
         this.selectTimeMsHistogram = new Histogram(AbstractSelectorManager.SELECTOR_POLL_MS * 2,
-                                                   1,
-                                                   SELECTOR_STATS_RESET_INTERVAL);
+                1,
+                SELECTOR_STATS_RESET_INTERVAL);
         // Not a scientific limit. Not expecting a server thread to handle more
         // than 100K connections.
         this.selectCountHistogram = new Histogram(100000, 1, SELECTOR_STATS_RESET_INTERVAL);
@@ -52,19 +52,19 @@ public class NioSelectorManagerStats {
 
     public void updateSelectStats(int selectCount, long selectTimeMs, long processingTimeMs) {
         // update selection statistics
-        if(selectCount > -1) {
+        if (selectCount > -1) {
             selectCountHistogram.insert(selectCount);
             selectTimeMsHistogram.insert(selectTimeMs);
         }
         // update processing time statistics only if some work was picked up
-        if(processingTimeMs > -1 && selectCount > 0) {
+        if (processingTimeMs > -1 && selectCount > 0) {
             processingTimeMsHistogram.insert(processingTimeMs);
         }
     }
 
     /**
      * Returns the number of active connections for this selector manager
-     * 
+     *
      * @return number of active connections.
      */
     public Integer getNumActiveConnections() {

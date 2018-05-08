@@ -1,12 +1,8 @@
 package voldemort.store.routed;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.ExecutorService;
-
+import com.google.common.collect.Maps;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
-
 import voldemort.VoldemortException;
 import voldemort.cluster.Cluster;
 import voldemort.cluster.failuredetector.FailureDetector;
@@ -17,8 +13,11 @@ import voldemort.store.nonblockingstore.ThreadPoolBasedNonblockingStoreImpl;
 import voldemort.store.slop.Slop;
 import voldemort.utils.ByteArray;
 
-import com.google.common.collect.Maps;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.ExecutorService;
 
+// TODO: 2018/4/3 by zmyer
 public class RoutedStoreFactory {
 
     private ExecutorService threadPool;
@@ -39,12 +38,13 @@ public class RoutedStoreFactory {
     }
 
     public NonblockingStore toNonblockingStore(Store<ByteArray, byte[], byte[]> store) {
-        if(store instanceof NonblockingStore) {
+        if (store instanceof NonblockingStore) {
             return (NonblockingStore) store;
-        } else if(threadPool == null) {
-            throw new VoldemortException("ThreadPool is not initialized. ThreadPool is required in RoutedStoreFactory constructor if using blocking stores");
+        } else if (threadPool == null) {
+            throw new VoldemortException(
+                    "ThreadPool is not initialized. ThreadPool is required in RoutedStoreFactory constructor if using blocking stores");
         } else {
-            if(logger.isEnabledFor(Level.WARN)) {
+            if (logger.isEnabledFor(Level.WARN)) {
                 logger.warn("Using pseudo NonblockingStore implementation for " + store.getClass());
             }
             return new ThreadPoolBasedNonblockingStoreImpl(threadPool, store);
@@ -57,31 +57,32 @@ public class RoutedStoreFactory {
     }
 
     public RoutedStore create(Cluster cluster,
-                              StoreDefinition storeDefinition,
-                              Map<Integer, Store<ByteArray, byte[], byte[]>> nodeStores,
-                              FailureDetector failureDetector,
-                              RoutedStoreConfig routedStoreConfig) {
+            StoreDefinition storeDefinition,
+            Map<Integer, Store<ByteArray, byte[], byte[]>> nodeStores,
+            FailureDetector failureDetector,
+            RoutedStoreConfig routedStoreConfig) {
         Map<Integer, NonblockingStore> nonblockingStores = Maps.newHashMap();
 
-        for(Map.Entry<Integer, Store<ByteArray, byte[], byte[]>> entry: nodeStores.entrySet())
+        for (Map.Entry<Integer, Store<ByteArray, byte[], byte[]>> entry : nodeStores.entrySet()) {
             nonblockingStores.put(entry.getKey(), toNonblockingStore(entry.getValue()));
+        }
 
         return create(cluster,
-                      storeDefinition,
-                      nodeStores,
-                      nonblockingStores,
-                      null,
-                      null,
-                      failureDetector,
-                      routedStoreConfig);
+                storeDefinition,
+                nodeStores,
+                nonblockingStores,
+                null,
+                null,
+                failureDetector,
+                routedStoreConfig);
     }
 
     private Map<String, PipelineRoutedStats> storeStatsMap = new HashMap<String, PipelineRoutedStats>();
 
     private synchronized PipelineRoutedStats getPipelineRoutedStats(String storeName,
-                                                                    String identifierString) {
+            String identifierString) {
         String key = storeName + identifierString;
-        if(storeStatsMap.containsKey(key)) {
+        if (storeStatsMap.containsKey(key)) {
             return storeStatsMap.get(key);
         }
         PipelineRoutedStats stats = new PipelineRoutedStats(key);
@@ -90,28 +91,28 @@ public class RoutedStoreFactory {
     }
 
     public RoutedStore create(Cluster cluster,
-                              StoreDefinition storeDefinition,
-                              Map<Integer, Store<ByteArray, byte[], byte[]>> nodeStores,
-                              Map<Integer, NonblockingStore> nonblockingStores,
-                              Map<Integer, Store<ByteArray, Slop, byte[]>> slopStores,
-                              Map<Integer, NonblockingStore> nonblockingSlopStores,
-                              FailureDetector failureDetector,
-                              RoutedStoreConfig routedStoreConfig) {
+            StoreDefinition storeDefinition,
+            Map<Integer, Store<ByteArray, byte[], byte[]>> nodeStores,
+            Map<Integer, NonblockingStore> nonblockingStores,
+            Map<Integer, Store<ByteArray, Slop, byte[]>> slopStores,
+            Map<Integer, NonblockingStore> nonblockingSlopStores,
+            FailureDetector failureDetector,
+            RoutedStoreConfig routedStoreConfig) {
         PipelineRoutedStats stats = getPipelineRoutedStats(storeDefinition.getName(),
-                                                           routedStoreConfig.getIdentifierString());
+                routedStoreConfig.getIdentifierString());
 
         return new PipelineRoutedStore(nodeStores,
-                                       nonblockingStores,
-                                       slopStores,
-                                       nonblockingSlopStores,
-                                       cluster,
-                                       storeDefinition,
-                                       failureDetector,
-                                       routedStoreConfig.getRepairReads(),
-                                       routedStoreConfig.getTimeoutConfig(),
-                                       routedStoreConfig.getClientZoneId(),
-                                       routedStoreConfig.isJmxEnabled(),
-                                       stats,
-                                       routedStoreConfig.getZoneAffinity());
+                nonblockingStores,
+                slopStores,
+                nonblockingSlopStores,
+                cluster,
+                storeDefinition,
+                failureDetector,
+                routedStoreConfig.getRepairReads(),
+                routedStoreConfig.getTimeoutConfig(),
+                routedStoreConfig.getClientZoneId(),
+                routedStoreConfig.isJmxEnabled(),
+                stats,
+                routedStoreConfig.getZoneAffinity());
     }
 }

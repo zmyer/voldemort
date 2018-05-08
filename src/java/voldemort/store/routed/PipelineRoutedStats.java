@@ -1,12 +1,5 @@
 package voldemort.store.routed;
 
-import java.util.Iterator;
-import java.util.Map.Entry;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicLong;
-
-import javax.management.ObjectName;
-
 import voldemort.annotations.jmx.JmxGetter;
 import voldemort.store.InsufficientOperationalNodesException;
 import voldemort.store.InsufficientZoneResponsesException;
@@ -18,12 +11,19 @@ import voldemort.utils.JmxUtils;
 import voldemort.utils.Utils;
 import voldemort.versioning.ObsoleteVersionException;
 
+import javax.management.ObjectName;
+import java.util.Iterator;
+import java.util.Map.Entry;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
+
 /**
  * Tracks all the exceptions we see, down at the routing layer also including
  * ones that will be eventually propagated up to the client from the routing
  * layer
- * 
+ *
  */
+// TODO: 2018/4/26 by zmyer
 public class PipelineRoutedStats {
 
     protected final ConcurrentHashMap<Class<? extends Exception>, AtomicLong> errCountMap;
@@ -61,47 +61,55 @@ public class PipelineRoutedStats {
         return benignExceptionCount.get();
     }
 
-    @JmxGetter(name = "numInsufficientOperationalNodesExceptions", description = "Number of client operations failed due to sufficient nodes not being up")
+    @JmxGetter(name = "numInsufficientOperationalNodesExceptions",
+            description = "Number of client operations failed due to sufficient nodes not being up")
     public long getNumInsufficientOperationalNodesExceptions() {
         return errCountMap.get(InsufficientOperationalNodesException.class).get();
     }
 
-    @JmxGetter(name = "numInsufficientZoneResponsesExceptions", description = "Number of client operations failed due to sufficient nodes not up across zones")
+    @JmxGetter(name = "numInsufficientZoneResponsesExceptions",
+            description = "Number of client operations failed due to sufficient nodes not up across zones")
     public long getNumInsufficientZoneResponsesExceptions() {
         return errCountMap.get(InsufficientZoneResponsesException.class).get();
     }
 
-    @JmxGetter(name = "numInvalidMetadataExceptions", description = "Number of times the metadata was invalid at the client")
+    @JmxGetter(name = "numInvalidMetadataExceptions",
+            description = "Number of times the metadata was invalid at the client")
     public long getNumInvalidMetadataExceptions() {
         return errCountMap.get(InvalidMetadataException.class).get();
     }
 
-    @JmxGetter(name = "numUnreachableStoreExceptions", description = "Number of requests incomplete since some server could not be reached")
+    @JmxGetter(name = "numUnreachableStoreExceptions",
+            description = "Number of requests incomplete since some server could not be reached")
     public long getNumUnreachableStoreExceptions() {
         return errCountMap.get(UnreachableStoreException.class).get();
     }
 
-    @JmxGetter(name = "numStoreTimeoutExceptions", description = "Number of requests timed out since some server was overloaded/unavailable")
+    @JmxGetter(name = "numStoreTimeoutExceptions",
+            description = "Number of requests timed out since some server was overloaded/unavailable")
     public long getNumStoreTimeoutExceptions() {
         return errCountMap.get(StoreTimeoutException.class).get();
     }
 
-    @JmxGetter(name = "numObsoleteVersionExceptions", description = "Number of requests that got a ObsoleteVersionException as response")
+    @JmxGetter(name = "numObsoleteVersionExceptions",
+            description = "Number of requests that got a ObsoleteVersionException as response")
     public long getNumObsoleteVersionExceptions() {
         return errCountMap.get(ObsoleteVersionException.class).get();
     }
 
-    @JmxGetter(name = "numQuotaExceededExceptions", description = "Number of client operations failed due to exceeding quota")
+    @JmxGetter(name = "numQuotaExceededExceptions",
+            description = "Number of client operations failed due to exceeding quota")
     public long getNumQuotaExceededExceptions() {
         return errCountMap.get(QuotaExceededException.class).get();
     }
 
-    @JmxGetter(name = "getExceptionCountsAsString", description = "Returns counts of all the Exceptions seen so far as a string")
+    @JmxGetter(name = "getExceptionCountsAsString",
+            description = "Returns counts of all the Exceptions seen so far as a string")
     public String getExceptionCountsAsString() {
         StringBuilder result = new StringBuilder();
         Iterator<Entry<Class<? extends Exception>, AtomicLong>> itr = errCountMap.entrySet()
-                                                                                 .iterator();
-        while(itr.hasNext()) {
+                .iterator();
+        while (itr.hasNext()) {
             Entry<Class<? extends Exception>, AtomicLong> pair = itr.next();
             result.append(pair.getKey().getName() + ":" + pair.getValue().get() + "\n");
         }
@@ -109,21 +117,23 @@ public class PipelineRoutedStats {
     }
 
     public void reportException(Exception e) {
-        if(isSevere(e))
+        if (isSevere(e)) {
             severeExceptionCount.incrementAndGet();
-        else
+        } else {
             benignExceptionCount.incrementAndGet();
+        }
         errCountMap.putIfAbsent(e.getClass(), new AtomicLong(0));
         errCountMap.get(e.getClass()).incrementAndGet();
     }
 
     public boolean isSevere(Exception ve) {
-        if(ve instanceof InsufficientOperationalNodesException
-           || ve instanceof InsufficientZoneResponsesException
-           || ve instanceof InvalidMetadataException)
+        if (ve instanceof InsufficientOperationalNodesException
+                || ve instanceof InsufficientZoneResponsesException
+                || ve instanceof InvalidMetadataException) {
             return true;
-        else
+        } else {
             return false;
+        }
     }
 
     /**
@@ -133,7 +143,7 @@ public class PipelineRoutedStats {
      */
     public synchronized void registerJmxIfRequired() {
         referenceCount++;
-        if(isRegistered == false) {
+        if (isRegistered == false) {
             String domain = JmxUtils.getPackageName(this.getClass());
             this.jmxObjectName = JmxUtils.createObjectName(domain, this.name);
             JmxUtils.registerMbean(this, this.jmxObjectName);

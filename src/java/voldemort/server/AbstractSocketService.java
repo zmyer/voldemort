@@ -26,9 +26,10 @@ import voldemort.utils.JmxUtils;
 /**
  * AbstractSocketService abstracts the different implementations so that we can
  * use this common super class by various callers.
- * 
+ *
  */
 
+// TODO: 2018/4/26 by zmyer
 @JmxManaged(description = "A server that handles remote operations on stores via TCP/IP.")
 public abstract class AbstractSocketService extends AbstractService implements VoldemortService {
 
@@ -48,7 +49,7 @@ public abstract class AbstractSocketService extends AbstractService implements V
     /**
      * Simply retrieves the port on which this service is listening for incoming
      * requests.
-     * 
+     *
      * @return Port number
      */
 
@@ -59,7 +60,7 @@ public abstract class AbstractSocketService extends AbstractService implements V
 
     /**
      * Returns a StatusManager instance for use with status reporting tools.
-     * 
+     *
      * @return StatusManager
      */
 
@@ -68,13 +69,14 @@ public abstract class AbstractSocketService extends AbstractService implements V
     /**
      * If JMX is enabled, will register the given object under the service name
      * with which this class was created.
-     * 
+     *
      * @param obj Object to register as an MBean
      */
 
     protected void enableJmx(Object obj) {
-        if(enableJmx)
+        if (enableJmx) {
             JmxUtils.registerMbean(serviceName, obj);
+        }
     }
 
 }

@@ -18,15 +18,16 @@ package voldemort.serialization;
 
 /**
  * Map objects to byte arrays and back again
- * 
- * 
+ *
+ *
  * @param <T> The type of the object that is mapped by this serializer
  */
+// TODO: 2018/4/26 by zmyer
 public interface Serializer<T> {
 
     /**
      * Construct an array of bytes from the given object
-     * 
+     *
      * @param object The object
      * @return The bytes taken from the object
      */
@@ -34,7 +35,7 @@ public interface Serializer<T> {
 
     /**
      * Create an object from an array of bytes
-     * 
+     *
      * @param bytes An array of bytes with the objects data
      * @return A java object serialzed from the bytes
      */

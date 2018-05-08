@@ -33,6 +33,7 @@ import voldemort.versioning.Versioned;
  * 
  * 
  */
+// TODO: 2018/4/3 by zmyer
 @Threadsafe
 public interface Store<K, V, T> {
 

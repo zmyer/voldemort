@@ -21,9 +21,17 @@ import io.tehuti.Metric;
 import io.tehuti.metrics.MetricConfig;
 import io.tehuti.metrics.MetricsRepository;
 import io.tehuti.metrics.Sensor;
-import io.tehuti.metrics.stats.*;
-import io.tehuti.utils.Time;
+import io.tehuti.metrics.stats.Avg;
+import io.tehuti.metrics.stats.Count;
+import io.tehuti.metrics.stats.Max;
+import io.tehuti.metrics.stats.OccurrenceRate;
+import io.tehuti.metrics.stats.Percentile;
+import io.tehuti.metrics.stats.Percentiles;
+import io.tehuti.metrics.stats.Rate;
+import io.tehuti.metrics.stats.SampledCount;
+import io.tehuti.metrics.stats.SampledTotal;
 import io.tehuti.utils.SystemTime;
+import io.tehuti.utils.Time;
 import org.apache.log4j.Logger;
 
 import java.util.Map;
@@ -32,9 +40,10 @@ import java.util.concurrent.TimeUnit;
 /**
  * A thread-safe request counter that calculates throughput for a specified
  * duration of time.
- * 
- * 
+ *
+ *
  */
+// TODO: 2018/4/26 by zmyer
 public class RequestCounter {
 
     private final Time time;
@@ -46,18 +55,18 @@ public class RequestCounter {
     private Metric
             // Averages
             latencyAverage, valueBytesAverage, keyBytesAverage,
-            // Percentiles
-            latency10thPercentile, latency50thPercentile, latency95thPercentile, latency99thPercentile,
-            // Maximums
-            latencyMax, valueBytesMax, keyBytesMax, getAllKeysCountMax,
-            // Sampled Totals
-            getAllKeysCountSampledTotal, emptyResponseKeysSampledTotal,
-            // Sampled Counts
-            requestSampledCount,
-            // All-time Count
-            requestAllTimeCount,
-            // Rates
-            getAllKeysThroughput, requestThroughput, requestThroughputInBytes;
+    // Percentiles
+    latency10thPercentile, latency50thPercentile, latency95thPercentile, latency99thPercentile,
+    // Maximums
+    latencyMax, valueBytesMax, keyBytesMax, getAllKeysCountMax,
+    // Sampled Totals
+    getAllKeysCountSampledTotal, emptyResponseKeysSampledTotal,
+    // Sampled Counts
+    requestSampledCount,
+    // All-time Count
+    requestAllTimeCount,
+    // Rates
+    getAllKeysThroughput, requestThroughput, requestThroughputInBytes;
 
     private MetricsRepository metricsRepository;
 
@@ -166,7 +175,7 @@ public class RequestCounter {
 
         // Key and Value Bytes Sensor
 
-        String keyAndValueBytesSensorName= name + ".key-and-value-bytes";
+        String keyAndValueBytesSensorName = name + ".key-and-value-bytes";
         Sensor keyAndValueBytesSensor = metricsRepository.sensor(keyAndValueBytesSensorName, metricConfig);
         this.requestThroughputInBytes =
                 keyAndValueBytesSensor.add(keyAndValueBytesSensorName + ".bytes-throughput", new Rate());
@@ -195,7 +204,8 @@ public class RequestCounter {
         this.getAllKeysCountSampledTotal =
                 this.getAllKeysCountSensor.add(getAllKeysCountSensorName + ".sampled-total", new SampledTotal());
         this.getAllKeysCountMax = this.getAllKeysCountSensor.add(getAllKeysCountSensorName + ".max", new Max(0));
-        this.getAllKeysThroughput = this.getAllKeysCountSensor.add(getAllKeysCountSensorName + ".throughput", new Rate());
+        this.getAllKeysThroughput = this.getAllKeysCountSensor.add(getAllKeysCountSensorName + ".throughput",
+                new Rate());
     }
 
     /**
@@ -266,13 +276,13 @@ public class RequestCounter {
      * @param getAllAggregatedCount Total number of keys returned for getAll calls
      */
     public void addRequest(long timeNS,
-                           long numEmptyResponses,
-                           long valueBytes,
-                           long keyBytes,
-                           long getAllAggregatedCount) {
+            long numEmptyResponses,
+            long valueBytes,
+            long keyBytes,
+            long getAllAggregatedCount) {
         // timing instrumentation (trace only)
         long startTimeNs = 0;
-        if(logger.isTraceEnabled()) {
+        if (logger.isTraceEnabled()) {
             startTimeNs = System.nanoTime();
         }
 
@@ -285,7 +295,7 @@ public class RequestCounter {
         getAllKeysCountSensor.record(getAllAggregatedCount, currentTime);
 
         // timing instrumentation (trace only)
-        if(logger.isTraceEnabled()) {
+        if (logger.isTraceEnabled()) {
             logger.trace("addRequest took " + (System.nanoTime() - startTimeNs) + " ns.");
         }
     }
@@ -339,19 +349,19 @@ public class RequestCounter {
     public long getGetAllMaxCount() {
         return (long) getAllKeysCountMax.value();
     }
-    
+
     public double getQ10LatencyMs() {
         return latency10thPercentile.value();
     }
-    
+
     public double getQ50LatencyMs() {
         return latency50thPercentile.value();
     }
-    
+
     public double getQ95LatencyMs() {
         return latency95thPercentile.value();
     }
-    
+
     public double getQ99LatencyMs() {
         return latency99thPercentile.value();
     }

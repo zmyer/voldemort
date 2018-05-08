@@ -1,35 +1,35 @@
 package voldemort.server.protocol;
 
+import voldemort.VoldemortException;
+
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
-
-import voldemort.VoldemortException;
 
 /**
  * Implements an iterator-esque streaming request handler wherein we keep
  * executing handleRequest until it returns
  * {@link StreamRequestHandlerState#COMPLETE}.
- * 
+ *
  */
-
+// TODO: 2018/4/26 by zmyer
 public interface StreamRequestHandler {
 
     public final static int STAT_RECORDS_INTERVAL = 100000;
 
     /**
      * Handles a "segment" of a streaming request.
-     * 
+     *
      * @param inputStream
      * @param outputStream
-     * 
+     *
      * @return {@link StreamRequestHandlerState}
-     * 
+     *
      * @throws IOException
      */
 
     public StreamRequestHandlerState handleRequest(DataInputStream inputStream,
-                                                   DataOutputStream outputStream)
+            DataOutputStream outputStream)
             throws IOException;
 
     public void close(DataOutputStream outputStream) throws IOException;

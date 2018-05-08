@@ -16,13 +16,11 @@
 
 package voldemort.store.rebalancing;
 
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.atomic.AtomicBoolean;
-
+import com.google.common.collect.HashMultimap;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Multimap;
 import org.apache.log4j.Logger;
-
 import voldemort.VoldemortException;
 import voldemort.annotations.jmx.JmxGetter;
 import voldemort.annotations.jmx.JmxSetter;
@@ -49,10 +47,10 @@ import voldemort.versioning.ObsoleteVersionException;
 import voldemort.versioning.Version;
 import voldemort.versioning.Versioned;
 
-import com.google.common.collect.HashMultimap;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Multimap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * The RedirectingStore extends {@link DelegatingStore}
@@ -62,25 +60,26 @@ import com.google.common.collect.Multimap;
  * partition that this server is currently stealing. Such a server has what we
  * call a 'proxy node', which is the server which owned that partition as the
  * exact same type of replica in the same zone, as per the old cluster topology.
- * 
+ *
  * 1. getVersions/get<br>
  * If the server contains the key locally, then serve it directly. Else, fetch
  * from proxy node, update local storage and then serve it off that.
- * 
+ *
  * 2. getAll<br>
  * Similarly, for keys that exist locally, serve it off directly. Else,
  * fetch-update the missing keys from proxyNode and then serve them off local
  * storage.
- * 
+ *
  * 3. put <br>
  * First write it to local storage, then submit a async put() to the proxy node,
  * so we can safely abort the rebalancing if we have to.
- * 
+ *
  * 4. delete <br>
  * :) :) :)
- * 
+ *
  */
 
+// TODO: 2018/4/26 by zmyer
 // TODO: Incorporate "metadata listener" mechanism:
 // https://github.com/abh1nay/voldemort/commit/2a78d6201e8f2bb56b8f4c55022ae2532f26338c
 // https://github.com/abh1nay/voldemort/compare/proxy-put-metadata-listener
@@ -99,12 +98,12 @@ public class RedirectingStore extends DelegatingStore<ByteArray, byte[], byte[]>
     private final ProxyPutStats proxyPutStats;
 
     public RedirectingStore(Store<ByteArray, byte[], byte[]> innerStore,
-                            MetadataStore metadata,
-                            StoreRepository storeRepository,
-                            FailureDetector detector,
-                            SocketStoreFactory storeFactory,
-                            ExecutorService proxyPutWorkerPool,
-                            ProxyPutStats proxyPutStats) {
+            MetadataStore metadata,
+            StoreRepository storeRepository,
+            FailureDetector detector,
+            SocketStoreFactory storeFactory,
+            ExecutorService proxyPutWorkerPool,
+            ProxyPutStats proxyPutStats) {
         super(innerStore);
         this.metadata = metadata;
         this.storeRepository = storeRepository;
@@ -117,22 +116,22 @@ public class RedirectingStore extends DelegatingStore<ByteArray, byte[], byte[]>
 
     @JmxSetter(name = "setRedirectingStoreEnabled", description = "Enable the redirecting store for this store")
     public void
-            setIsRedirectingStoreEnabled(boolean isRedirectingStoreEnabled) {
+    setIsRedirectingStoreEnabled(boolean isRedirectingStoreEnabled) {
         logger.info("Setting redirecting store flag for " + getName() + " to "
-                    + isRedirectingStoreEnabled);
+                + isRedirectingStoreEnabled);
         this.isRedirectingStoreEnabled.set(isRedirectingStoreEnabled);
     }
 
     @JmxGetter(name = "isRedirectingStoreEnabled", description = "Get the redirecting store state for this store")
     public boolean
-            getIsRedirectingStoreEnabled() {
+    getIsRedirectingStoreEnabled() {
         return this.isRedirectingStoreEnabled.get();
     }
 
     /**
      * If needed, satisfies the get request by redirecting calls to the remote
      * proxy node. Also updates local storage accordingly.
-     * 
+     *
      * @param key
      * @param transforms
      * @return
@@ -146,11 +145,11 @@ public class RedirectingStore extends DelegatingStore<ByteArray, byte[], byte[]>
          * {@link ObsoleteVersionException}
          */
         Integer redirectNode = getProxyNode(key.get());
-        if(redirectNode != null) {
+        if (redirectNode != null) {
             // First, attempt a local get
             List<Versioned<byte[]>> vals = getInnerStore().get(key, transforms);
             // If found, return
-            if(!vals.isEmpty()) {
+            if (!vals.isEmpty()) {
                 /*
                  * There is a subtle race here if the underlying storage does
                  * not implement multiVersionPut(), since the we could read some
@@ -162,9 +161,9 @@ public class RedirectingStore extends DelegatingStore<ByteArray, byte[], byte[]>
                 return vals;
             }
 
-            if(logger.isTraceEnabled()) {
+            if (logger.isTraceEnabled()) {
                 logger.trace("Proxying GET on stealer:" + metadata.getNodeId() + " for  key "
-                             + ByteUtils.toHexString(key.get()) + " to node:" + redirectNode);
+                        + ByteUtils.toHexString(key.get()) + " to node:" + redirectNode);
             }
             proxyGetAndLocalPut(key, redirectNode, transforms);
         }
@@ -174,7 +173,7 @@ public class RedirectingStore extends DelegatingStore<ByteArray, byte[], byte[]>
     /**
      * If needed, satisfies the getVersions request by redirecting calls to the
      * remote proxy node. Also updates local storage accordingly.
-     * 
+     *
      * @param key
      * @param transforms
      * @return
@@ -187,20 +186,20 @@ public class RedirectingStore extends DelegatingStore<ByteArray, byte[], byte[]>
          * {@link ObsoleteVersionException}.
          */
         Integer redirectNode = getProxyNode(key.get());
-        if(redirectNode != null) {
+        if (redirectNode != null) {
             // First, attempt a local getVersions()
             List<Version> versions = getInnerStore().getVersions(key);
             // If found some versions, return
-            if(!versions.isEmpty()) {
+            if (!versions.isEmpty()) {
                 // Same caveat here as in redirectingGet(). Need multiVersionPut
                 // support in storage to avoid seeing partial versions
                 return versions;
             }
 
-            if(logger.isTraceEnabled()) {
+            if (logger.isTraceEnabled()) {
                 logger.trace("Proxying GETVERSIONS on stealer:" + metadata.getNodeId()
-                             + " for  key " + ByteUtils.toHexString(key.get()) + " to node:"
-                             + redirectNode);
+                        + " for  key " + ByteUtils.toHexString(key.get()) + " to node:"
+                        + redirectNode);
             }
             proxyGetAndLocalPut(key, redirectNode, null);
         }
@@ -210,24 +209,24 @@ public class RedirectingStore extends DelegatingStore<ByteArray, byte[], byte[]>
     /**
      * If needed, satisfies the getAll request by redirecting calls to the
      * remote proxy node. Also updates local storage accordingly.
-     * 
-     * 
+     *
+     *
      * @param keys
      * @param transforms
      * @return
      * @throws VoldemortException
      */
     private Map<ByteArray, List<Versioned<byte[]>>>
-            redirectingGetAll(Iterable<ByteArray> keys, Map<ByteArray, byte[]> transforms)
-                    throws VoldemortException {
+    redirectingGetAll(Iterable<ByteArray> keys, Map<ByteArray, byte[]> transforms)
+            throws VoldemortException {
 
         // first determine how many keys are already present locally.
         Map<ByteArray, List<Versioned<byte[]>>> localVals = getInnerStore().getAll(keys, transforms);
         Map<ByteArray, Integer> keyToProxyNodeMap = Maps.newHashMapWithExpectedSize(Iterables.size(keys));
-        for(ByteArray key: keys) {
+        for (ByteArray key : keys) {
             // Relies on inner getAll() to not return an entry for the key in
             // the result hashmap, in case the key does not exist on storage
-            if(localVals.containsKey(key)) {
+            if (localVals.containsKey(key)) {
                 // if you have it locally, move to next key
                 continue;
             }
@@ -239,7 +238,7 @@ public class RedirectingStore extends DelegatingStore<ByteArray, byte[], byte[]>
              * this is a non-existent key. We can't really confirm key does not
              * exist, without going to the proxy node..
              */
-            if(redirectNode != null) {
+            if (redirectNode != null) {
                 /*
                  * If we are indeed rebalancing for the key, then a proxy fetch
                  * will make things certain.
@@ -249,22 +248,24 @@ public class RedirectingStore extends DelegatingStore<ByteArray, byte[], byte[]>
         }
 
         // If all keys were present locally, return. If not, do proxy fetch
-        if(!keyToProxyNodeMap.isEmpty()) {
-            if(logger.isTraceEnabled()) {
+        if (!keyToProxyNodeMap.isEmpty()) {
+            if (logger.isTraceEnabled()) {
                 String keyStr = "";
-                for(ByteArray key: keys)
+                for (ByteArray key : keys) {
                     keyStr += key + " ";
+                }
                 logger.trace("Proxying GETALL on stealer:" + metadata.getNodeId() + " for  keys "
-                             + keyStr);
+                        + keyStr);
             }
             // Issue proxy fetches for non-rebalancing keys that did not exist
             // locally
             proxyGetAllAndLocalPut(keyToProxyNodeMap, transforms);
             // Now, issue a getAll for those keys alone
-            Map<ByteArray, List<Versioned<byte[]>>> proxyFetchedVals = getInnerStore().getAll(keyToProxyNodeMap.keySet(),
-                                                                                              transforms);
+            Map<ByteArray, List<Versioned<byte[]>>> proxyFetchedVals = getInnerStore().getAll(
+                    keyToProxyNodeMap.keySet(),
+                    transforms);
             // Merge the results
-            for(Map.Entry<ByteArray, List<Versioned<byte[]>>> entry: proxyFetchedVals.entrySet()) {
+            for (Map.Entry<ByteArray, List<Versioned<byte[]>>> entry : proxyFetchedVals.entrySet()) {
                 localVals.put(entry.getKey(), entry.getValue());
             }
         }
@@ -275,7 +276,7 @@ public class RedirectingStore extends DelegatingStore<ByteArray, byte[], byte[]>
      * This is slightly different from other redirecting*** methods in that,
      * this updates the remote proxy node, with this put request, so we can
      * switch back to the old cluster topology if needed
-     * 
+     *
      * @param key
      * @param value
      * @param transforms
@@ -292,7 +293,7 @@ public class RedirectingStore extends DelegatingStore<ByteArray, byte[], byte[]>
          * doing puts against it. We don't to do extra work and fill the log
          * with errors in that case.
          */
-        if(storeDef.getType().compareTo(ReadOnlyStorageConfiguration.TYPE_NAME) == 0) {
+        if (storeDef.getType().compareTo(ReadOnlyStorageConfiguration.TYPE_NAME) == 0) {
             throw new UnsupportedOperationException("put() not supported on read-only store");
         }
         BaseStoreRoutingPlan currentRoutingPlan = new BaseStoreRoutingPlan(currentCluster, storeDef);
@@ -302,19 +303,19 @@ public class RedirectingStore extends DelegatingStore<ByteArray, byte[], byte[]>
          * does not have the key , put it locally first to get the correct
          * version ignoring any {@link ObsoleteVersionException}
          */
-        if(redirectNode != null) {
+        if (redirectNode != null) {
             /*
              * first check if the key exists locally. If so, it means, it has
              * been moved over (either by a proxy fetch or background fetch) and
              * we are good simply issuing the put on top of that.
              */
             List<Versioned<byte[]>> vals = getInnerStore().get(key, transforms);
-            if(vals.isEmpty()) {
+            if (vals.isEmpty()) {
                 // if not, then go proxy fetch it
-                if(logger.isTraceEnabled()) {
+                if (logger.isTraceEnabled()) {
                     logger.trace("Proxying GET (before PUT) on stealer:" + metadata.getNodeId()
-                                 + " for  key " + ByteUtils.toHexString(key.get()) + " to node:"
-                                 + redirectNode);
+                            + " for  key " + ByteUtils.toHexString(key.get()) + " to node:"
+                            + redirectNode);
                 }
                 proxyGetAndLocalPut(key, redirectNode, transforms);
             }
@@ -330,13 +331,13 @@ public class RedirectingStore extends DelegatingStore<ByteArray, byte[], byte[]>
         // could have a situation where the online replicated write could lose
         // out to the proxy put and hence fail the client operation with an
         // OVE). So do not send proxy puts in those cases.
-        if(redirectNode != null
-           && !currentRoutingPlan.getReplicationNodeList(key.get()).contains(redirectNode)) {
+        if (redirectNode != null
+                && !currentRoutingPlan.getReplicationNodeList(key.get()).contains(redirectNode)) {
             AsyncProxyPutTask asyncProxyPutTask = new AsyncProxyPutTask(this,
-                                                                        key,
-                                                                        value,
-                                                                        transforms,
-                                                                        redirectNode);
+                    key,
+                    value,
+                    transforms,
+                    redirectNode);
             proxyPutStats.reportProxyPutSubmission();
             proxyPutWorkerPool.submit(asyncProxyPutTask);
         }
@@ -344,7 +345,7 @@ public class RedirectingStore extends DelegatingStore<ByteArray, byte[], byte[]>
 
     @Override
     public List<Versioned<byte[]>> get(ByteArray key, byte[] transforms) throws VoldemortException {
-        if(isServerRebalancing()) {
+        if (isServerRebalancing()) {
             return redirectingGet(key, transforms);
         } else {
             return getInnerStore().get(key, transforms);
@@ -353,7 +354,7 @@ public class RedirectingStore extends DelegatingStore<ByteArray, byte[], byte[]>
 
     @Override
     public List<Version> getVersions(ByteArray key) {
-        if(isServerRebalancing()) {
+        if (isServerRebalancing()) {
             return redirectingGetVersions(key);
         } else {
             return getInnerStore().getVersions(key);
@@ -362,9 +363,9 @@ public class RedirectingStore extends DelegatingStore<ByteArray, byte[], byte[]>
 
     @Override
     public Map<ByteArray, List<Versioned<byte[]>>> getAll(Iterable<ByteArray> keys,
-                                                          Map<ByteArray, byte[]> transforms)
+            Map<ByteArray, byte[]> transforms)
             throws VoldemortException {
-        if(isServerRebalancing()) {
+        if (isServerRebalancing()) {
             return redirectingGetAll(keys, transforms);
         } else {
             return getInnerStore().getAll(keys, transforms);
@@ -374,7 +375,7 @@ public class RedirectingStore extends DelegatingStore<ByteArray, byte[], byte[]>
     @Override
     public void put(ByteArray key, Versioned<byte[]> value, byte[] transforms)
             throws VoldemortException {
-        if(isServerRebalancing()) {
+        if (isServerRebalancing()) {
             redirectingPut(key, value, transforms);
         } else {
             getInnerStore().put(key, value, transforms);
@@ -411,12 +412,12 @@ public class RedirectingStore extends DelegatingStore<ByteArray, byte[], byte[]>
     /**
      * Checks if the server has to do any proxying of gets/puts to another
      * server, as a part of an ongoing rebalance operation.
-     * 
+     *
      * Basic idea : Any given node which is a stealer of a partition, as the ith
      * replica of a given zone, will proxy to the old ith replica of the
      * partition in the given zone, as per the source cluster metadata.
      * Exception : if this amounts to proxying to itself.
-     * 
+     *
      * Note on Zone Expansion : For zone expansion, there will be no proxying
      * within the new zone. This is a practical assumption since if we fail, we
      * fallback to a cluster topology without the new zone. As a result, reads
@@ -424,10 +425,10 @@ public class RedirectingStore extends DelegatingStore<ByteArray, byte[], byte[]>
      * course of zone expansion. This is a also reasonable since any
      * organization undertaking such effort would need to have the data in place
      * in the new zone, before the client apps are moved over.
-     * 
+     *
      * TODO:refactor Add helper methods to StoreRoutingPlan to simplify this
      * code
-     * 
+     *
      * @param currentRoutingPlan routing plan object based on cluster's current
      *        topology
      * @param storeDef definition of the store being redirected
@@ -436,10 +437,10 @@ public class RedirectingStore extends DelegatingStore<ByteArray, byte[], byte[]>
      *         proxy to
      */
     private Integer getProxyNode(BaseStoreRoutingPlan currentRoutingPlan,
-                                 StoreDefinition storeDef,
-                                 byte[] key) {
+            StoreDefinition storeDef,
+            byte[] key) {
         // get out if redirecting is disabled.
-        if(!isRedirectingStoreEnabled.get()) {
+        if (!isRedirectingStoreEnabled.get()) {
             return null;
         }
 
@@ -453,7 +454,7 @@ public class RedirectingStore extends DelegatingStore<ByteArray, byte[], byte[]>
         // Logic to get the old storedef
         List<StoreDefinition> sourceStoreDefs = metadata.getRebalancingSourceStores();
 
-        if(sourceCluster == null) {
+        if (sourceCluster == null) {
             /*
              * This is more for defensive coding purposes. The update of the
              * source cluster key happens before the server is put in
@@ -461,18 +462,18 @@ public class RedirectingStore extends DelegatingStore<ByteArray, byte[], byte[]>
              * to NORMAL mode.
              */
 
-            if(logger.isTraceEnabled()) {
+            if (logger.isTraceEnabled()) {
 
                 logger.trace("Old Cluster is null.. bail");
             }
             return null;
         }
-        if(sourceStoreDefs == null) {
+        if (sourceStoreDefs == null) {
             /*
              * similar to the above for stores xml
              */
 
-            if(logger.isTraceEnabled()) {
+            if (logger.isTraceEnabled()) {
 
                 logger.trace("Old stores def is null.. bail");
             }
@@ -487,7 +488,7 @@ public class RedirectingStore extends DelegatingStore<ByteArray, byte[], byte[]>
 
         // Use the old store definition to get the routing object
         BaseStoreRoutingPlan oldRoutingPlan = new BaseStoreRoutingPlan(sourceCluster,
-                                                                       sourceStoreDef);
+                sourceStoreDef);
         // Check the current node's relationship to the key.
         int zoneNAry = currentRoutingPlan.getZoneNAry(zoneId, nodeId, key);
         // Determine which node held the key with the same relationship in the
@@ -495,7 +496,7 @@ public class RedirectingStore extends DelegatingStore<ByteArray, byte[], byte[]>
         Integer redirectNodeId;
         try {
             redirectNodeId = oldRoutingPlan.getNodeIdForZoneNary(zoneId, zoneNAry, key);
-        } catch(VoldemortException ve) {
+        } catch (VoldemortException ve) {
             /*
              * If the zone does not exist, as in the case of Zone Expansion,
              * there will be no proxy bridges built. The only other time an
@@ -506,7 +507,7 @@ public class RedirectingStore extends DelegatingStore<ByteArray, byte[], byte[]>
             return null;
         }
         // Unless he is the same as this node (where this is meaningless effort)
-        if(redirectNodeId == nodeId) {
+        if (redirectNodeId == nodeId) {
             return null;
         }
         return redirectNodeId;
@@ -515,7 +516,7 @@ public class RedirectingStore extends DelegatingStore<ByteArray, byte[], byte[]>
     /**
      * Wrapper around
      * {@link RedirectingStore#getProxyNode(BaseStoreRoutingPlan, StoreDefinition, byte[])}
-     * 
+     *
      * @param key
      * @return
      */
@@ -530,7 +531,7 @@ public class RedirectingStore extends DelegatingStore<ByteArray, byte[], byte[]>
 
     /**
      * Performs a back-door proxy get to proxy node
-     * 
+     *
      * @param key Key
      * @param proxyNodeId proxy node id
      * @throws ProxyUnreachableException if proxy node can't be reached
@@ -541,59 +542,60 @@ public class RedirectingStore extends DelegatingStore<ByteArray, byte[], byte[]>
         long startNs = System.nanoTime();
         try {
             Store<ByteArray, byte[], byte[]> redirectingStore = getRedirectingSocketStore(getName(),
-                                                                                          proxyNodeId);
+                    proxyNodeId);
             List<Versioned<byte[]>> values = redirectingStore.get(key, transform);
             recordSuccess(proxyNode, startNs);
             return values;
-        } catch(UnreachableStoreException e) {
+        } catch (UnreachableStoreException e) {
             recordException(proxyNode, startNs, e);
             throw new ProxyUnreachableException("Failed to reach proxy node " + proxyNode, e);
         }
     }
 
     protected void checkNodeAvailable(Node proxyNode) {
-        if(!failureDetector.isAvailable(proxyNode))
+        if (!failureDetector.isAvailable(proxyNode)) {
             throw new ProxyUnreachableException("Failed to reach proxy node " + proxyNode
-                                                + " is marked down by failure detector.");
+                    + " is marked down by failure detector.");
+        }
     }
 
     /**
      * Performs a back-door proxy getAll
-     * 
+     *
      * @param keyToProxyNodeMap Map of keys to corresponding proxy nodes housing
      *        the keys in source cluster
      * @param transforms Map of keys to their corresponding transforms
      * @throws ProxyUnreachableException if proxy node can't be reached
      */
     private Map<ByteArray, List<Versioned<byte[]>>>
-            proxyGetAll(Map<ByteArray, Integer> keyToProxyNodeMap, Map<ByteArray, byte[]> transforms)
-                    throws VoldemortException {
+    proxyGetAll(Map<ByteArray, Integer> keyToProxyNodeMap, Map<ByteArray, byte[]> transforms)
+            throws VoldemortException {
         Multimap<Integer, ByteArray> proxyNodeToKeys = HashMultimap.create();
         int numKeys = 0;
 
         // Transform the map of key to plan to a map of proxy node id to keys
-        for(Map.Entry<ByteArray, Integer> entry: keyToProxyNodeMap.entrySet()) {
+        for (Map.Entry<ByteArray, Integer> entry : keyToProxyNodeMap.entrySet()) {
             numKeys++;
             proxyNodeToKeys.put(entry.getValue(), entry.getKey());
         }
 
         Map<ByteArray, List<Versioned<byte[]>>> gatherMap = Maps.newHashMapWithExpectedSize(numKeys);
 
-        for(int proxyNodeId: proxyNodeToKeys.keySet()) {
+        for (int proxyNodeId : proxyNodeToKeys.keySet()) {
             Node proxyNode = metadata.getCluster().getNodeById(proxyNodeId);
             checkNodeAvailable(proxyNode);
             long startNs = System.nanoTime();
 
             try {
                 Map<ByteArray, List<Versioned<byte[]>>> resultsForNode = getRedirectingSocketStore(getName(),
-                                                                                                   proxyNodeId).getAll(proxyNodeToKeys.get(proxyNodeId),
-                                                                                                                       transforms);
+                        proxyNodeId).getAll(proxyNodeToKeys.get(proxyNodeId),
+                        transforms);
                 recordSuccess(proxyNode, startNs);
 
-                for(Map.Entry<ByteArray, List<Versioned<byte[]>>> entry: resultsForNode.entrySet()) {
+                for (Map.Entry<ByteArray, List<Versioned<byte[]>>> entry : resultsForNode.entrySet()) {
                     gatherMap.put(entry.getKey(), entry.getValue());
                 }
-            } catch(UnreachableStoreException e) {
+            } catch (UnreachableStoreException e) {
                 recordException(proxyNode, startNs, e);
                 throw new ProxyUnreachableException("Failed to reach proxy node " + proxyNode, e);
             }
@@ -610,29 +612,30 @@ public class RedirectingStore extends DelegatingStore<ByteArray, byte[], byte[]>
      * <p>
      * Stealer node should ignore {@link ObsoleteVersionException} while
      * committing proxyValue to local storage.
-     * 
+     *
      * @param key Key
      * @param proxyId proxy node id
      * @return Returns the proxy value
      * @throws VoldemortException if {@link #proxyGet(ByteArray, int)} fails
      */
     private List<Versioned<byte[]>> proxyGetAndLocalPut(ByteArray key,
-                                                        int proxyId,
-                                                        byte[] transforms)
+            int proxyId,
+            byte[] transforms)
             throws VoldemortException {
         List<Versioned<byte[]>> proxyValues = proxyGet(key, proxyId, transforms);
-        for(Versioned<byte[]> proxyValue: proxyValues) {
+        for (Versioned<byte[]> proxyValue : proxyValues) {
             try {
                 getInnerStore().put(key, proxyValue, null);
-            } catch(ObsoleteVersionException e) {
+            } catch (ObsoleteVersionException e) {
                 // TODO this is in TRACE because OVE is expected here, for keys
                 // that are already moved over or proxy got. This will become
                 // ERROR later post redesign
-                if(logger.isTraceEnabled())
+                if (logger.isTraceEnabled()) {
                     logger.trace("OVE in proxy get local put for key "
-                                         + ByteUtils.toHexString(key.get()) + " Stealer:"
-                                         + metadata.getNodeId() + " ProxyNode:" + proxyId,
-                                 e);
+                                    + ByteUtils.toHexString(key.get()) + " Stealer:"
+                                    + metadata.getNodeId() + " ProxyNode:" + proxyId,
+                            e);
+                }
             }
         }
         return proxyValues;
@@ -641,7 +644,7 @@ public class RedirectingStore extends DelegatingStore<ByteArray, byte[], byte[]>
     /**
      * Similar to {@link #proxyGetAndLocalPut(ByteArray, int)} but meant for
      * {@link #getAll(Iterable)}
-     * 
+     *
      * @param keyToProxyNodeMap Map of keys which are being routed to their
      *        corresponding proxy nodes
      * @param transforms Map of key to their corresponding transforms
@@ -649,15 +652,15 @@ public class RedirectingStore extends DelegatingStore<ByteArray, byte[], byte[]>
      * @throws VoldemortException if {@link #proxyGetAll(List, List)} fails
      */
     private Map<ByteArray, List<Versioned<byte[]>>>
-            proxyGetAllAndLocalPut(Map<ByteArray, Integer> keyToProxyNodeMap,
-                                   Map<ByteArray, byte[]> transforms) throws VoldemortException {
+    proxyGetAllAndLocalPut(Map<ByteArray, Integer> keyToProxyNodeMap,
+            Map<ByteArray, byte[]> transforms) throws VoldemortException {
         Map<ByteArray, List<Versioned<byte[]>>> proxyKeyValues = proxyGetAll(keyToProxyNodeMap,
-                                                                             transforms);
-        for(Map.Entry<ByteArray, List<Versioned<byte[]>>> keyValuePair: proxyKeyValues.entrySet()) {
-            for(Versioned<byte[]> proxyValue: keyValuePair.getValue()) {
+                transforms);
+        for (Map.Entry<ByteArray, List<Versioned<byte[]>>> keyValuePair : proxyKeyValues.entrySet()) {
+            for (Versioned<byte[]> proxyValue : keyValuePair.getValue()) {
                 try {
                     getInnerStore().put(keyValuePair.getKey(), proxyValue, null);
-                } catch(ObsoleteVersionException e) {
+                } catch (ObsoleteVersionException e) {
                     // ignore these
                 }
             }
@@ -668,26 +671,26 @@ public class RedirectingStore extends DelegatingStore<ByteArray, byte[], byte[]>
     /**
      * Get the {@link voldemort.store.socket.SocketStore} to redirect to for the
      * proxy node, creating one if needed.
-     * 
+     *
      * @param storeName Name of the store
      * @param proxyNodeId proxy node id
      * @return <code>SocketStore</code> object for <code>storeName</code> and
      *         <code>proxyNodeId</code>
      */
     protected Store<ByteArray, byte[], byte[]> getRedirectingSocketStore(String storeName,
-                                                                         int proxyNodeId) {
-        if(!storeRepository.hasRedirectingSocketStore(storeName, proxyNodeId)) {
-            synchronized(storeRepository) {
-                if(!storeRepository.hasRedirectingSocketStore(storeName, proxyNodeId)) {
+            int proxyNodeId) {
+        if (!storeRepository.hasRedirectingSocketStore(storeName, proxyNodeId)) {
+            synchronized (storeRepository) {
+                if (!storeRepository.hasRedirectingSocketStore(storeName, proxyNodeId)) {
                     Node proxyNode = getNodeIfPresent(proxyNodeId);
                     logger.info("Creating new redirecting store for proxy node "
-                                + proxyNode.getId() + " and store " + storeName);
+                            + proxyNode.getId() + " and store " + storeName);
                     storeRepository.addRedirectingSocketStore(proxyNode.getId(),
-                                                              storeFactory.create(storeName,
-                                                                                  proxyNode.getHost(),
-                                                                                  proxyNode.getSocketPort(),
-                                                                                  RequestFormatType.PROTOCOL_BUFFERS,
-                                                                                  RequestRoutingType.IGNORE_CHECKS));
+                            storeFactory.create(storeName,
+                                    proxyNode.getHost(),
+                                    proxyNode.getSocketPort(),
+                                    RequestFormatType.PROTOCOL_BUFFERS,
+                                    RequestRoutingType.IGNORE_CHECKS));
                 }
             }
         }
@@ -698,10 +701,10 @@ public class RedirectingStore extends DelegatingStore<ByteArray, byte[], byte[]>
     private Node getNodeIfPresent(int proxyNodeId) {
         try {
             return metadata.getCluster().getNodeById(proxyNodeId);
-        } catch(Exception e) {
+        } catch (Exception e) {
             throw new VoldemortException("Failed to get proxyNode " + proxyNodeId
-                                         + " from current cluster " + metadata.getCluster()
-                                         + " at node " + metadata.getNodeId(), e);
+                    + " from current cluster " + metadata.getCluster()
+                    + " at node " + metadata.getNodeId(), e);
         }
     }
 

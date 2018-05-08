@@ -16,19 +16,18 @@
 
 package voldemort.server.niosocket;
 
+import org.apache.log4j.Level;
+import voldemort.common.nio.AbstractSelectorManager;
+import voldemort.common.nio.CommBufferSizeStats;
+import voldemort.server.protocol.RequestHandlerFactory;
+import voldemort.store.stats.Histogram;
+
 import java.net.InetSocketAddress;
 import java.nio.channels.ClosedSelectorException;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
-
-import org.apache.log4j.Level;
-
-import voldemort.common.nio.AbstractSelectorManager;
-import voldemort.common.nio.CommBufferSizeStats;
-import voldemort.server.protocol.RequestHandlerFactory;
-import voldemort.store.stats.Histogram;
 
 /**
  * SelectorManager handles the non-blocking polling of IO events using the
@@ -88,9 +87,10 @@ import voldemort.store.stats.Histogram;
  * connections 1 and 3 disconnect. This leaves SelectorManager B with two
  * connections and SelectorManager A with none. There's no provision to
  * re-balance the remaining requests evenly.
- * 
+ *
  */
 
+// TODO: 2018/4/26 by zmyer
 public class NioSelectorManager extends AbstractSelectorManager {
 
     private final InetSocketAddress endpoint;
@@ -106,10 +106,10 @@ public class NioSelectorManager extends AbstractSelectorManager {
     private final NioSelectorManagerStats stats;
 
     public NioSelectorManager(InetSocketAddress endpoint,
-                              RequestHandlerFactory requestHandlerFactory,
-                              int socketBufferSize,
-                              boolean socketKeepAlive,
-                              long maxHeartBeatTimeMs) {
+            RequestHandlerFactory requestHandlerFactory,
+            int socketBufferSize,
+            boolean socketKeepAlive,
+            long maxHeartBeatTimeMs) {
         super(maxHeartBeatTimeMs);
         this.endpoint = endpoint;
         this.socketChannelQueue = new ConcurrentLinkedQueue<SocketChannel>();
@@ -120,8 +120,9 @@ public class NioSelectorManager extends AbstractSelectorManager {
     }
 
     public void accept(SocketChannel socketChannel) {
-        if(isClosed.get())
+        if (isClosed.get()) {
             throw new IllegalStateException("Cannot accept more channels, selector manager closed");
+        }
 
         socketChannelQueue.add(socketChannel);
         selector.wakeup();
@@ -135,69 +136,78 @@ public class NioSelectorManager extends AbstractSelectorManager {
 
             SocketChannel socketChannel = null;
 
-            while((socketChannel = socketChannelQueue.poll()) != null) {
-                if(isClosed.get()) {
-                    if(logger.isInfoEnabled())
+            while ((socketChannel = socketChannelQueue.poll()) != null) {
+                if (isClosed.get()) {
+                    if (logger.isInfoEnabled()) {
                         logger.debug("Closed, exiting for " + endpoint);
+                    }
 
                     break;
                 }
 
                 try {
-                    if(logger.isDebugEnabled())
+                    if (logger.isDebugEnabled()) {
                         logger.debug("Registering connection from "
-                                     + socketChannel.socket().getPort());
+                                + socketChannel.socket().getPort());
+                    }
 
                     socketChannel.socket().setTcpNoDelay(true);
                     socketChannel.socket().setReuseAddress(true);
                     socketChannel.socket().setKeepAlive(socketKeepAlive);
                     socketChannel.socket().setSendBufferSize(socketBufferSize);
 
-                    if(socketChannel.socket().getReceiveBufferSize() != this.socketBufferSize)
-                        if(logger.isDebugEnabled())
+                    if (socketChannel.socket().getReceiveBufferSize() != this.socketBufferSize) {
+                        if (logger.isDebugEnabled()) {
                             logger.debug("Requested socket receive buffer size was "
-                                         + this.socketBufferSize + " bytes but actual size is "
-                                         + socketChannel.socket().getReceiveBufferSize()
-                                         + " bytes.");
+                                    + this.socketBufferSize + " bytes but actual size is "
+                                    + socketChannel.socket().getReceiveBufferSize()
+                                    + " bytes.");
+                        }
+                    }
 
-                    if(socketChannel.socket().getSendBufferSize() != this.socketBufferSize)
-                        if(logger.isDebugEnabled())
+                    if (socketChannel.socket().getSendBufferSize() != this.socketBufferSize) {
+                        if (logger.isDebugEnabled()) {
                             logger.debug("Requested socket send buffer size was "
-                                         + this.socketBufferSize + " bytes but actual size is "
-                                         + socketChannel.socket().getSendBufferSize() + " bytes.");
+                                    + this.socketBufferSize + " bytes but actual size is "
+                                    + socketChannel.socket().getSendBufferSize() + " bytes.");
+                        }
+                    }
 
                     socketChannel.configureBlocking(false);
                     AsyncRequestHandler attachment = new AsyncRequestHandler(selector,
-                                                                             socketChannel,
-                                                                             requestHandlerFactory,
-                                                                             socketBufferSize,
-                                                                             stats);
+                            socketChannel,
+                            requestHandlerFactory,
+                            socketBufferSize,
+                            stats);
 
-                    if(!isClosed.get()) {
+                    if (!isClosed.get()) {
                         socketChannel.register(selector, SelectionKey.OP_READ, attachment);
                         stats.addConnection();
                     }
-                } catch(ClosedSelectorException e) {
-                    if(logger.isDebugEnabled())
+                } catch (ClosedSelectorException e) {
+                    if (logger.isDebugEnabled()) {
                         logger.debug("Selector is closed, exiting");
+                    }
 
                     close();
 
                     break;
-                } catch(Exception e) {
-                    if(logger.isEnabledFor(Level.ERROR))
+                } catch (Exception e) {
+                    if (logger.isEnabledFor(Level.ERROR)) {
                         logger.error(e.getMessage(), e);
+                    }
                 }
             }
-        } catch(Exception e) {
-            if(logger.isEnabledFor(Level.ERROR))
+        } catch (Exception e) {
+            if (logger.isEnabledFor(Level.ERROR)) {
                 logger.error(e.getMessage(), e);
+            }
         }
     }
 
     /**
      * Returns the number of active connections for this selector manager
-     * 
+     *
      * @return number of active connections
      */
     public Integer getNumActiveConnections() {
@@ -206,7 +216,7 @@ public class NioSelectorManager extends AbstractSelectorManager {
 
     /**
      * Returns the number of connections queued for registration
-     * 
+     *
      * @return number of connections queued for registration
      */
     public Integer getNumQueuedConnections() {

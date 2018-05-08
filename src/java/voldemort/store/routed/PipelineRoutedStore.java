@@ -16,13 +16,6 @@
 
 package voldemort.store.routed;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
-
 import voldemort.VoldemortException;
 import voldemort.client.TimeoutConfig;
 import voldemort.client.ZoneAffinity;
@@ -73,11 +66,19 @@ import voldemort.utils.SystemTime;
 import voldemort.versioning.Version;
 import voldemort.versioning.Versioned;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
+
 /**
  * A Store which multiplexes requests to different internal Stores
- * 
- * 
+ *
+ *
  */
+// TODO: 2018/4/26 by zmyer
 public class PipelineRoutedStore extends RoutedStore {
 
     protected final Map<Integer, NonblockingStore> nonblockingStores;
@@ -102,7 +103,7 @@ public class PipelineRoutedStore extends RoutedStore {
 
     /**
      * Create a PipelineRoutedStore
-     * 
+     *
      * @param innerStores The mapping of node to client
      * @param nonblockingStores
      * @param slopStores The stores for hints
@@ -111,49 +112,53 @@ public class PipelineRoutedStore extends RoutedStore {
      * @param storeDef Store definition
      */
     public PipelineRoutedStore(Map<Integer, Store<ByteArray, byte[], byte[]>> innerStores,
-                               Map<Integer, NonblockingStore> nonblockingStores,
-                               Map<Integer, Store<ByteArray, Slop, byte[]>> slopStores,
-                               Map<Integer, NonblockingStore> nonblockingSlopStores,
-                               Cluster cluster,
-                               StoreDefinition storeDef,
-                               FailureDetector failureDetector,
-                               boolean repairReads,
-                               TimeoutConfig timeoutConfig,
-                               int clientZoneId,
-                               boolean isJmxEnabled,
-                               PipelineRoutedStats stats,
-                               ZoneAffinity zoneAffinity) {
+            Map<Integer, NonblockingStore> nonblockingStores,
+            Map<Integer, Store<ByteArray, Slop, byte[]>> slopStores,
+            Map<Integer, NonblockingStore> nonblockingSlopStores,
+            Cluster cluster,
+            StoreDefinition storeDef,
+            FailureDetector failureDetector,
+            boolean repairReads,
+            TimeoutConfig timeoutConfig,
+            int clientZoneId,
+            boolean isJmxEnabled,
+            PipelineRoutedStats stats,
+            ZoneAffinity zoneAffinity) {
         super(storeDef.getName(),
-              innerStores,
-              cluster,
-              storeDef,
-              repairReads,
-              timeoutConfig,
-              failureDetector,
-              SystemTime.INSTANCE);
-        if(zoneAffinity != null && storeDef.getZoneCountReads() != null
-           && storeDef.getZoneCountReads() > 0) {
-            if(zoneAffinity.isGetOpZoneAffinityEnabled()) {
-                throw new IllegalArgumentException("storeDef.getZoneCountReads() is non-zero while zoneAffinityGet is enabled");
+                innerStores,
+                cluster,
+                storeDef,
+                repairReads,
+                timeoutConfig,
+                failureDetector,
+                SystemTime.INSTANCE);
+        if (zoneAffinity != null && storeDef.getZoneCountReads() != null
+                && storeDef.getZoneCountReads() > 0) {
+            if (zoneAffinity.isGetOpZoneAffinityEnabled()) {
+                throw new IllegalArgumentException(
+                        "storeDef.getZoneCountReads() is non-zero while zoneAffinityGet is enabled");
             }
-            if(zoneAffinity.isGetAllOpZoneAffinityEnabled()) {
-                throw new IllegalArgumentException("storeDef.getZoneCountReads() is non-zero while zoneAffinityGetAll is enabled");
+            if (zoneAffinity.isGetAllOpZoneAffinityEnabled()) {
+                throw new IllegalArgumentException(
+                        "storeDef.getZoneCountReads() is non-zero while zoneAffinityGetAll is enabled");
             }
         }
         this.nonblockingSlopStores = nonblockingSlopStores;
 
         boolean isZonedClient;
-        if(clientZoneId == Zone.UNSET_ZONE_ID) {
+        if (clientZoneId == Zone.UNSET_ZONE_ID) {
             isZonedClient = false;
             Collection<Zone> availableZones = cluster.getZones();
             this.clientZone = availableZones.iterator().next();
-            if(availableZones.size() > 1) {
-                String format = "Client Zone is not specified. Default to Zone %d. The servers could be in a remote zone";
+            if (availableZones.size() > 1) {
+                String format =
+                        "Client Zone is not specified. Default to Zone %d. The servers could be in a remote zone";
                 logger.warn(String.format(format, this.clientZone.getId()));
             } else {
-                if(logger.isDebugEnabled())
+                if (logger.isDebugEnabled()) {
                     logger.debug(String.format("Client Zone is not specified. Default to Zone %d",
-                                               this.clientZone.getId()));
+                            this.clientZone.getId()));
+                }
             }
         } else {
             isZonedClient = true;
@@ -164,8 +169,8 @@ public class PipelineRoutedStore extends RoutedStore {
         String storeName = storeDef.getName();
         boolean isSystemStore = SystemStoreConstants.isSystemStore(storeName);
         boolean isRouteToAllStrategy = routingStrategy.getType()
-                                                      .equals(RoutingStrategyType.TO_ALL_STRATEGY);
-        if(isZonedClient && isSystemStore && isRouteToAllStrategy) {
+                .equals(RoutingStrategyType.TO_ALL_STRATEGY);
+        if (isZonedClient && isSystemStore && isRouteToAllStrategy) {
             logger.info("Enabling zone routing for Store" + storeName);
             forceZoneRouting = true;
         } else {
@@ -174,14 +179,14 @@ public class PipelineRoutedStore extends RoutedStore {
 
         this.nonblockingStores = new ConcurrentHashMap<Integer, NonblockingStore>(nonblockingStores);
         this.slopStores = slopStores;
-        if(storeDef.getRoutingStrategyType().compareTo(RoutingStrategyType.ZONE_STRATEGY) == 0) {
+        if (storeDef.getRoutingStrategyType().compareTo(RoutingStrategyType.ZONE_STRATEGY) == 0) {
             zoneRoutingEnabled = true;
         } else {
             zoneRoutingEnabled = false;
         }
-        if(storeDef.hasHintedHandoffStrategyType()) {
+        if (storeDef.hasHintedHandoffStrategyType()) {
             HintedHandoffStrategyFactory factory = new HintedHandoffStrategyFactory(zoneRoutingEnabled,
-                                                                                    clientZone.getId());
+                    clientZone.getId());
             this.handoffStrategy = factory.updateHintedHandoffStrategy(storeDef, cluster);
         } else {
             this.handoffStrategy = null;
@@ -189,10 +194,10 @@ public class PipelineRoutedStore extends RoutedStore {
 
         this.jmxEnabled = isJmxEnabled;
         this.stats = stats;
-        if(this.jmxEnabled) {
+        if (this.jmxEnabled) {
             this.stats.registerJmxIfRequired();
         }
-        if(zoneAffinity != null) {
+        if (zoneAffinity != null) {
             this.zoneAffinity = zoneAffinity;
         } else {
             this.zoneAffinity = new ZoneAffinity();
@@ -200,23 +205,23 @@ public class PipelineRoutedStore extends RoutedStore {
     }
 
     private ConfigureNodesType obtainNodeConfigurationType(Integer zonesRequired,
-                                                           Operation operation) {
-        if(operation == Operation.GET && zoneAffinity.isGetOpZoneAffinityEnabled()) {
+            Operation operation) {
+        if (operation == Operation.GET && zoneAffinity.isGetOpZoneAffinityEnabled()) {
             return ConfigureNodesType.LOCAL_ZONE_ONLY;
         }
 
-        if(forceZoneRouting) {
+        if (forceZoneRouting) {
             return ConfigureNodesType.BYZONE;
         }
 
-        if(zonesRequired != null) {
-            if(routingStrategy.getType().equals(RoutingStrategyType.TO_ALL_LOCAL_PREF_STRATEGY)) {
+        if (zonesRequired != null) {
+            if (routingStrategy.getType().equals(RoutingStrategyType.TO_ALL_LOCAL_PREF_STRATEGY)) {
                 return ConfigureNodesType.BYZONE_LOCAL;
             } else {
                 return ConfigureNodesType.BYZONE;
             }
         } else {
-            if(routingStrategy.getType().equals(RoutingStrategyType.TO_ALL_LOCAL_PREF_STRATEGY)) {
+            if (routingStrategy.getType().equals(RoutingStrategyType.TO_ALL_LOCAL_PREF_STRATEGY)) {
                 return ConfigureNodesType.DEFAULT_LOCAL;
             }
         }
@@ -224,50 +229,56 @@ public class PipelineRoutedStore extends RoutedStore {
         return ConfigureNodesType.DEFAULT;
     }
 
-    private AbstractConfigureNodes<ByteArray, List<Versioned<byte[]>>, BasicPipelineData<List<Versioned<byte[]>>>> makeNodeConfigurationForGet(BasicPipelineData<List<Versioned<byte[]>>> pipelineData,
-                                                                                                                                               ByteArray key) {
-        switch(obtainNodeConfigurationType(pipelineData.getZonesRequired(), Operation.GET)) {
-            case DEFAULT:
-                return new ConfigureNodesDefault<List<Versioned<byte[]>>, BasicPipelineData<List<Versioned<byte[]>>>>(pipelineData,
-                                                                                                                      Event.CONFIGURED,
-                                                                                                                      failureDetector,
-                                                                                                                      storeDef.getRequiredReads(),
-                                                                                                                      routingStrategy,
-                                                                                                                      key);
-            case BYZONE:
-                return new ConfigureNodesByZone<List<Versioned<byte[]>>, BasicPipelineData<List<Versioned<byte[]>>>>(pipelineData,
-                                                                                                                     Event.CONFIGURED,
-                                                                                                                     failureDetector,
-                                                                                                                     storeDef.getRequiredReads(),
-                                                                                                                     routingStrategy,
-                                                                                                                     key,
-                                                                                                                     clientZone);
-            case DEFAULT_LOCAL:
-                return new ConfigureNodesLocalHost<List<Versioned<byte[]>>, BasicPipelineData<List<Versioned<byte[]>>>>(pipelineData,
-                                                                                                                        Event.CONFIGURED,
-                                                                                                                        failureDetector,
-                                                                                                                        storeDef.getRequiredReads(),
-                                                                                                                        routingStrategy,
-                                                                                                                        key);
-            case BYZONE_LOCAL:
-                return new ConfigureNodesLocalHostByZone<List<Versioned<byte[]>>, BasicPipelineData<List<Versioned<byte[]>>>>(pipelineData,
-                                                                                                                              Event.CONFIGURED,
-                                                                                                                              failureDetector,
-                                                                                                                              storeDef.getRequiredReads(),
-                                                                                                                              routingStrategy,
-                                                                                                                              key,
-                                                                                                                              clientZone);
-            case LOCAL_ZONE_ONLY:
-                return new ConfigureNodesLocalZoneOnly<List<Versioned<byte[]>>, BasicPipelineData<List<Versioned<byte[]>>>>(pipelineData,
-                                                                                                                            Event.CONFIGURED,
-                                                                                                                            failureDetector,
-                                                                                                                            storeDef.getRequiredReads(),
-                                                                                                                            routingStrategy,
-                                                                                                                            key,
-                                                                                                                            clientZone);
+    private AbstractConfigureNodes<ByteArray, List<Versioned<byte[]>>, BasicPipelineData<List<Versioned<byte[]>>>> makeNodeConfigurationForGet(
+            BasicPipelineData<List<Versioned<byte[]>>> pipelineData,
+            ByteArray key) {
+        switch (obtainNodeConfigurationType(pipelineData.getZonesRequired(), Operation.GET)) {
+        case DEFAULT:
+            return new ConfigureNodesDefault<List<Versioned<byte[]>>, BasicPipelineData<List<Versioned<byte[]>>>>(
+                    pipelineData,
+                    Event.CONFIGURED,
+                    failureDetector,
+                    storeDef.getRequiredReads(),
+                    routingStrategy,
+                    key);
+        case BYZONE:
+            return new ConfigureNodesByZone<List<Versioned<byte[]>>, BasicPipelineData<List<Versioned<byte[]>>>>(
+                    pipelineData,
+                    Event.CONFIGURED,
+                    failureDetector,
+                    storeDef.getRequiredReads(),
+                    routingStrategy,
+                    key,
+                    clientZone);
+        case DEFAULT_LOCAL:
+            return new ConfigureNodesLocalHost<List<Versioned<byte[]>>, BasicPipelineData<List<Versioned<byte[]>>>>(
+                    pipelineData,
+                    Event.CONFIGURED,
+                    failureDetector,
+                    storeDef.getRequiredReads(),
+                    routingStrategy,
+                    key);
+        case BYZONE_LOCAL:
+            return new ConfigureNodesLocalHostByZone<List<Versioned<byte[]>>, BasicPipelineData<List<Versioned<byte[]>>>>(
+                    pipelineData,
+                    Event.CONFIGURED,
+                    failureDetector,
+                    storeDef.getRequiredReads(),
+                    routingStrategy,
+                    key,
+                    clientZone);
+        case LOCAL_ZONE_ONLY:
+            return new ConfigureNodesLocalZoneOnly<List<Versioned<byte[]>>, BasicPipelineData<List<Versioned<byte[]>>>>(
+                    pipelineData,
+                    Event.CONFIGURED,
+                    failureDetector,
+                    storeDef.getRequiredReads(),
+                    routingStrategy,
+                    key,
+                    clientZone);
 
-            default:
-                return null;
+        default:
+            return null;
         }
 
     }
@@ -278,23 +289,24 @@ public class PipelineRoutedStore extends RoutedStore {
     }
 
     public List<Versioned<byte[]>> get(final ByteArray key,
-                                       final byte[] transforms,
-                                       final long getOpTimeout) {
+            final byte[] transforms,
+            final long getOpTimeout) {
         StoreUtils.assertValidKey(key);
 
         long startTimeMs = -1;
         long startTimeNs = -1;
 
-        if(logger.isDebugEnabled()) {
+        if (logger.isDebugEnabled()) {
             startTimeMs = System.currentTimeMillis();
             startTimeNs = System.nanoTime();
         }
 
         BasicPipelineData<List<Versioned<byte[]>>> pipelineData = new BasicPipelineData<List<Versioned<byte[]>>>();
-        if(zoneRoutingEnabled)
+        if (zoneRoutingEnabled) {
             pipelineData.setZonesRequired(storeDef.getZoneCountReads());
-        else
+        } else {
             pipelineData.setZonesRequired(null);
+        }
         pipelineData.setStats(stats);
         pipelineData.setStoreName(getName());
 
@@ -312,87 +324,95 @@ public class PipelineRoutedStore extends RoutedStore {
 
         // Get the correct type of configure nodes action depending on the store
         // requirements
-        AbstractConfigureNodes<ByteArray, List<Versioned<byte[]>>, BasicPipelineData<List<Versioned<byte[]>>>> configureNodes = makeNodeConfigurationForGet(pipelineData,
-                                                                                                                                                            key);
+        AbstractConfigureNodes<ByteArray, List<Versioned<byte[]>>, BasicPipelineData<List<Versioned<byte[]>>>>
+                configureNodes = makeNodeConfigurationForGet(pipelineData,
+                key);
 
         pipeline.addEventAction(Event.STARTED, configureNodes);
 
         pipeline.addEventAction(Event.CONFIGURED,
-                                new PerformParallelRequests<List<Versioned<byte[]>>, BasicPipelineData<List<Versioned<byte[]>>>>(pipelineData,
-                                                                                                                                 allowReadRepair ? Event.RESPONSES_RECEIVED
-                                                                                                                                                : Event.COMPLETED,
-                                                                                                                                 key,
-                                                                                                                                 transforms,
-                                                                                                                                 failureDetector,
-                                                                                                                                 storeDef.getPreferredReads(),
-                                                                                                                                 storeDef.getRequiredReads(),
-                                                                                                                                 getOpTimeout,
-                                                                                                                                 nonblockingStores,
-                                                                                                                                 Event.INSUFFICIENT_SUCCESSES,
-                                                                                                                                 Event.INSUFFICIENT_ZONES));
+                new PerformParallelRequests<List<Versioned<byte[]>>, BasicPipelineData<List<Versioned<byte[]>>>>(
+                        pipelineData,
+                        allowReadRepair ? Event.RESPONSES_RECEIVED
+                                : Event.COMPLETED,
+                        key,
+                        transforms,
+                        failureDetector,
+                        storeDef.getPreferredReads(),
+                        storeDef.getRequiredReads(),
+                        getOpTimeout,
+                        nonblockingStores,
+                        Event.INSUFFICIENT_SUCCESSES,
+                        Event.INSUFFICIENT_ZONES));
         pipeline.addEventAction(Event.INSUFFICIENT_SUCCESSES,
-                                new PerformSerialRequests<List<Versioned<byte[]>>, BasicPipelineData<List<Versioned<byte[]>>>>(pipelineData,
-                                                                                                                               allowReadRepair ? Event.RESPONSES_RECEIVED
-                                                                                                                                              : Event.COMPLETED,
-                                                                                                                               key,
-                                                                                                                               failureDetector,
-                                                                                                                               innerStores,
-                                                                                                                               storeDef.getPreferredReads(),
-                                                                                                                               storeDef.getRequiredReads(),
-                                                                                                                               blockingStoreRequest,
-                                                                                                                               null));
+                new PerformSerialRequests<List<Versioned<byte[]>>, BasicPipelineData<List<Versioned<byte[]>>>>(
+                        pipelineData,
+                        allowReadRepair ? Event.RESPONSES_RECEIVED
+                                : Event.COMPLETED,
+                        key,
+                        failureDetector,
+                        innerStores,
+                        storeDef.getPreferredReads(),
+                        storeDef.getRequiredReads(),
+                        blockingStoreRequest,
+                        null));
 
-        if(allowReadRepair)
+        if (allowReadRepair) {
             pipeline.addEventAction(Event.RESPONSES_RECEIVED,
-                                    new ReadRepair<BasicPipelineData<List<Versioned<byte[]>>>>(pipelineData,
-                                                                                               Event.COMPLETED,
-                                                                                               storeDef.getPreferredReads(),
-                                                                                               getOpTimeout,
-                                                                                               nonblockingStores,
-                                                                                               readRepairer));
+                    new ReadRepair<BasicPipelineData<List<Versioned<byte[]>>>>(pipelineData,
+                            Event.COMPLETED,
+                            storeDef.getPreferredReads(),
+                            getOpTimeout,
+                            nonblockingStores,
+                            readRepairer));
+        }
 
-        if(zoneRoutingEnabled)
+        if (zoneRoutingEnabled) {
             pipeline.addEventAction(Event.INSUFFICIENT_ZONES,
-                                    new PerformZoneSerialRequests<List<Versioned<byte[]>>, BasicPipelineData<List<Versioned<byte[]>>>>(pipelineData,
-                                                                                                                                       allowReadRepair ? Event.RESPONSES_RECEIVED
-                                                                                                                                                      : Event.COMPLETED,
-                                                                                                                                       key,
-                                                                                                                                       failureDetector,
-                                                                                                                                       innerStores,
-                                                                                                                                       blockingStoreRequest));
+                    new PerformZoneSerialRequests<List<Versioned<byte[]>>, BasicPipelineData<List<Versioned<byte[]>>>>(
+                            pipelineData,
+                            allowReadRepair ? Event.RESPONSES_RECEIVED
+                                    : Event.COMPLETED,
+                            key,
+                            failureDetector,
+                            innerStores,
+                            blockingStoreRequest));
+        }
 
         pipeline.addEvent(Event.STARTED);
 
-        if(logger.isDebugEnabled()) {
+        if (logger.isDebugEnabled()) {
             logger.debug("Operation " + pipeline.getOperation().getSimpleName() + " Key "
-                         + ByteUtils.toHexString(key.get()));
+                    + ByteUtils.toHexString(key.get()));
         }
 
         try {
             pipeline.execute();
-        } catch(VoldemortException e) {
+        } catch (VoldemortException e) {
             stats.reportException(e);
             throw e;
         }
 
-        if(pipelineData.getFatalError() != null)
+        if (pipelineData.getFatalError() != null) {
             throw pipelineData.getFatalError();
+        }
 
         List<Versioned<byte[]>> results = new ArrayList<Versioned<byte[]>>();
 
-        for(Response<ByteArray, List<Versioned<byte[]>>> response: pipelineData.getResponses()) {
+        for (Response<ByteArray, List<Versioned<byte[]>>> response : pipelineData.getResponses()) {
             List<Versioned<byte[]>> value = response.getValue();
 
-            if(value != null)
+            if (value != null) {
                 results.addAll(value);
+            }
         }
 
-        if(logger.isDebugEnabled()) {
+        if (logger.isDebugEnabled()) {
             logger.debug("Finished " + pipeline.getOperation().getSimpleName() + " for key "
-                         + ByteUtils.toHexString(key.get()) + " keyRef: "
-                         + System.identityHashCode(key) + "; started at " + startTimeMs + " took "
-                         + (System.nanoTime() - startTimeNs) + " values: "
-                         + formatNodeValuesFromGet(pipelineData.getResponses()));
+                    + ByteUtils.toHexString(key.get()) + " keyRef: "
+                    + System.identityHashCode(key) + "; started at " + startTimeMs + " took "
+                    + (System.nanoTime() - startTimeNs) + " values: "
+                    + formatNodeValuesFromGet(pipelineData.getResponses()));
         }
 
         return results;
@@ -402,9 +422,9 @@ public class PipelineRoutedStore extends RoutedStore {
         // log all retrieved values
         StringBuilder builder = new StringBuilder();
         builder.append("{");
-        for(Response<ByteArray, List<Versioned<byte[]>>> r: results) {
+        for (Response<ByteArray, List<Versioned<byte[]>>> r : results) {
             builder.append("(nodeId=" + r.getNode().getId() + ", key=" + r.getKey()
-                           + ", retrieved= " + r.getValue() + "), ");
+                    + ", retrieved= " + r.getValue() + "), ");
         }
         builder.append("}");
 
@@ -413,23 +433,23 @@ public class PipelineRoutedStore extends RoutedStore {
 
     @Override
     public Map<ByteArray, List<Versioned<byte[]>>> getAll(Iterable<ByteArray> keys,
-                                                          Map<ByteArray, byte[]> transforms)
+            Map<ByteArray, byte[]> transforms)
             throws VoldemortException {
         return getAll(keys,
-                      transforms,
-                      timeoutConfig.getOperationTimeout(VoldemortOpCode.GET_ALL_OP_CODE));
+                transforms,
+                timeoutConfig.getOperationTimeout(VoldemortOpCode.GET_ALL_OP_CODE));
     }
 
     public Map<ByteArray, List<Versioned<byte[]>>> getAll(Iterable<ByteArray> keys,
-                                                          Map<ByteArray, byte[]> transforms,
-                                                          long getAllOpTimeoutInMs)
+            Map<ByteArray, byte[]> transforms,
+            long getAllOpTimeoutInMs)
             throws VoldemortException {
         StoreUtils.assertValidKeys(keys);
 
         long startTimeMs = -1;
         long startTimeNs = -1;
 
-        if(logger.isDebugEnabled()) {
+        if (logger.isDebugEnabled()) {
             startTimeMs = System.currentTimeMillis();
             startTimeNs = System.nanoTime();
         }
@@ -437,91 +457,95 @@ public class PipelineRoutedStore extends RoutedStore {
         boolean allowReadRepair = repairReads && (transforms == null || transforms.size() == 0);
 
         GetAllPipelineData pipelineData = new GetAllPipelineData();
-        if(zoneRoutingEnabled)
+        if (zoneRoutingEnabled) {
             pipelineData.setZonesRequired(storeDef.getZoneCountReads());
-        else
+        } else {
             pipelineData.setZonesRequired(null);
+        }
         pipelineData.setStats(stats);
 
         Pipeline pipeline = new Pipeline(Operation.GET_ALL,
-                                         getAllOpTimeoutInMs,
-                                         TimeUnit.MILLISECONDS);
+                getAllOpTimeoutInMs,
+                TimeUnit.MILLISECONDS);
         pipeline.addEventAction(Event.STARTED,
-                                new GetAllConfigureNodes(pipelineData,
-                                                         Event.CONFIGURED,
-                                                         failureDetector,
-                                                         storeDef.getPreferredReads(),
-                                                         storeDef.getRequiredReads(),
-                                                         routingStrategy,
-                                                         keys,
-                                                         transforms,
-                                                         clientZone,
-                                                         zoneAffinity));
+                new GetAllConfigureNodes(pipelineData,
+                        Event.CONFIGURED,
+                        failureDetector,
+                        storeDef.getPreferredReads(),
+                        storeDef.getRequiredReads(),
+                        routingStrategy,
+                        keys,
+                        transforms,
+                        clientZone,
+                        zoneAffinity));
         pipeline.addEventAction(Event.CONFIGURED,
-                                new PerformParallelGetAllRequests(pipelineData,
-                                                                  Event.INSUFFICIENT_SUCCESSES,
-                                                                  failureDetector,
-                                                                  getAllOpTimeoutInMs,
-                                                                  nonblockingStores));
+                new PerformParallelGetAllRequests(pipelineData,
+                        Event.INSUFFICIENT_SUCCESSES,
+                        failureDetector,
+                        getAllOpTimeoutInMs,
+                        nonblockingStores));
         pipeline.addEventAction(Event.INSUFFICIENT_SUCCESSES,
-                                new PerformSerialGetAllRequests(pipelineData,
-                                                                allowReadRepair ? Event.RESPONSES_RECEIVED
-                                                                               : Event.COMPLETED,
-                                                                keys,
-                                                                failureDetector,
-                                                                innerStores,
-                                                                storeDef.getPreferredReads(),
-                                                                storeDef.getRequiredReads(),
-                                                                timeoutConfig.isPartialGetAllAllowed()));
+                new PerformSerialGetAllRequests(pipelineData,
+                        allowReadRepair ? Event.RESPONSES_RECEIVED
+                                : Event.COMPLETED,
+                        keys,
+                        failureDetector,
+                        innerStores,
+                        storeDef.getPreferredReads(),
+                        storeDef.getRequiredReads(),
+                        timeoutConfig.isPartialGetAllAllowed()));
 
-        if(allowReadRepair)
+        if (allowReadRepair) {
             pipeline.addEventAction(Event.RESPONSES_RECEIVED,
-                                    new GetAllReadRepair(pipelineData,
-                                                         Event.COMPLETED,
-                                                         storeDef.getPreferredReads(),
-                                                         getAllOpTimeoutInMs,
-                                                         nonblockingStores,
-                                                         readRepairer));
+                    new GetAllReadRepair(pipelineData,
+                            Event.COMPLETED,
+                            storeDef.getPreferredReads(),
+                            getAllOpTimeoutInMs,
+                            nonblockingStores,
+                            readRepairer));
+        }
 
         pipeline.addEvent(Event.STARTED);
 
-        if(logger.isDebugEnabled()) {
+        if (logger.isDebugEnabled()) {
             StringBuilder keyStr = new StringBuilder();
-            for(ByteArray key: keys) {
+            for (ByteArray key : keys) {
                 keyStr.append(ByteUtils.toHexString(key.get()) + ",");
             }
             logger.debug("Operation " + pipeline.getOperation().getSimpleName() + " Keys "
-                         + keyStr.toString());
+                    + keyStr.toString());
         }
         try {
             pipeline.execute();
-        } catch(VoldemortException e) {
+        } catch (VoldemortException e) {
             stats.reportException(e);
             throw e;
         }
 
-        if(pipelineData.getFatalError() != null)
+        if (pipelineData.getFatalError() != null) {
             throw pipelineData.getFatalError();
+        }
 
-        if(logger.isDebugEnabled()) {
+        if (logger.isDebugEnabled()) {
             logger.debug("Finished " + pipeline.getOperation().getSimpleName() + "for keys "
-                         + ByteArray.toHexStrings(keys) + " keyRef: "
-                         + System.identityHashCode(keys) + "; started at " + startTimeMs + " took "
-                         + (System.nanoTime() - startTimeNs) + " values: "
-                         + formatNodeValuesFromGetAll(pipelineData.getResponses()));
+                    + ByteArray.toHexStrings(keys) + " keyRef: "
+                    + System.identityHashCode(keys) + "; started at " + startTimeMs + " took "
+                    + (System.nanoTime() - startTimeNs) + " values: "
+                    + formatNodeValuesFromGetAll(pipelineData.getResponses()));
         }
 
         return pipelineData.getResult();
     }
 
-    private String formatNodeValuesFromGetAll(List<Response<Iterable<ByteArray>, Map<ByteArray, List<Versioned<byte[]>>>>> list) {
+    private String formatNodeValuesFromGetAll(
+            List<Response<Iterable<ByteArray>, Map<ByteArray, List<Versioned<byte[]>>>>> list) {
         // log all retrieved values
         StringBuilder builder = new StringBuilder();
         builder.append("{");
-        for(Response<Iterable<ByteArray>, Map<ByteArray, List<Versioned<byte[]>>>> r: list) {
+        for (Response<Iterable<ByteArray>, Map<ByteArray, List<Versioned<byte[]>>>> r : list) {
             builder.append("(nodeId=" + r.getNode().getId() + ", keys="
-                           + ByteArray.toHexStrings(r.getKey()) + ", retrieved= " + r.getValue()
-                           + ")");
+                    + ByteArray.toHexStrings(r.getKey()) + ", retrieved= " + r.getValue()
+                    + ")");
             builder.append(", ");
         }
         builder.append("}");
@@ -536,21 +560,22 @@ public class PipelineRoutedStore extends RoutedStore {
         long startTimeMs = -1;
         long startTimeNs = -1;
 
-        if(logger.isDebugEnabled()) {
+        if (logger.isDebugEnabled()) {
             startTimeMs = System.currentTimeMillis();
             startTimeNs = System.nanoTime();
         }
 
         BasicPipelineData<List<Version>> pipelineData = new BasicPipelineData<List<Version>>();
-        if(zoneRoutingEnabled)
+        if (zoneRoutingEnabled) {
             pipelineData.setZonesRequired(storeDef.getZoneCountReads());
-        else
+        } else {
             pipelineData.setZonesRequired(null);
+        }
         pipelineData.setStats(stats);
         pipelineData.setStoreName(getName());
         Pipeline pipeline = new Pipeline(Operation.GET_VERSIONS,
-                                         timeoutConfig.getOperationTimeout(VoldemortOpCode.GET_VERSION_OP_CODE),
-                                         TimeUnit.MILLISECONDS);
+                timeoutConfig.getOperationTimeout(VoldemortOpCode.GET_VERSION_OP_CODE),
+                TimeUnit.MILLISECONDS);
 
         StoreRequest<List<Version>> blockingStoreRequest = new StoreRequest<List<Version>>() {
 
@@ -561,84 +586,87 @@ public class PipelineRoutedStore extends RoutedStore {
 
         };
 
-        if(zoneAffinity.isGetVersionsOpZoneAffinityEnabled()) {
+        if (zoneAffinity.isGetVersionsOpZoneAffinityEnabled()) {
             pipeline.addEventAction(Event.STARTED,
-                                    new ConfigureNodesLocalZoneOnly<List<Version>, BasicPipelineData<List<Version>>>(pipelineData,
-                                                                                                                     Event.CONFIGURED,
-                                                                                                                     failureDetector,
-                                                                                                                     storeDef.getRequiredReads(),
-                                                                                                                     routingStrategy,
-                                                                                                                     key,
-                                                                                                                     clientZone));
+                    new ConfigureNodesLocalZoneOnly<List<Version>, BasicPipelineData<List<Version>>>(pipelineData,
+                            Event.CONFIGURED,
+                            failureDetector,
+                            storeDef.getRequiredReads(),
+                            routingStrategy,
+                            key,
+                            clientZone));
         } else {
             pipeline.addEventAction(Event.STARTED,
-                                    new ConfigureNodes<List<Version>, BasicPipelineData<List<Version>>>(pipelineData,
-                                                                                                        Event.CONFIGURED,
-                                                                                                        failureDetector,
-                                                                                                        storeDef.getRequiredReads(),
-                                                                                                        routingStrategy,
-                                                                                                        key,
-                                                                                                        clientZone));
+                    new ConfigureNodes<List<Version>, BasicPipelineData<List<Version>>>(pipelineData,
+                            Event.CONFIGURED,
+                            failureDetector,
+                            storeDef.getRequiredReads(),
+                            routingStrategy,
+                            key,
+                            clientZone));
         }
         pipeline.addEventAction(Event.CONFIGURED,
-                                new PerformParallelRequests<List<Version>, BasicPipelineData<List<Version>>>(pipelineData,
-                                                                                                             Event.COMPLETED,
-                                                                                                             key,
-                                                                                                             null,
-                                                                                                             failureDetector,
-                                                                                                             storeDef.getPreferredReads(),
-                                                                                                             storeDef.getRequiredReads(),
-                                                                                                             timeoutConfig.getOperationTimeout(VoldemortOpCode.GET_VERSION_OP_CODE),
-                                                                                                             nonblockingStores,
-                                                                                                             Event.INSUFFICIENT_SUCCESSES,
-                                                                                                             Event.INSUFFICIENT_ZONES));
+                new PerformParallelRequests<List<Version>, BasicPipelineData<List<Version>>>(pipelineData,
+                        Event.COMPLETED,
+                        key,
+                        null,
+                        failureDetector,
+                        storeDef.getPreferredReads(),
+                        storeDef.getRequiredReads(),
+                        timeoutConfig.getOperationTimeout(VoldemortOpCode.GET_VERSION_OP_CODE),
+                        nonblockingStores,
+                        Event.INSUFFICIENT_SUCCESSES,
+                        Event.INSUFFICIENT_ZONES));
 
         pipeline.addEventAction(Event.INSUFFICIENT_SUCCESSES,
-                                new PerformSerialRequests<List<Version>, BasicPipelineData<List<Version>>>(pipelineData,
-                                                                                                           Event.COMPLETED,
-                                                                                                           key,
-                                                                                                           failureDetector,
-                                                                                                           innerStores,
-                                                                                                           storeDef.getPreferredReads(),
-                                                                                                           storeDef.getRequiredReads(),
-                                                                                                           blockingStoreRequest,
-                                                                                                           null));
+                new PerformSerialRequests<List<Version>, BasicPipelineData<List<Version>>>(pipelineData,
+                        Event.COMPLETED,
+                        key,
+                        failureDetector,
+                        innerStores,
+                        storeDef.getPreferredReads(),
+                        storeDef.getRequiredReads(),
+                        blockingStoreRequest,
+                        null));
 
-        if(zoneRoutingEnabled)
+        if (zoneRoutingEnabled) {
             pipeline.addEventAction(Event.INSUFFICIENT_ZONES,
-                                    new PerformZoneSerialRequests<List<Version>, BasicPipelineData<List<Version>>>(pipelineData,
-                                                                                                                   Event.COMPLETED,
-                                                                                                                   key,
-                                                                                                                   failureDetector,
-                                                                                                                   innerStores,
-                                                                                                                   blockingStoreRequest));
+                    new PerformZoneSerialRequests<List<Version>, BasicPipelineData<List<Version>>>(pipelineData,
+                            Event.COMPLETED,
+                            key,
+                            failureDetector,
+                            innerStores,
+                            blockingStoreRequest));
+        }
 
         pipeline.addEvent(Event.STARTED);
-        if(logger.isDebugEnabled()) {
+        if (logger.isDebugEnabled()) {
             logger.debug("Operation  " + pipeline.getOperation().getSimpleName() + " Key "
-                         + ByteUtils.toHexString(key.get()));
+                    + ByteUtils.toHexString(key.get()));
         }
         try {
             pipeline.execute();
-        } catch(VoldemortException e) {
+        } catch (VoldemortException e) {
             stats.reportException(e);
             throw e;
         }
 
-        if(pipelineData.getFatalError() != null)
+        if (pipelineData.getFatalError() != null) {
             throw pipelineData.getFatalError();
+        }
 
         List<Version> results = new ArrayList<Version>();
 
-        for(Response<ByteArray, List<Version>> response: pipelineData.getResponses())
+        for (Response<ByteArray, List<Version>> response : pipelineData.getResponses()) {
             results.addAll(response.getValue());
+        }
 
-        if(logger.isDebugEnabled()) {
+        if (logger.isDebugEnabled()) {
             logger.debug("Finished " + pipeline.getOperation().getSimpleName() + " for key "
-                         + ByteUtils.toHexString(key.get()) + " keyRef: "
-                         + System.identityHashCode(key) + "; started at " + startTimeMs + " took "
-                         + (System.nanoTime() - startTimeNs) + " values: "
-                         + formatNodeValuesFromGetVersions(pipelineData.getResponses()));
+                    + ByteUtils.toHexString(key.get()) + " keyRef: "
+                    + System.identityHashCode(key) + "; started at " + startTimeMs + " took "
+                    + (System.nanoTime() - startTimeNs) + " values: "
+                    + formatNodeValuesFromGetVersions(pipelineData.getResponses()));
         }
 
         return results;
@@ -648,10 +676,10 @@ public class PipelineRoutedStore extends RoutedStore {
         // log all retrieved values
         StringBuilder builder = new StringBuilder();
         builder.append("{");
-        for(Response<ByteArray, List<Version>> r: results) {
+        for (Response<ByteArray, List<Version>> r : results) {
             builder.append("(nodeId=" + r.getNode().getId() + ", key="
-                           + ByteUtils.toHexString(r.getKey().get()) + ", retrieved= "
-                           + r.getValue() + "), ");
+                    + ByteUtils.toHexString(r.getKey().get()) + ", retrieved= "
+                    + r.getValue() + "), ");
         }
         builder.append("}");
 
@@ -661,8 +689,8 @@ public class PipelineRoutedStore extends RoutedStore {
     @Override
     public boolean delete(final ByteArray key, final Version version) throws VoldemortException {
         return delete(key,
-                      version,
-                      timeoutConfig.getOperationTimeout(VoldemortOpCode.DELETE_OP_CODE));
+                version,
+                timeoutConfig.getOperationTimeout(VoldemortOpCode.DELETE_OP_CODE));
     }
 
     protected boolean delete(final ByteArray key, final Version version, long deleteOpTimeout)
@@ -672,16 +700,17 @@ public class PipelineRoutedStore extends RoutedStore {
         long startTimeMs = -1;
         long startTimeNs = -1;
 
-        if(logger.isDebugEnabled()) {
+        if (logger.isDebugEnabled()) {
             startTimeMs = System.currentTimeMillis();
             startTimeNs = System.nanoTime();
         }
 
         BasicPipelineData<Boolean> pipelineData = new BasicPipelineData<Boolean>();
-        if(zoneRoutingEnabled)
+        if (zoneRoutingEnabled) {
             pipelineData.setZonesRequired(storeDef.getZoneCountWrites());
-        else
+        } else {
             pipelineData.setZonesRequired(null);
+        }
         pipelineData.setStoreName(getName());
         pipelineData.setStats(stats);
 
@@ -691,73 +720,75 @@ public class PipelineRoutedStore extends RoutedStore {
         HintedHandoff hintedHandoff = null;
         PerformDeleteHintedHandoff deleteHintedHandoffAction = null;
 
-        if(isHintedHandoffEnabled()) {
+        if (isHintedHandoffEnabled()) {
             hintedHandoff = new HintedHandoff(failureDetector,
-                                              slopStores,
-                                              nonblockingSlopStores,
-                                              handoffStrategy,
-                                              pipelineData.getFailedNodes(),
-                                              deleteOpTimeout);
+                    slopStores,
+                    nonblockingSlopStores,
+                    handoffStrategy,
+                    pipelineData.getFailedNodes(),
+                    deleteOpTimeout);
 
             deleteHintedHandoffAction = new PerformDeleteHintedHandoff(pipelineData,
-                                                                       Event.COMPLETED,
-                                                                       key,
-                                                                       version,
-                                                                       hintedHandoff);
+                    Event.COMPLETED,
+                    key,
+                    version,
+                    hintedHandoff);
         }
 
         pipeline.addEventAction(Event.STARTED,
-                                new ConfigureNodes<Boolean, BasicPipelineData<Boolean>>(pipelineData,
-                                                                                        Event.CONFIGURED,
-                                                                                        failureDetector,
-                                                                                        storeDef.getRequiredWrites(),
-                                                                                        routingStrategy,
-                                                                                        key,
-                                                                                        clientZone));
+                new ConfigureNodes<Boolean, BasicPipelineData<Boolean>>(pipelineData,
+                        Event.CONFIGURED,
+                        failureDetector,
+                        storeDef.getRequiredWrites(),
+                        routingStrategy,
+                        key,
+                        clientZone));
         pipeline.addEventAction(Event.CONFIGURED,
-                                new PerformParallelDeleteRequests<Boolean, BasicPipelineData<Boolean>>(pipelineData,
-                                                                                                       isHintedHandoffEnabled() ? Event.RESPONSES_RECEIVED
-                                                                                                                               : Event.COMPLETED,
-                                                                                                       key,
-                                                                                                       failureDetector,
-                                                                                                       storeDef.getPreferredWrites(),
-                                                                                                       storeDef.getRequiredWrites(),
-                                                                                                       deleteOpTimeout,
-                                                                                                       nonblockingStores,
-                                                                                                       hintedHandoff,
-                                                                                                       deleteHintedHandoffAction,
-                                                                                                       version));
+                new PerformParallelDeleteRequests<Boolean, BasicPipelineData<Boolean>>(pipelineData,
+                        isHintedHandoffEnabled() ? Event.RESPONSES_RECEIVED
+                                : Event.COMPLETED,
+                        key,
+                        failureDetector,
+                        storeDef.getPreferredWrites(),
+                        storeDef.getRequiredWrites(),
+                        deleteOpTimeout,
+                        nonblockingStores,
+                        hintedHandoff,
+                        deleteHintedHandoffAction,
+                        version));
 
-        if(isHintedHandoffEnabled()) {
+        if (isHintedHandoffEnabled()) {
             pipeline.addEventAction(Event.RESPONSES_RECEIVED, deleteHintedHandoffAction);
 
         }
 
         pipeline.addEvent(Event.STARTED);
-        if(logger.isDebugEnabled()) {
+        if (logger.isDebugEnabled()) {
             logger.debug("Operation " + pipeline.getOperation().getSimpleName() + " Key "
-                         + ByteUtils.toHexString(key.get()));
+                    + ByteUtils.toHexString(key.get()));
         }
         try {
             pipeline.execute();
-        } catch(VoldemortException e) {
+        } catch (VoldemortException e) {
             stats.reportException(e);
             throw e;
         }
 
-        if(logger.isDebugEnabled()) {
+        if (logger.isDebugEnabled()) {
             logger.debug("Finished " + pipeline.getOperation().getSimpleName() + " for key "
-                         + ByteUtils.toHexString(key.get()) + " keyRef: "
-                         + System.identityHashCode(key) + "; started at " + startTimeMs + " took "
-                         + (System.nanoTime() - startTimeNs));
+                    + ByteUtils.toHexString(key.get()) + " keyRef: "
+                    + System.identityHashCode(key) + "; started at " + startTimeMs + " took "
+                    + (System.nanoTime() - startTimeNs));
         }
 
-        if(pipelineData.getFatalError() != null)
+        if (pipelineData.getFatalError() != null) {
             throw pipelineData.getFatalError();
+        }
 
-        for(Response<ByteArray, Boolean> response: pipelineData.getResponses()) {
-            if(response.getValue().booleanValue())
+        for (Response<ByteArray, Boolean> response : pipelineData.getResponses()) {
+            if (response.getValue().booleanValue()) {
                 return true;
+            }
         }
 
         return false;
@@ -767,41 +798,42 @@ public class PipelineRoutedStore extends RoutedStore {
         return slopStores != null;
     }
 
-    private AbstractConfigureNodes<ByteArray, Void, PutPipelineData> makeNodeConfigurationForPut(PutPipelineData pipelineData,
-                                                                                                 ByteArray key) {
-        switch(obtainNodeConfigurationType(pipelineData.getZonesRequired(), Operation.PUT)) {
-            case DEFAULT:
-                return new ConfigureNodesDefault<Void, PutPipelineData>(pipelineData,
-                                                                        Event.CONFIGURED,
-                                                                        failureDetector,
-                                                                        storeDef.getRequiredWrites(),
-                                                                        routingStrategy,
-                                                                        key);
-            case BYZONE:
-                return new ConfigureNodesByZone<Void, PutPipelineData>(pipelineData,
-                                                                       Event.CONFIGURED,
-                                                                       failureDetector,
-                                                                       storeDef.getRequiredWrites(),
-                                                                       routingStrategy,
-                                                                       key,
-                                                                       clientZone);
-            case DEFAULT_LOCAL:
-                return new ConfigureNodesLocalHost<Void, PutPipelineData>(pipelineData,
-                                                                          Event.CONFIGURED,
-                                                                          failureDetector,
-                                                                          storeDef.getRequiredWrites(),
-                                                                          routingStrategy,
-                                                                          key);
-            case BYZONE_LOCAL:
-                return new ConfigureNodesLocalHostByZone<Void, PutPipelineData>(pipelineData,
-                                                                                Event.CONFIGURED,
-                                                                                failureDetector,
-                                                                                storeDef.getRequiredWrites(),
-                                                                                routingStrategy,
-                                                                                key,
-                                                                                clientZone);
-            default:
-                return null;
+    private AbstractConfigureNodes<ByteArray, Void, PutPipelineData> makeNodeConfigurationForPut(
+            PutPipelineData pipelineData,
+            ByteArray key) {
+        switch (obtainNodeConfigurationType(pipelineData.getZonesRequired(), Operation.PUT)) {
+        case DEFAULT:
+            return new ConfigureNodesDefault<Void, PutPipelineData>(pipelineData,
+                    Event.CONFIGURED,
+                    failureDetector,
+                    storeDef.getRequiredWrites(),
+                    routingStrategy,
+                    key);
+        case BYZONE:
+            return new ConfigureNodesByZone<Void, PutPipelineData>(pipelineData,
+                    Event.CONFIGURED,
+                    failureDetector,
+                    storeDef.getRequiredWrites(),
+                    routingStrategy,
+                    key,
+                    clientZone);
+        case DEFAULT_LOCAL:
+            return new ConfigureNodesLocalHost<Void, PutPipelineData>(pipelineData,
+                    Event.CONFIGURED,
+                    failureDetector,
+                    storeDef.getRequiredWrites(),
+                    routingStrategy,
+                    key);
+        case BYZONE_LOCAL:
+            return new ConfigureNodesLocalHostByZone<Void, PutPipelineData>(pipelineData,
+                    Event.CONFIGURED,
+                    failureDetector,
+                    storeDef.getRequiredWrites(),
+                    routingStrategy,
+                    key,
+                    clientZone);
+        default:
+            return null;
         }
 
     }
@@ -810,30 +842,31 @@ public class PipelineRoutedStore extends RoutedStore {
     public void put(ByteArray key, Versioned<byte[]> versioned, byte[] transforms)
             throws VoldemortException {
         put(key,
-            versioned,
-            transforms,
-            timeoutConfig.getOperationTimeout(VoldemortOpCode.PUT_OP_CODE));
+                versioned,
+                transforms,
+                timeoutConfig.getOperationTimeout(VoldemortOpCode.PUT_OP_CODE));
     }
 
     public void put(ByteArray key,
-                    Versioned<byte[]> versioned,
-                    byte[] transforms,
-                    long putOpTimeoutInMs) throws VoldemortException {
+            Versioned<byte[]> versioned,
+            byte[] transforms,
+            long putOpTimeoutInMs) throws VoldemortException {
 
         long startTimeMs = -1;
         long startTimeNs = -1;
 
-        if(logger.isDebugEnabled()) {
+        if (logger.isDebugEnabled()) {
             startTimeMs = System.currentTimeMillis();
             startTimeNs = System.nanoTime();
         }
 
         StoreUtils.assertValidKey(key);
         PutPipelineData pipelineData = new PutPipelineData();
-        if(zoneRoutingEnabled)
+        if (zoneRoutingEnabled) {
             pipelineData.setZonesRequired(storeDef.getZoneCountWrites());
-        else
+        } else {
             pipelineData.setZonesRequired(null);
+        }
         pipelineData.setStartTimeNs(System.nanoTime());
         pipelineData.setStoreName(getName());
         pipelineData.setStats(stats);
@@ -845,110 +878,115 @@ public class PipelineRoutedStore extends RoutedStore {
 
         // Get the correct type of configure nodes action depending on the store
         // requirements
-        AbstractConfigureNodes<ByteArray, Void, PutPipelineData> configureNodes = makeNodeConfigurationForPut(pipelineData,
-                                                                                                              key);
+        AbstractConfigureNodes<ByteArray, Void, PutPipelineData> configureNodes = makeNodeConfigurationForPut(
+                pipelineData,
+                key);
 
-        if(isHintedHandoffEnabled())
+        if (isHintedHandoffEnabled()) {
             hintedHandoff = new HintedHandoff(failureDetector,
-                                              slopStores,
-                                              nonblockingSlopStores,
-                                              handoffStrategy,
-                                              pipelineData.getFailedNodes(),
-                                              putOpTimeoutInMs);
+                    slopStores,
+                    nonblockingSlopStores,
+                    handoffStrategy,
+                    pipelineData.getFailedNodes(),
+                    putOpTimeoutInMs);
+        }
 
         pipeline.addEventAction(Event.STARTED, configureNodes);
 
         pipeline.addEventAction(Event.CONFIGURED,
-                                new PerformSerialPutRequests(pipelineData,
-                                                             isHintedHandoffEnabled() ? Event.RESPONSES_RECEIVED
-                                                                                     : Event.COMPLETED,
-                                                             key,
-                                                             transforms,
-                                                             failureDetector,
-                                                             innerStores,
-                                                             storeDef.getRequiredWrites(),
-                                                             versioned,
-                                                             time,
-                                                             Event.MASTER_DETERMINED));
+                new PerformSerialPutRequests(pipelineData,
+                        isHintedHandoffEnabled() ? Event.RESPONSES_RECEIVED
+                                : Event.COMPLETED,
+                        key,
+                        transforms,
+                        failureDetector,
+                        innerStores,
+                        storeDef.getRequiredWrites(),
+                        versioned,
+                        time,
+                        Event.MASTER_DETERMINED));
         pipeline.addEventAction(Event.MASTER_DETERMINED,
-                                new PerformParallelPutRequests(pipelineData,
-                                                               Event.RESPONSES_RECEIVED,
-                                                               key,
-                                                               transforms,
-                                                               failureDetector,
-                                                               storeDef.getPreferredWrites(),
-                                                               storeDef.getRequiredWrites(),
-                                                               putOpTimeoutInMs,
-                                                               nonblockingStores,
-                                                               hintedHandoff));
-        if(isHintedHandoffEnabled()) {
+                new PerformParallelPutRequests(pipelineData,
+                        Event.RESPONSES_RECEIVED,
+                        key,
+                        transforms,
+                        failureDetector,
+                        storeDef.getPreferredWrites(),
+                        storeDef.getRequiredWrites(),
+                        putOpTimeoutInMs,
+                        nonblockingStores,
+                        hintedHandoff));
+        if (isHintedHandoffEnabled()) {
             pipeline.addEventAction(Event.ABORTED, new PerformPutHintedHandoff(pipelineData,
-                                                                               Event.ERROR,
-                                                                               key,
-                                                                               versioned,
-                                                                               transforms,
-                                                                               hintedHandoff,
-                                                                               time));
+                    Event.ERROR,
+                    key,
+                    versioned,
+                    transforms,
+                    hintedHandoff,
+                    time));
             pipeline.addEventAction(Event.RESPONSES_RECEIVED,
-                                    new PerformPutHintedHandoff(pipelineData,
-                                                                Event.HANDOFF_FINISHED,
-                                                                key,
-                                                                versioned,
-                                                                transforms,
-                                                                hintedHandoff,
-                                                                time));
+                    new PerformPutHintedHandoff(pipelineData,
+                            Event.HANDOFF_FINISHED,
+                            key,
+                            versioned,
+                            transforms,
+                            hintedHandoff,
+                            time));
             pipeline.addEventAction(Event.HANDOFF_FINISHED, new IncrementClock(pipelineData,
-                                                                               Event.COMPLETED,
-                                                                               versioned,
-                                                                               time));
-        } else
+                    Event.COMPLETED,
+                    versioned,
+                    time));
+        } else {
             pipeline.addEventAction(Event.RESPONSES_RECEIVED, new IncrementClock(pipelineData,
-                                                                                 Event.COMPLETED,
-                                                                                 versioned,
-                                                                                 time));
+                    Event.COMPLETED,
+                    versioned,
+                    time));
+        }
 
         pipeline.addEvent(Event.STARTED);
-        if(logger.isDebugEnabled()) {
+        if (logger.isDebugEnabled()) {
             logger.debug("Operation " + pipeline.getOperation().getSimpleName() + " Key "
-                         + ByteUtils.toHexString(key.get()));
+                    + ByteUtils.toHexString(key.get()));
         }
         try {
             pipeline.execute();
-        } catch(VoldemortException e) {
+        } catch (VoldemortException e) {
             stats.reportException(e);
             throw e;
         }
 
-        if(logger.isDebugEnabled()) {
+        if (logger.isDebugEnabled()) {
             logger.debug("Finished " + pipeline.getOperation().getSimpleName() + " for key "
-                         + ByteUtils.toHexString(key.get()) + " keyRef: "
-                         + System.identityHashCode(key) + "; started at " + startTimeMs + " took "
-                         + (System.nanoTime() - startTimeNs) + " value: " + versioned.getValue()
-                         + " (size: " + versioned.getValue().length + ")");
+                    + ByteUtils.toHexString(key.get()) + " keyRef: "
+                    + System.identityHashCode(key) + "; started at " + startTimeMs + " took "
+                    + (System.nanoTime() - startTimeNs) + " value: " + versioned.getValue()
+                    + " (size: " + versioned.getValue().length + ")");
         }
 
-        if(pipelineData.getFatalError() != null)
+        if (pipelineData.getFatalError() != null) {
             throw pipelineData.getFatalError();
+        }
     }
 
     @Override
     public void close() {
         VoldemortException exception = null;
 
-        for(NonblockingStore store: nonblockingStores.values()) {
+        for (NonblockingStore store : nonblockingStores.values()) {
             try {
                 store.close();
-            } catch(VoldemortException e) {
+            } catch (VoldemortException e) {
                 exception = e;
             }
         }
 
-        if(this.jmxEnabled) {
+        if (this.jmxEnabled) {
             this.stats.unregisterJmxIfRequired();
         }
 
-        if(exception != null)
+        if (exception != null) {
             throw exception;
+        }
 
         super.close();
     }
@@ -980,9 +1018,9 @@ public class PipelineRoutedStore extends RoutedStore {
         /**
          * Not classifying QuotaExceededException as a slopable failure since we
          * do not want all QuotaExceeded operations to be slopped
-         * 
+         *
          */
         return response instanceof UnreachableStoreException
-               || response instanceof PersistenceFailureException;
+                || response instanceof PersistenceFailureException;
     }
 }

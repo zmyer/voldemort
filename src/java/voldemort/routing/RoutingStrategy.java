@@ -16,23 +16,24 @@
 
 package voldemort.routing;
 
+import voldemort.cluster.Node;
+
 import java.util.List;
 import java.util.Set;
-
-import voldemort.cluster.Node;
 
 /**
  * A routing strategy maps puts and gets to an ordered "preference list" of
  * servers. The preference list is the order under which operations will be
  * completed in the absence of failures.
- * 
- * 
+ *
+ *
  */
+// TODO: 2018/4/26 by zmyer
 public interface RoutingStrategy {
 
     /**
      * Get the type of RoutingStrategyType
-     * 
+     *
      * @return RoutingStrategyType
      */
     public String getType();
@@ -40,7 +41,7 @@ public interface RoutingStrategy {
     /**
      * Get the node preference list for the given key. The preference list is a
      * list of nodes to perform an operation on.
-     * 
+     *
      * @param key The key the operation is operating on
      * @return The preference list for the given key
      */
@@ -48,12 +49,12 @@ public interface RoutingStrategy {
 
     /**
      * Get the partition list for the given key.
-     * 
+     *
      * TODO: The naming of this method is confusing.. it is simply a wrapper
      * around {@link RoutingStrategy#getReplicatingPartitionList(int)} that
      * takes a key. So, would be good to rename this also as
      * getReplicatingPartitionList
-     * 
+     *
      * @param key The key the operation is operating on
      * @return The partition list for the given key
      */
@@ -61,7 +62,7 @@ public interface RoutingStrategy {
 
     /**
      * Obtain the master partition for a given key
-     * 
+     *
      * @param key The key being operated on
      * @return The partition that owns the key
      */
@@ -69,7 +70,7 @@ public interface RoutingStrategy {
 
     /**
      * Get the replication partitions list for the given partition.
-     * 
+     *
      * @param partitionId
      * @return The List of partitionId where this partition is replicated.
      */
@@ -77,14 +78,14 @@ public interface RoutingStrategy {
 
     /**
      * Get the collection of nodes that are candidates for routing.
-     * 
+     *
      * @return The collection of nodes
      */
     public Set<Node> getNodes();
 
     /**
      * Return the number of replicas
-     * 
+     *
      * @return The number of replicas
      */
     public int getNumReplicas();

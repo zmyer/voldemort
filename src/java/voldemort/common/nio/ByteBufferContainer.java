@@ -1,11 +1,10 @@
 package voldemort.common.nio;
 
+import org.apache.commons.lang.mutable.MutableLong;
+import voldemort.utils.ByteUtils;
+
 import java.nio.ByteBuffer;
 import java.util.concurrent.atomic.AtomicBoolean;
-
-import org.apache.commons.lang.mutable.MutableLong;
-
-import voldemort.utils.ByteUtils;
 
 /*
  * ByteBufferContainer holds a reference to the ByteBuffer. This lets your share
@@ -15,6 +14,7 @@ import voldemort.utils.ByteUtils;
  * processing. Hence the client and server can use the same buffer for read and
  * write to begin with.
  */
+// TODO: 2018/4/26 by zmyer
 public class ByteBufferContainer {
 
     private ByteBuffer buffer;
@@ -29,9 +29,9 @@ public class ByteBufferContainer {
     private final AtomicBoolean isClosed;
 
     private void assignBuffer(ByteBuffer newBuffer) {
-        if(sizeTracker != null) {
+        if (sizeTracker != null) {
             int oldSize = 0;
-            if(this.buffer != null ){
+            if (this.buffer != null) {
                 oldSize = this.buffer.capacity();
             }
             updateSizeStats(oldSize, newBuffer.capacity());
@@ -51,7 +51,7 @@ public class ByteBufferContainer {
     }
 
     public ByteBufferContainer(ByteBuffer byteBuffer) {
-        if(byteBuffer == null) {
+        if (byteBuffer == null) {
             throw new IllegalArgumentException("byteBuffer is null");
         }
         this.buffer = byteBuffer;
@@ -69,7 +69,7 @@ public class ByteBufferContainer {
 
     public void growBuffer(int newSize) {
         int oldSize = buffer.capacity();
-        if(newSize > oldSize) {
+        if (newSize > oldSize) {
             assignBuffer(ByteUtils.expand(this.buffer, newSize));
         }
     }
@@ -77,7 +77,7 @@ public class ByteBufferContainer {
     public void ensureSpace(int writeLen) {
         int need = (writeLen - this.buffer.remaining());
 
-        if(need <= 0) {
+        if (need <= 0) {
             return;
         }
 
@@ -89,20 +89,20 @@ public class ByteBufferContainer {
     }
 
     public void reset() {
-        if(this.buffer.capacity() > sizeUpperBound) {
+        if (this.buffer.capacity() > sizeUpperBound) {
             assignBuffer(ByteBuffer.allocate(sizeLowerBound));
         }
         this.buffer.clear();
     }
 
     public void close() {
-        if(isClosed.compareAndSet(false, true)) {
+        if (isClosed.compareAndSet(false, true)) {
             updateSizeStats(buffer.capacity(), 0);
         }
     }
 
     private void updateSizeStats(int oldSize, int newSize) {
-        if(sizeTracker != null) {
+        if (sizeTracker != null) {
             sizeTracker.subtract(oldSize);
             sizeTracker.add(newSize);
         }

@@ -15,13 +15,9 @@
  */
 package voldemort.client.rebalance;
 
-import java.io.StringReader;
-import java.io.StringWriter;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import voldemort.VoldemortException;
 import voldemort.cluster.Cluster;
 import voldemort.serialization.json.JsonReader;
@@ -29,33 +25,37 @@ import voldemort.serialization.json.JsonWriter;
 import voldemort.utils.Utils;
 import voldemort.xml.ClusterMapper;
 
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
+import java.io.StringReader;
+import java.io.StringWriter;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Rebalance Task info maintains all information needed for rebalancing for a
  * stealer-donor node tuple.
- * 
+ *
  * @param stealerNodeId Stealer node id
  * @param donorId Donor node id
  * @param storeToPartitionList Map of store name to partitions
  * @param initialCluster We require the state of the current metadata in order to determine
  *            correct key movement for RW stores. Otherwise we move keys on the basis of the
  *            updated metadata and hell breaks loose.
- *            
+ *
  *  TODO: Verify if initialCluster is needed as part of this class.          
  */
 
+// TODO: 2018/4/26 by zmyer
 public class RebalanceTaskInfo {
 
     private final int stealerId;
     private final int donorId;
     private HashMap<String, List<Integer>> storeToPartitionIds;
     private Cluster initialCluster;
-    
+
     public RebalanceTaskInfo(int stealerNodeId, int donorId, HashMap<String,
-                             List<Integer>> storeToPartitionIds, Cluster initialCluster) {
+            List<Integer>> storeToPartitionIds, Cluster initialCluster) {
         this.stealerId = stealerNodeId;
         this.donorId = donorId;
         this.storeToPartitionIds = storeToPartitionIds;
@@ -77,17 +77,18 @@ public class RebalanceTaskInfo {
     // standard way to perform Serialization/De-serialization
 
     public static RebalanceTaskInfo create(Map<?, ?> map) {
-        int stealerId = (Integer)map.get("stealerId");
-        int donorId = (Integer)map.get("donorId");
+        int stealerId = (Integer) map.get("stealerId");
+        int donorId = (Integer) map.get("donorId");
         List<String> unbalancedStoreList = Utils.uncheckedCast(map.get("unbalancedStores"));
         Cluster initialCluster = new ClusterMapper()
-                                     .readCluster(new StringReader((String)map.get("initialCluster")));
+                .readCluster(new StringReader((String) map.get("initialCluster")));
 
         HashMap<String, List<Integer>> storeToPartitionIds = Maps.newHashMap();
         for (String unbalancedStore : unbalancedStoreList) {
             List<Integer> partitionList = Utils.uncheckedCast(map.get(unbalancedStore + "partitionList"));
-            if (partitionList.size() > 0)
+            if (partitionList.size() > 0) {
                 storeToPartitionIds.put(unbalancedStore, partitionList);
+            }
         }
 
         return new RebalanceTaskInfo(stealerId, donorId, storeToPartitionIds, initialCluster);
@@ -97,17 +98,18 @@ public class RebalanceTaskInfo {
 
         ImmutableMap.Builder<String, Object> builder = new ImmutableMap.Builder<String, Object>();
         builder.put("stealerId", stealerId)
-               .put("donorId", donorId)
-               .put("unbalancedStores", Lists.newArrayList(storeToPartitionIds.keySet()))
-               .put("initialCluster", new ClusterMapper().writeCluster(initialCluster));
+                .put("donorId", donorId)
+                .put("unbalancedStores", Lists.newArrayList(storeToPartitionIds.keySet()))
+                .put("initialCluster", new ClusterMapper().writeCluster(initialCluster));
 
         for (String unbalancedStore : storeToPartitionIds.keySet()) {
             List<Integer> partitionIds = storeToPartitionIds.get(unbalancedStore);
-            if (!partitionIds.isEmpty()) 
+            if (!partitionIds.isEmpty()) {
                 builder.put(unbalancedStore + "partitionList", partitionIds);
-            else
-                builder.put(unbalancedStore + "partitionList" , Lists.newArrayList());
+            } else {
+                builder.put(unbalancedStore + "partitionList", Lists.newArrayList());
             }
+        }
 
         return builder.build();
     }
@@ -150,19 +152,20 @@ public class RebalanceTaskInfo {
 
     /**
      * Total count of partition-stores moved in this task.
-     * 
+     *
      * @return number of partition stores moved in this task.
      */
     public synchronized int getPartitionStoreMoves() {
         int count = 0;
-        for (List<Integer> entry : storeToPartitionIds.values())
+        for (List<Integer> entry : storeToPartitionIds.values()) {
             count += entry.size();
+        }
         return count;
     }
 
     /**
      * Removes the store name from the map.
-     * 
+     *
      * @param storeName name to be removed from the map
      */
     public synchronized void removeStore(String storeName) {
@@ -171,7 +174,7 @@ public class RebalanceTaskInfo {
 
     /**
      * Returns the list of partitions ids corresponding to a store.
-     * 
+     *
      * @param storeName name of the store
      * @return list of partitions ids for the store.
      */
@@ -181,7 +184,7 @@ public class RebalanceTaskInfo {
 
     /**
      * Returns all the store names from the map
-     * 
+     *
      * @return returns a list of stores in the map
      */
     public synchronized Set<String> getPartitionStores() {
@@ -190,7 +193,7 @@ public class RebalanceTaskInfo {
 
     /**
      * Returns the total count of partitions across all stores.
-     * 
+     *
      * @return returns the total count of partitions across all stores.
      */
     public synchronized int getPartitionStoreCount() {
@@ -205,18 +208,19 @@ public class RebalanceTaskInfo {
     public synchronized String toString() {
         StringBuffer sb = new StringBuffer();
         sb.append("\nRebalanceTaskInfo(" + getStealerId()
-                  + " [" + initialCluster.getNodeById(getStealerId()).getHost() 
-                  + "] <--- " + getDonorId() 
-                  + " ["
-                  + initialCluster.getNodeById(getDonorId()).getHost() 
-                  + "] ");
+                + " [" + initialCluster.getNodeById(getStealerId()).getHost()
+                + "] <--- " + getDonorId()
+                + " ["
+                + initialCluster.getNodeById(getDonorId()).getHost()
+                + "] ");
         for (String unbalancedStore : storeToPartitionIds.keySet()) {
             sb.append("\n\t- Store '" + unbalancedStore + "' move ");
             List<Integer> partitionIds = storeToPartitionIds.get(unbalancedStore);
-            if (!partitionIds.isEmpty())
+            if (!partitionIds.isEmpty()) {
                 sb.append(" - " + partitionIds);
-            else
+            } else {
                 sb.append(" - []");
+            }
         }
         sb.append(")");
         return sb.toString();
@@ -224,7 +228,7 @@ public class RebalanceTaskInfo {
 
     /**
      * Pretty prints a task list of rebalancing tasks.
-     * 
+     *
      * @param infos list of rebalancing tasks (RebalancePartitionsInfo)
      * @return pretty-printed string
      */
@@ -250,20 +254,26 @@ public class RebalanceTaskInfo {
 
     @Override
     public synchronized boolean equals(Object o) {
-        if (this == o)
+        if (this == o) {
             return true;
-        if (o == null || getClass() != o.getClass())
+        }
+        if (o == null || getClass() != o.getClass()) {
             return false;
-        RebalanceTaskInfo that = (RebalanceTaskInfo)o;
-        if (donorId != that.donorId)
+        }
+        RebalanceTaskInfo that = (RebalanceTaskInfo) o;
+        if (donorId != that.donorId) {
             return false;
-        if (stealerId != that.stealerId)
+        }
+        if (stealerId != that.stealerId) {
             return false;
-        if (!initialCluster.equals(that.initialCluster))
+        }
+        if (!initialCluster.equals(that.initialCluster)) {
             return false;
-        if (storeToPartitionIds != null ? !storeToPartitionIds.equals(that.storeToPartitionIds) 
-                                        : that.storeToPartitionIds != null)
+        }
+        if (storeToPartitionIds != null ? !storeToPartitionIds.equals(that.storeToPartitionIds)
+                : that.storeToPartitionIds != null) {
             return false;
+        }
 
         return true;
     }

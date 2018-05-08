@@ -25,8 +25,8 @@ import java.util.Set;
 
 /**
  * Writes JSON Objects as String recognized by {@link JsonReader}
- * 
- * 
+ *
+ *
  */
 public class JsonWriter {
 
@@ -40,22 +40,22 @@ public class JsonWriter {
     public void write(Object o) {
 
         try {
-            if(null == o) {
+            if (null == o) {
                 writer.write("null");
-            } else if(o instanceof Map) {
+            } else if (o instanceof Map) {
                 writeMap((Map<String, Object>) o);
-            } else if(o instanceof List) {
+            } else if (o instanceof List) {
                 writeList((List<Object>) o);
-            } else if(o instanceof Date) {
+            } else if (o instanceof Date) {
                 writeDate((Date) o);
-            } else if(o instanceof String) {
+            } else if (o instanceof String) {
                 writer.write('"');
                 writer.write((String) o);
                 writer.write('"');
             } else {
                 writer.write(o.toString());
             }
-        } catch(Exception e) {
+        } catch (Exception e) {
             throw new RuntimeException("JsonWriter failed to write Object(" + o + ")  as String", e);
         }
     }
@@ -64,7 +64,7 @@ public class JsonWriter {
         writer.write('{');
         Set<Map.Entry<String, Object>> entrySet = values.entrySet();
         int index = 0;
-        for(Map.Entry<String, Object> entry: entrySet) {
+        for (Map.Entry<String, Object> entry : entrySet) {
             writer.write('"');
             writer.write(entry.getKey());
             writer.write('"');
@@ -74,7 +74,7 @@ public class JsonWriter {
             // write Object
             write(entry.getValue());
 
-            if(++index < entrySet.size()) {
+            if (++index < entrySet.size()) {
                 writer.write(", ");
             }
         }
@@ -84,10 +84,10 @@ public class JsonWriter {
     public void writeList(List<Object> list) throws IOException {
         writer.write('[');
         int index = 0;
-        for(Object entry: list) {
+        for (Object entry : list) {
             write(entry);
 
-            if(++index < list.size()) {
+            if (++index < list.size()) {
                 writer.write(", ");
 
             }

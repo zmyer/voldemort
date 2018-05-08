@@ -20,8 +20,8 @@ import voldemort.serialization.SerializationException;
 
 /**
  * An enum of JsonTypes (for convenience)
- * 
- * 
+ *
+ *
  */
 public enum JsonTypes {
     BOOLEAN("boolean"),
@@ -46,9 +46,11 @@ public enum JsonTypes {
     }
 
     public static JsonTypes fromDisplay(String name) {
-        for(JsonTypes t: JsonTypes.values())
-            if(t.toDisplay().equals(name))
+        for (JsonTypes t : JsonTypes.values()) {
+            if (t.toDisplay().equals(name)) {
                 return t;
+            }
+        }
         throw new SerializationException(name + " is not a valid display for any SimpleType.");
     }
 

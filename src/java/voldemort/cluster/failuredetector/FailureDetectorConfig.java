@@ -16,14 +16,8 @@
 
 package voldemort.cluster.failuredetector;
 
-import java.net.ConnectException;
-import java.net.NoRouteToHostException;
-import java.net.UnknownHostException;
-import java.nio.channels.UnresolvedAddressException;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.List;
-
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import voldemort.client.ClientConfig;
 import voldemort.cluster.Cluster;
 import voldemort.cluster.Node;
@@ -32,17 +26,23 @@ import voldemort.utils.SystemTime;
 import voldemort.utils.Time;
 import voldemort.utils.Utils;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
+import java.net.ConnectException;
+import java.net.NoRouteToHostException;
+import java.net.UnknownHostException;
+import java.nio.channels.UnresolvedAddressException;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.List;
 
 /**
  * FailureDetectorConfig simply holds all the data that was available to it upon
  * construction. A FailureDetectorConfig is usually passed to
  * {@link FailureDetectorUtils}'s {@link FailureDetectorUtils#create create}
  * method to create a full-blown {@link FailureDetector} instance.
- * 
+ *
  */
 
+// TODO: 2018/4/25 by zmyer
 public class FailureDetectorConfig {
 
     public static final String DEFAULT_IMPLEMENTATION_CLASS_NAME = ThresholdFailureDetector.class.getName();
@@ -57,10 +57,11 @@ public class FailureDetectorConfig {
 
     public static final long DEFAULT_ASYNC_RECOVERY_INTERVAL = 10000;
 
-    public static final List<String> DEFAULT_CATASTROPHIC_ERROR_TYPES = ImmutableList.of(ConnectException.class.getName(),
-                                                                                         UnknownHostException.class.getName(),
-                                                                                         NoRouteToHostException.class.getName(),
-                                                                                         UnresolvedAddressException.class.getName());
+    public static final List<String> DEFAULT_CATASTROPHIC_ERROR_TYPES = ImmutableList.of(
+            ConnectException.class.getName(),
+            UnknownHostException.class.getName(),
+            NoRouteToHostException.class.getName(),
+            UnresolvedAddressException.class.getName());
 
     public static final long DEFAULT_REQUEST_LENGTH_THRESHOLD = 5000;
 
@@ -101,9 +102,9 @@ public class FailureDetectorConfig {
     /**
      * Constructs a new FailureDetectorConfig using all the defaults. This is
      * usually used in the case of unit tests.
-     * 
+     *
      * <p/>
-     * 
+     *
      * <b>Note</b>: the {@link #setNodes(Collection)} and
      * {@link #setConnectionVerifier(ConnectionVerifier)} methods must be called to ensure
      * <i>complete</i> configuration.
@@ -116,13 +117,13 @@ public class FailureDetectorConfig {
     /**
      * Constructs a new FailureDetectorConfig from a server perspective (via
      * {@link VoldemortConfig}).
-     * 
+     *
      * <p/>
-     * 
+     *
      * <b>Note</b>: the {@link #setNodes(Collection)} and
      * {@link #setConnectionVerifier(ConnectionVerifier)} methods must be called to ensure
      * <i>complete</i> configuration.
-     * 
+     *
      * @param config {@link VoldemortConfig} instance
      */
 
@@ -141,13 +142,13 @@ public class FailureDetectorConfig {
     /**
      * Constructs a new FailureDetectorConfig from a client perspective (via
      * {@link ClientConfig}).
-     * 
+     *
      * <p/>
-     * 
+     *
      * <b>Note</b>: the {@link #setNodes(Collection)} and
      * {@link #setConnectionVerifier(ConnectionVerifier)} methods must be called to ensure
      * <i>complete</i> configuration.
-     * 
+     *
      * @param config {@link ClientConfig} instance
      */
 
@@ -166,9 +167,9 @@ public class FailureDetectorConfig {
     /**
      * Returns the fully-qualified class name of the FailureDetector
      * implementation.
-     * 
+     *
      * @return Class name to instantiate for the FailureDetector
-     * 
+     *
      * @see VoldemortConfig#getFailureDetectorImplementation
      * @see ClientConfig#getFailureDetectorImplementation
      */
@@ -180,10 +181,10 @@ public class FailureDetectorConfig {
     /**
      * Assigns the fully-qualified class name of the FailureDetector
      * implementation.
-     * 
+     *
      * @param implementationClassName Class name to instantiate for the
      *        FailureDetector
-     * 
+     *
      * @see VoldemortConfig#getFailureDetectorImplementation
      * @see ClientConfig#getFailureDetectorImplementation
      */
@@ -198,14 +199,14 @@ public class FailureDetectorConfig {
      * client or server configuration. Some FailureDetector implementations wait
      * for a specified period of time before attempting to access the node again
      * once it has become unavailable.
-     * 
+     *
      * <p/>
-     * 
+     *
      * <b>Note</b>: this is only used by the
      * {@link BannagePeriodFailureDetector} implementation.
-     * 
+     *
      * @return Period of bannage of a node, in milliseconds
-     * 
+     *
      * @see BannagePeriodFailureDetector
      * @see VoldemortConfig#getFailureDetectorBannagePeriod
      * @see ClientConfig#getFailureDetectorBannagePeriod
@@ -220,14 +221,14 @@ public class FailureDetectorConfig {
      * client or server configuration. Some FailureDetector implementations wait
      * for a specified period of time before attempting to access the node again
      * once it has become unavailable.
-     * 
+     *
      * <p/>
-     * 
+     *
      * <b>Note</b>: this is only used by the
      * {@link BannagePeriodFailureDetector} implementation.
-     * 
+     *
      * @param bannagePeriod Period of bannage of a node, in milliseconds
-     * 
+     *
      * @see BannagePeriodFailureDetector
      * @see VoldemortConfig#getFailureDetectorBannagePeriod
      * @see ClientConfig#getFailureDetectorBannagePeriod
@@ -243,14 +244,14 @@ public class FailureDetectorConfig {
      * and 100. Some FailureDetector implementations will mark a node as
      * unavailable if the ratio of successes to total requests for that node
      * falls under this threshold.
-     * 
+     *
      * <p/>
-     * 
+     *
      * <b>Note</b>: this is only used by the {@link ThresholdFailureDetector}
      * implementation.
-     * 
+     *
      * @return Integer percentage representing success threshold
-     * 
+     *
      * @see ThresholdFailureDetector
      * @see VoldemortConfig#getFailureDetectorThreshold
      * @see ClientConfig#getFailureDetectorThreshold
@@ -265,25 +266,26 @@ public class FailureDetectorConfig {
      * and 100. Some FailureDetector implementations will mark a node as
      * unavailable if the ratio of successes to total requests for that node
      * falls under this threshold.
-     * 
+     *
      * <p/>
-     * 
+     *
      * <b>Note</b>: this is only used by the {@link ThresholdFailureDetector}
      * implementation.
-     * 
+     *
      * @param threshold Integer percentage representing success threshold
-     * 
+     *
      * @exception IllegalArgumentException Thrown if the threshold parameter is
      *            outside the range [0..100]
-     * 
+     *
      * @see ThresholdFailureDetector
      * @see VoldemortConfig#getFailureDetectorThreshold
      * @see ClientConfig#getFailureDetectorThreshold
      */
 
     public FailureDetectorConfig setThreshold(int threshold) {
-        if(threshold < 0 || threshold > 100)
+        if (threshold < 0 || threshold > 100) {
             throw new IllegalArgumentException("threshold must be in the range (0..100)");
+        }
 
         this.threshold = threshold;
         return this;
@@ -292,15 +294,15 @@ public class FailureDetectorConfig {
     /**
      * Returns the minimum number of failures that must occur before the success
      * ratio is calculated to compare against the success threshold percentage.
-     * 
+     *
      * <p/>
-     * 
+     *
      * <b>Note</b>: this is only used by the {@link ThresholdFailureDetector}
      * implementation.
-     * 
+     *
      * @return Integer representing the minimum number of failures (per node)
      *         that must be processed before the threshold is checked
-     * 
+     *
      * @see ThresholdFailureDetector
      * @see VoldemortConfig#getFailureDetectorThreshold
      * @see ClientConfig#getFailureDetectorThreshold
@@ -313,27 +315,28 @@ public class FailureDetectorConfig {
     /**
      * Assigns the minimum number of failures that must occur before the success
      * ratio is calculated to compare against the success threshold percentage.
-     * 
+     *
      * <p/>
-     * 
+     *
      * <b>Note</b>: this is only used by the {@link ThresholdFailureDetector}
      * implementation.
-     * 
+     *
      * @param thresholdCountMinimum Integer representing the minimum number of
      *        failures (per node) that must be processed before the threshold is
      *        checked
-     * 
+     *
      * @exception IllegalArgumentException Thrown if the thresholdCountMinimum
      *            parameter is outside the range [0..Integer.MAX_VALUE]
-     * 
+     *
      * @see ThresholdFailureDetector
      * @see VoldemortConfig#getFailureDetectorThreshold
      * @see ClientConfig#getFailureDetectorThreshold
      */
 
     public FailureDetectorConfig setThresholdCountMinimum(int thresholdCountMinimum) {
-        if(thresholdCountMinimum < 0)
+        if (thresholdCountMinimum < 0) {
             throw new IllegalArgumentException("thresholdCountMinimum must be greater than or equal to 0");
+        }
 
         this.thresholdCountMinimum = thresholdCountMinimum;
         return this;
@@ -344,14 +347,14 @@ public class FailureDetectorConfig {
      * this number of milliseconds passes, a new interval is started and all
      * internal state of a node is cleared out. However, it may not necessarily
      * be marked as available if it was unavailable in the previous interval.
-     * 
+     *
      * <p/>
-     * 
+     *
      * <b>Note</b>: this is only used by the {@link ThresholdFailureDetector}
      * implementation.
-     * 
+     *
      * @return Millisecond interval for the success ratio
-     * 
+     *
      * @see ThresholdFailureDetector
      * @see VoldemortConfig#getFailureDetectorThresholdInterval
      * @see ClientConfig#getFailureDetectorThresholdInterval
@@ -366,25 +369,26 @@ public class FailureDetectorConfig {
      * this number of milliseconds passes, a new interval is started and all
      * internal state of a node is cleared out. However, it may not necessarily
      * be marked as available if it was unavailable in the previous interval.
-     * 
+     *
      * <p/>
-     * 
+     *
      * <b>Note</b>: this is only used by the {@link ThresholdFailureDetector}
      * implementation.
-     * 
+     *
      * @param thresholdInterval Millisecond interval for the success ratio
-     * 
+     *
      * @exception IllegalArgumentException Thrown if the thresholdInterval
      *            parameter is less than or equal to 0
-     * 
+     *
      * @see ThresholdFailureDetector
      * @see VoldemortConfig#getFailureDetectorThresholdInterval
      * @see ClientConfig#getFailureDetectorThresholdInterval
      */
 
     public FailureDetectorConfig setThresholdInterval(long thresholdInterval) {
-        if(thresholdInterval <= 0)
+        if (thresholdInterval <= 0) {
             throw new IllegalArgumentException("thresholdInterval must be greater than 0");
+        }
 
         this.thresholdInterval = thresholdInterval;
         return this;
@@ -393,16 +397,16 @@ public class FailureDetectorConfig {
     /**
      * Returns the interval of time (in milliseconds) that the thread will wait
      * before checking if a given node has recovered.
-     * 
+     *
      * <p/>
-     * 
+     *
      * <b>Note</b>: this is only used by the
      * {@link AsyncRecoveryFailureDetector} and {@link ThresholdFailureDetector}
      * implementations.
-     * 
+     *
      * @return Integer representing the millisecond interval for the success
      *         ratio
-     * 
+     *
      * @see AsyncRecoveryFailureDetector
      * @see ThresholdFailureDetector
      * @see VoldemortConfig#getFailureDetectorAsyncRecoveryInterval
@@ -416,19 +420,19 @@ public class FailureDetectorConfig {
     /**
      * Assigns the interval of time (in milliseconds) that the thread will wait
      * before checking if a given node has recovered.
-     * 
+     *
      * <p/>
-     * 
+     *
      * <b>Note</b>: this is only used by the
      * {@link AsyncRecoveryFailureDetector} and {@link ThresholdFailureDetector}
      * implementations.
-     * 
+     *
      * @param asyncRecoveryInterval Number of milliseconds to wait between
      *        recovery attempts
-     * 
+     *
      * @exception IllegalArgumentException Thrown if the thresholdInterval
      *            parameter is less than or equal to 0
-     * 
+     *
      * @see AsyncRecoveryFailureDetector
      * @see ThresholdFailureDetector
      * @see VoldemortConfig#getFailureDetectorAsyncRecoveryInterval
@@ -436,8 +440,9 @@ public class FailureDetectorConfig {
      */
 
     public FailureDetectorConfig setAsyncRecoveryInterval(long asyncRecoveryInterval) {
-        if(asyncRecoveryInterval <= 0)
+        if (asyncRecoveryInterval <= 0) {
             throw new IllegalArgumentException("asyncRecoveryInterval must be greater than 0");
+        }
 
         this.asyncRecoveryInterval = asyncRecoveryInterval;
         return this;
@@ -452,16 +457,16 @@ public class FailureDetectorConfig {
      * catastrophic errors provides such FailureDetector implementations a hint
      * that receipt of such errors should cause the node to be marked as
      * unavailable immediately, regardless of other logic.
-     * 
+     *
      * <p/>
-     * 
+     *
      * <b>Note</b>: this is only used by the {@link ThresholdFailureDetector}
      * implementation.
-     * 
+     *
      * @return List of fully-qualified Java Exception class names against which
      *         to check the exception provided to recordException; this list
      *         should be immutable
-     * 
+     *
      * @see ThresholdFailureDetector
      * @see VoldemortConfig#getFailureDetectorCatastrophicErrorTypes
      * @see ClientConfig#getFailureDetectorCatastrophicErrorTypes
@@ -480,16 +485,16 @@ public class FailureDetectorConfig {
      * catastrophic errors provides such FailureDetector implementations a hint
      * that receipt of such errors should cause the node to be marked as
      * unavailable immediately, regardless of other logic.
-     * 
+     *
      * <p/>
-     * 
+     *
      * <b>Note</b>: this is only used by the {@link ThresholdFailureDetector}
      * implementation.
-     * 
+     *
      * @param catastrophicErrorTypes List of fully-qualified Java Exception
      *        class names against which to check the exception provided to
      *        recordException; this list should be immutable and non-null
-     * 
+     *
      * @see ThresholdFailureDetector
      * @see VoldemortConfig#getFailureDetectorCatastrophicErrorTypes
      * @see ClientConfig#getFailureDetectorCatastrophicErrorTypes
@@ -505,15 +510,15 @@ public class FailureDetectorConfig {
      * delete, etc.) can take before a given <i>successful</i> event is
      * considered as a failure because the requests are--while
      * successful--considered to be taking too long to complete.
-     * 
+     *
      * <p/>
-     * 
+     *
      * <b>Note</b>: this is only used by the {@link ThresholdFailureDetector}
      * implementation.
-     * 
+     *
      * @return Number of milliseconds representing maximum amount of time the
      *         request should take before being considered as a failure
-     * 
+     *
      * @see ThresholdFailureDetector
      * @see VoldemortConfig#getFailureDetectorRequestLengthThreshold
      * @see ClientConfig#getFailureDetectorRequestLengthThreshold
@@ -528,27 +533,28 @@ public class FailureDetectorConfig {
      * (get, put, delete, etc.) can take before a given <i>successful</i> event
      * is considered as a failure because the requests are--while
      * successful--considered to be taking too long to complete.
-     * 
+     *
      * <p/>
-     * 
+     *
      * <b>Note</b>: this is only used by the {@link ThresholdFailureDetector}
      * implementation.
-     * 
+     *
      * @param requestLengthThreshold Number of milliseconds representing maximum
      *        amount of time the request should take before being considered as
      *        a failure
-     * 
+     *
      * @exception IllegalArgumentException Thrown if the requestLengthThreshold
      *            parameter is less than 0
-     * 
+     *
      * @see ThresholdFailureDetector
      * @see VoldemortConfig#getFailureDetectorRequestLengthThreshold
      * @see ClientConfig#getFailureDetectorRequestLengthThreshold
      */
 
     public FailureDetectorConfig setRequestLengthThreshold(long requestLengthThreshold) {
-        if(requestLengthThreshold <= 0)
+        if (requestLengthThreshold <= 0) {
             throw new IllegalArgumentException("requestLengthThreshold must be positive");
+        }
 
         this.requestLengthThreshold = requestLengthThreshold;
         return this;
@@ -556,7 +562,7 @@ public class FailureDetectorConfig {
 
     /**
      * Returns a reference to the cluster object
-     * 
+     *
      * @return Cluster object which determines the source of truth for the
      *         topology
      */
@@ -567,7 +573,7 @@ public class FailureDetectorConfig {
 
     /**
      * Assigns a cluster which determines the source of truth for the topology
-     * 
+     *
      * @param cluster The Cluster object retrieved during bootstrap; must be
      *        non-null
      */
@@ -582,7 +588,7 @@ public class FailureDetectorConfig {
          * centralized metadata management, and all references of cluster object
          * point to that.
          */
-        if(this.connectionVerifier instanceof AdminConnectionVerifier) {
+        if (this.connectionVerifier instanceof AdminConnectionVerifier) {
             ((AdminConnectionVerifier) connectionVerifier).setCluster(cluster);
         }
         return this;
@@ -591,7 +597,7 @@ public class FailureDetectorConfig {
     /**
      * Returns a list of nodes in the cluster represented by this failure
      * detector configuration.
-     * 
+     *
      * @return Collection of Node instances, usually determined from the Cluster
      */
 
@@ -603,7 +609,7 @@ public class FailureDetectorConfig {
     /**
      * Assigns a list of nodes in the cluster represented by this failure
      * detector configuration.
-     * 
+     *
      * @param nodes Collection of Node instances, usually determined from the
      *        Cluster; must be non-null
      */
@@ -647,14 +653,14 @@ public class FailureDetectorConfig {
      * Sets the maximum number of Fatal failures (connectivity failures)
      * acceptable before the node is marked as unavailable (in case of
      * ThresholdFailureDetector).
-     * 
+     *
      * @param maximumTolerableFatalFailures #fatal failures acceptable before
      *        node is marked as unavailable
      */
     public FailureDetectorConfig setMaximumTolerableFatalFailures(int maximumTolerableFatalFailures) {
-        if(maximumTolerableFatalFailures <= 0) {
+        if (maximumTolerableFatalFailures <= 0) {
             throw new IllegalArgumentException(" Catastrophic error limit should be greater than zero. Current value "
-                                               + maximumTolerableFatalFailures);
+                    + maximumTolerableFatalFailures);
         }
         this.maximumTolerableFatalFailures = maximumTolerableFatalFailures;
         return this;

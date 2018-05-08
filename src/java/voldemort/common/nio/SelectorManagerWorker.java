@@ -16,6 +16,10 @@
 
 package voldemort.common.nio;
 
+import org.apache.commons.io.IOUtils;
+import org.apache.log4j.Level;
+import org.apache.log4j.Logger;
+
 import java.io.EOFException;
 import java.io.IOException;
 import java.nio.channels.CancelledKeyException;
@@ -24,10 +28,6 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
 import java.util.concurrent.atomic.AtomicBoolean;
-
-import org.apache.commons.io.IOUtils;
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
 
 /**
  * SelectorManagerWorker manages a Selector, SocketChannel, and IO streams
@@ -40,6 +40,7 @@ import org.apache.log4j.Logger;
  * read.
  */
 
+// TODO: 2018/4/26 by zmyer
 public abstract class SelectorManagerWorker implements Runnable {
 
     protected final Selector selector;
@@ -61,8 +62,8 @@ public abstract class SelectorManagerWorker implements Runnable {
     protected final Logger logger = Logger.getLogger(getClass());
 
     public SelectorManagerWorker(Selector selector,
-                                 SocketChannel socketChannel,
-                                 int socketBufferSize) {
+            SocketChannel socketChannel,
+            int socketBufferSize) {
         this.selector = selector;
         this.socketChannel = socketChannel;
         this.socketBufferSize = socketBufferSize;
@@ -71,8 +72,9 @@ public abstract class SelectorManagerWorker implements Runnable {
         this.createTimestamp = System.nanoTime();
         this.isClosed = new AtomicBoolean(false);
 
-        if(logger.isDebugEnabled())
+        if (logger.isDebugEnabled()) {
             logger.debug("Accepting remote connection from " + socketChannel.socket());
+        }
     }
 
     protected abstract void read(SelectionKey selectionKey) throws IOException;
@@ -80,14 +82,15 @@ public abstract class SelectorManagerWorker implements Runnable {
     protected abstract void write(SelectionKey selectionKey) throws IOException;
 
     protected abstract void initializeStreams(int socketBufferSize,
-                                              CommBufferSizeStats commBufferStats);
+            CommBufferSizeStats commBufferStats);
+
     protected abstract void connect(SelectionKey selectionKey) throws IOException;
 
     protected abstract void reportException(IOException e);
 
     /**
      * Returns the nanosecond-based timestamp of when this was created.
-     * 
+     *
      * @return Nanosecond-based timestamp of creation
      */
 
@@ -99,31 +102,33 @@ public abstract class SelectorManagerWorker implements Runnable {
         try {
             SelectionKey selectionKey = socketChannel.keyFor(selector);
 
-            if(selectionKey.isConnectable())
+            if (selectionKey.isConnectable()) {
                 connect(selectionKey);
-            else if(selectionKey.isReadable())
+            } else if (selectionKey.isReadable()) {
                 read(selectionKey);
-            else if(selectionKey.isWritable())
+            } else if (selectionKey.isWritable()) {
                 write(selectionKey);
-            else if(!selectionKey.isValid())
+            } else if (!selectionKey.isValid()) {
                 throw new IllegalStateException("Selection key not valid for " + getDebugInfo());
-            else
-                throw new IllegalStateException("Unknown state, not readable, writable, or valid for " + getDebugInfo());
-        } catch(ClosedByInterruptException e) {
+            } else {
+                throw new IllegalStateException(
+                        "Unknown state, not readable, writable, or valid for " + getDebugInfo());
+            }
+        } catch (ClosedByInterruptException e) {
             reportException(e);
             close();
-        } catch(CancelledKeyException e) {
+        } catch (CancelledKeyException e) {
             close();
-        } catch(EOFException e) {
+        } catch (EOFException e) {
             // EOFException is expected, hence no logging, otherwise this block
             // could be combined with IOException
             reportException(e);
             close();
-        } catch(IOException e) {
+        } catch (IOException e) {
             logger.info("IOException from " + getDebugInfo() + " with message - " + e.getMessage());
             reportException(e);
             close();
-        } catch(Throwable t) {
+        } catch (Throwable t) {
             logger.error("Caught throwable from " + getDebugInfo(), t);
             close();
         }
@@ -134,39 +139,44 @@ public abstract class SelectorManagerWorker implements Runnable {
         // fashion. Rather than trying to handle all of the cases, simply keep
         // track of whether we've been called before and only perform the logic
         // once.
-        if(!isClosed.compareAndSet(false, true))
+        if (!isClosed.compareAndSet(false, true)) {
             return;
+        }
 
         closeInternal();
     }
 
     protected void closeInternal() {
-        if(logger.isDebugEnabled())
+        if (logger.isDebugEnabled()) {
             logger.debug("Closing remote connection from " + socketChannel.socket());
+        }
 
         try {
             socketChannel.socket().close();
-        } catch(IOException e) {
-            if(logger.isEnabledFor(Level.WARN))
+        } catch (IOException e) {
+            if (logger.isEnabledFor(Level.WARN)) {
                 logger.warn(e.getMessage(), e);
+            }
         }
 
         try {
             socketChannel.close();
-        } catch(IOException e) {
-            if(logger.isEnabledFor(Level.WARN))
+        } catch (IOException e) {
+            if (logger.isEnabledFor(Level.WARN)) {
                 logger.warn(e.getMessage(), e);
+            }
         }
 
         SelectionKey selectionKey = socketChannel.keyFor(selector);
 
-        if(selectionKey != null) {
+        if (selectionKey != null) {
             try {
                 selectionKey.attach(null);
                 selectionKey.cancel();
-            } catch(Exception e) {
-                if(logger.isEnabledFor(Level.WARN))
+            } catch (Exception e) {
+                if (logger.isEnabledFor(Level.WARN)) {
                     logger.warn(e.getMessage(), e);
+                }
             }
         }
 
@@ -180,31 +190,34 @@ public abstract class SelectorManagerWorker implements Runnable {
     }
 
     protected void handleIncompleteRequest(int newPosition) {
-        if(logger.isTraceEnabled())
+        if (logger.isTraceEnabled()) {
             traceInputBufferState("Incomplete read request detected, before update");
+        }
 
         inputStream.getBuffer().position(newPosition);
         inputStream.getBuffer().limit(inputStream.getBuffer().capacity());
 
-        if(logger.isTraceEnabled())
+        if (logger.isTraceEnabled()) {
             traceInputBufferState("Incomplete read request detected, after update");
+        }
 
-        if(!inputStream.getBuffer().hasRemaining()) {
+        if (!inputStream.getBuffer().hasRemaining()) {
             // We haven't read all the data needed for the request AND we
             // don't have enough data in our buffer. So expand it. Note:
             // doubling the current buffer size is arbitrary.
             inputStream.growBuffer();
 
-            if(logger.isTraceEnabled())
+            if (logger.isTraceEnabled()) {
                 traceInputBufferState("Expanded input buffer");
+            }
         }
     }
 
     protected void traceInputBufferState(String preamble) {
         logger.trace(preamble + " - position: " + inputStream.getBuffer().position() + ", limit: "
-                     + inputStream.getBuffer().limit() + ", remaining: "
-                     + inputStream.getBuffer().remaining() + ", capacity: "
-                     + inputStream.getBuffer().capacity() + " - for " + socketChannel.socket());
+                + inputStream.getBuffer().limit() + ", remaining: "
+                + inputStream.getBuffer().remaining() + ", capacity: "
+                + inputStream.getBuffer().capacity() + " - for " + socketChannel.socket());
     }
 
     protected String getDebugInfo() {

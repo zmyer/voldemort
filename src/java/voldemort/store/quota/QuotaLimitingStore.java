@@ -16,11 +16,7 @@
 
 package voldemort.store.quota;
 
-import java.util.List;
-import java.util.Map;
-
 import org.apache.log4j.Logger;
-
 import voldemort.VoldemortException;
 import voldemort.store.DelegatingStore;
 import voldemort.store.Store;
@@ -33,6 +29,10 @@ import voldemort.utils.Utils;
 import voldemort.versioning.Version;
 import voldemort.versioning.Versioned;
 
+import java.util.List;
+import java.util.Map;
+
+// TODO: 2018/4/26 by zmyer
 public class QuotaLimitingStore extends DelegatingStore<ByteArray, byte[], byte[]> {
 
     private static final Logger logger = Logger.getLogger(QuotaLimitingStore.class.getName());
@@ -45,11 +45,11 @@ public class QuotaLimitingStore extends DelegatingStore<ByteArray, byte[], byte[
     private final String getQuotaKey;
     private final String putQuotaKey;
 
-	public QuotaLimitingStore(Store<ByteArray, byte[], byte[]> innerStore,
-                              StoreStats stats,
-                              QuotaLimitStats quotaStats,
-                              FileBackedCachingStorageEngine quotaStore,
-                              MetadataStore metadataStore) {
+    public QuotaLimitingStore(Store<ByteArray, byte[], byte[]> innerStore,
+            StoreStats stats,
+            QuotaLimitStats quotaStats,
+            FileBackedCachingStorageEngine quotaStore,
+            MetadataStore metadataStore) {
         super(innerStore);
         this.stats = stats;
         this.quotaStore = quotaStore;
@@ -61,15 +61,15 @@ public class QuotaLimitingStore extends DelegatingStore<ByteArray, byte[], byte[
     }
 
     public StoreStats getStats() {
-		return stats;
-	}
+        return stats;
+    }
 
     private float getThroughput(Tracked trackedOp) {
-        if(trackedOp.equals(Tracked.GET)) {
+        if (trackedOp.equals(Tracked.GET)) {
             float getThroughPut = this.stats.getThroughput(Tracked.GET);
             float getAllThroughPut = this.stats.getGetAllKeysThroughput();
             return getThroughPut + getAllThroughPut;
-        } else if(trackedOp.equals(Tracked.PUT)) {
+        } else if (trackedOp.equals(Tracked.PUT)) {
             float putThroughPut = this.stats.getThroughput(Tracked.PUT);
             float deleteThroughPut = this.stats.getThroughput(Tracked.DELETE);
             return putThroughPut + deleteThroughPut;
@@ -81,19 +81,19 @@ public class QuotaLimitingStore extends DelegatingStore<ByteArray, byte[], byte[
     /**
      * Ensure the current throughput levels for the tracked operation does not
      * exceed set quota limits. Throws an exception if exceeded quota.
-     * 
+     *
      * @param quotaKey
      * @param trackedOp
      */
     private void checkRateLimit(String quotaKey, Tracked trackedOp) {
         String quotaValue = null;
         try {
-            if(!metadataStore.getQuotaEnforcingEnabledUnlocked()) {
+            if (!metadataStore.getQuotaEnforcingEnabledUnlocked()) {
                 return;
             }
             quotaValue = quotaStore.cacheGet(quotaKey);
             // Store may not have any quotas
-            if(quotaValue == null) {
+            if (quotaValue == null) {
                 return;
             }
             // But, if it does
@@ -106,16 +106,16 @@ public class QuotaLimitingStore extends DelegatingStore<ByteArray, byte[], byte[
             quotaStats.reportQuotaUsed(trackedOp, Utils.safeGetPercentage(currentRate, allowedRate));
 
             // check if we have exceeded rate.
-            if(currentRate > allowedRate) {
+            if (currentRate > allowedRate) {
                 quotaStats.reportRateLimitedOp(trackedOp);
                 throw new QuotaExceededException("Exceeded rate limit for " + quotaKey
-                                                 + ". Maximum allowed : " + allowedRate
-                                                 + " Current: " + currentRate);
+                        + ". Maximum allowed : " + allowedRate
+                        + " Current: " + currentRate);
             }
-        } catch(NumberFormatException nfe) {
+        } catch (NumberFormatException nfe) {
             // move on, if we cannot parse quota value properly
             logger.debug("Invalid formatting of quota value for key " + quotaKey + " : "
-                         + quotaValue);
+                    + quotaValue);
         }
     }
 
@@ -136,7 +136,7 @@ public class QuotaLimitingStore extends DelegatingStore<ByteArray, byte[], byte[
 
     @Override
     public Map<ByteArray, List<Versioned<byte[]>>> getAll(Iterable<ByteArray> keys,
-                                                          Map<ByteArray, byte[]> transforms)
+            Map<ByteArray, byte[]> transforms)
             throws VoldemortException {
         // We want to have only 2 Quotas read and write, hence the GetAll uses
         // GET. It would be easier if we rename PUT, GET to WRITE,READ

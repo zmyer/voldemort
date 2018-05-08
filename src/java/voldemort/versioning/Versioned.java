@@ -16,20 +16,20 @@
 
 package voldemort.versioning;
 
+import com.google.common.base.Objects;
+import voldemort.utils.Utils;
+
 import java.io.Serializable;
 import java.util.Comparator;
 
-import voldemort.utils.Utils;
-
-import com.google.common.base.Objects;
-
 /**
  * A wrapper for an object that adds a Version.
- * 
+ *
  * This class it bad to use in map, as the hashCode calls object.hashCode Most
  * likely the object is byte array and hashCode for array will be different for
  * different objects though the contents are the same
  */
+// TODO: 2018/4/26 by zmyer
 public final class Versioned<T> implements Serializable {
 
     private static final long serialVersionUID = 1;
@@ -60,20 +60,21 @@ public final class Versioned<T> implements Serializable {
 
     @Override
     public boolean equals(Object o) {
-        if(o == this)
+        if (o == this) {
             return true;
-        else if(!(o instanceof Versioned<?>))
+        } else if (!(o instanceof Versioned<?>)) {
             return false;
+        }
 
         Versioned<?> versioned = (Versioned<?>) o;
         return Objects.equal(getVersion(), versioned.getVersion())
-               && Utils.deepEquals(getValue(), versioned.getValue());
+                && Utils.deepEquals(getValue(), versioned.getValue());
     }
 
     @Override
     public int hashCode() {
         int value = 31 + version.hashCode();
-        if(object != null) {
+        if (object != null) {
             // So two different arrays having same content will return two
             // different has codes
             value += 31 * object.hashCode();
@@ -106,12 +107,13 @@ public final class Versioned<T> implements Serializable {
 
         public int compare(Versioned<S> v1, Versioned<S> v2) {
             Occurred occurred = v1.getVersion().compare(v2.getVersion());
-            if(occurred == Occurred.BEFORE)
+            if (occurred == Occurred.BEFORE) {
                 return -1;
-            else if(occurred == Occurred.AFTER)
+            } else if (occurred == Occurred.AFTER) {
                 return 1;
-            else
+            } else {
                 return 0;
+            }
         }
     }
 

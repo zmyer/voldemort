@@ -18,14 +18,16 @@ package voldemort.client.protocol;
 
 /**
  * An enumeration of request serialization types
- * 
- * 
+ *
+ *
  */
+// TODO: 2018/4/26 by zmyer
 public enum RequestFormatType {
     VOLDEMORT_V0("vp0", "voldemort-native-v0"),
     VOLDEMORT_V1("vp1", "voldemort-native-v1"),
     VOLDEMORT_V2("vp2", "voldemort-native-v2"),
-    VOLDEMORT_V3("vp3", "voldemort-native-v3"), // has the transforms
+    VOLDEMORT_V3("vp3", "voldemort-native-v3"),
+    // has the transforms
     // information
     PROTOCOL_BUFFERS("pb0", "protocol-buffers-v0"),
     ADMIN_PROTOCOL_BUFFERS("ad1", "admin-v1");
@@ -47,9 +49,11 @@ public enum RequestFormatType {
     }
 
     public static RequestFormatType fromCode(String code) {
-        for(RequestFormatType type: RequestFormatType.values())
-            if(type.getCode().equals(code))
+        for (RequestFormatType type : RequestFormatType.values()) {
+            if (type.getCode().equals(code)) {
                 return type;
+            }
+        }
         throw new IllegalArgumentException("No request format '" + code + "' was found");
     }
 

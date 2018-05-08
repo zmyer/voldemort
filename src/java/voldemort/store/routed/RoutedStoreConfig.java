@@ -22,6 +22,7 @@ import voldemort.cluster.Cluster;
 import voldemort.cluster.Zone;
 import voldemort.server.VoldemortConfig;
 
+// TODO: 2018/4/3 by zmyer
 public class RoutedStoreConfig {
 
     private boolean repairReads = true;
@@ -31,7 +32,8 @@ public class RoutedStoreConfig {
     private int clientZoneId = Zone.UNSET_ZONE_ID;
     private ZoneAffinity zoneAffinity = new ZoneAffinity();
 
-    public RoutedStoreConfig() {}
+    public RoutedStoreConfig() {
+    }
 
     public RoutedStoreConfig(ClientConfig clientConfig) {
         this.isJmxEnabled = clientConfig.isJmxEnabled();

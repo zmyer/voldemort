@@ -22,26 +22,27 @@ import voldemort.utils.ReflectUtils;
 /**
  * FailureDetectorUtils serves as a factory for creating a FailureDetector
  * implementation.
- * 
+ *
  */
-
+// TODO: 2018/4/26 by zmyer
 public class FailureDetectorUtils {
 
     public static FailureDetector create(FailureDetectorConfig failureDetectorConfig,
-                                         boolean registerMbean,
-                                         FailureDetectorListener... failureDetectorListeners) {
+            boolean registerMbean, FailureDetectorListener... failureDetectorListeners) {
         Class<?> clazz = ReflectUtils.loadClass(failureDetectorConfig.getImplementationClassName());
         FailureDetector failureDetector = (FailureDetector) ReflectUtils.callConstructor(clazz,
-                                                                                         new Class[] { FailureDetectorConfig.class },
-                                                                                         new Object[] { failureDetectorConfig });
+                new Class[]{ FailureDetectorConfig.class },
+                new Object[]{ failureDetectorConfig });
 
-        if(failureDetectorListeners != null) {
-            for(FailureDetectorListener failureDetectorListener: failureDetectorListeners)
+        if (failureDetectorListeners != null) {
+            for (FailureDetectorListener failureDetectorListener : failureDetectorListeners) {
                 failureDetector.addFailureDetectorListener(failureDetectorListener);
+            }
         }
 
-        if(registerMbean)
+        if (registerMbean) {
             JmxUtils.registerMbean(failureDetector.getClass().getSimpleName(), failureDetector);
+        }
 
         return failureDetector;
     }

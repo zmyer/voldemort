@@ -2,9 +2,10 @@ package voldemort.common.service;
 
 /**
  * The various types of voldemort services
- * 
- * 
+ *
+ *
  */
+// TODO: 2018/3/23 by zmyer
 public enum ServiceType {
     HTTP("http-service"),
     SOCKET("socket-service"),

@@ -16,6 +16,13 @@
 
 package voldemort.cluster;
 
+import com.google.common.collect.Sets;
+import voldemort.VoldemortException;
+import voldemort.annotations.concurrency.Threadsafe;
+import voldemort.annotations.jmx.JmxGetter;
+import voldemort.annotations.jmx.JmxManaged;
+import voldemort.utils.Utils;
+
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -28,18 +35,10 @@ import java.util.Random;
 import java.util.Set;
 import java.util.TreeSet;
 
-import voldemort.VoldemortException;
-import voldemort.annotations.concurrency.Threadsafe;
-import voldemort.annotations.jmx.JmxGetter;
-import voldemort.annotations.jmx.JmxManaged;
-import voldemort.utils.Utils;
-
-import com.google.common.collect.Sets;
-
 /**
  * A representation of the voldemort cluster
- * 
- * 
+ *
+ *
  */
 @Threadsafe
 @JmxManaged(description = "Metadata about the physical servers on which the Voldemort cluster runs")
@@ -78,12 +77,13 @@ public class Cluster implements Serializable {
         this.partitionIdToNode = new HashMap<Integer, Node>();
         this.partitionIdToNodeId = new HashMap<Integer, Integer>();
 
-        if(zones.size() != 0) {
+        if (zones.size() != 0) {
             zonesById = new LinkedHashMap<Integer, Zone>(zones.size());
-            for(Zone zone: zones) {
-                if(zonesById.containsKey(zone.getId()))
+            for (Zone zone : zones) {
+                if (zonesById.containsKey(zone.getId())) {
                     throw new IllegalArgumentException("Zone id " + zone.getId()
-                                                       + " appears twice in the zone list.");
+                            + " appears twice in the zone list.");
+                }
                 zonesById.put(zone.getId(), zone);
                 nodesPerZone.put(zone, new ArrayList<Integer>());
                 partitionsPerZone.put(zone, new ArrayList<Integer>());
@@ -98,24 +98,25 @@ public class Cluster implements Serializable {
         }
 
         this.nodesById = new LinkedHashMap<Integer, Node>(nodes.size());
-        for(Node node: nodes) {
-            if(nodesById.containsKey(node.getId()))
+        for (Node node : nodes) {
+            if (nodesById.containsKey(node.getId())) {
                 throw new IllegalArgumentException("Node id " + node.getId()
-                                                   + " appears twice in the node list.");
+                        + " appears twice in the node list.");
+            }
             nodesById.put(node.getId(), node);
 
             Zone nodesZone = zonesById.get(node.getZoneId());
-            if(nodesZone == null) {
+            if (nodesZone == null) {
                 throw new IllegalArgumentException("No zone associated with this node exists.");
             }
             nodesPerZone.get(nodesZone).add(node.getId());
             partitionsPerZone.get(nodesZone).addAll(node.getPartitionIds());
-            for(Integer partitionId: node.getPartitionIds()) {
-                if(this.partitionIdToNodeId.containsKey(partitionId)) {
+            for (Integer partitionId : node.getPartitionIds()) {
+                if (this.partitionIdToNodeId.containsKey(partitionId)) {
                     throw new IllegalArgumentException("Partition id " + partitionId
-                                                       + " found on two nodes : " + node.getId()
-                                                       + " and "
-                                                       + this.partitionIdToNodeId.get(partitionId));
+                            + " found on two nodes : " + node.getId()
+                            + " and "
+                            + this.partitionIdToNodeId.get(partitionId));
                 }
                 this.partitionIdToZone.put(partitionId, nodesZone);
                 partitionIdToNodeMap.put(partitionId, node);
@@ -124,9 +125,9 @@ public class Cluster implements Serializable {
             }
         }
         this.numberOfPartitionIds = getNumberOfPartitions(nodes);
-        
+
         this.partitionIdToNodeArray = new Node[this.numberOfPartitionIds];
-        for(int partitionId = 0; partitionId < this.numberOfPartitionIds; partitionId++) {
+        for (int partitionId = 0; partitionId < this.numberOfPartitionIds; partitionId++) {
             this.partitionIdToNodeArray[partitionId] = partitionIdToNodeMap.get(partitionId);
         }
 
@@ -136,14 +137,15 @@ public class Cluster implements Serializable {
 
     private int getNumberOfPartitions(List<Node> nodes) {
         List<Integer> tags = new ArrayList<Integer>();
-        for(Node node: nodes) {
+        for (Node node : nodes) {
             tags.addAll(node.getPartitionIds());
         }
         Collections.sort(tags);
-        for(int i = 0; i < tags.size(); i++) {
-            if(tags.get(i).intValue() != i)
+        for (int i = 0; i < tags.size(); i++) {
+            if (tags.get(i).intValue() != i) {
                 throw new IllegalArgumentException("Invalid partition assignment. " +
                         "The partitionId space defined in cluster.xml must be dense.");
+            }
         }
         return tags.size();
     }
@@ -170,7 +172,7 @@ public class Cluster implements Serializable {
     }
 
     /**
-     * 
+     *
      * @return Sorted set of Zone Ids
      */
     public Set<Integer> getZoneIds() {
@@ -184,18 +186,19 @@ public class Cluster implements Serializable {
 
     public Zone getZoneById(int id) {
         Zone zone = zonesById.get(id);
-        if(zone == null) {
+        if (zone == null) {
             throw new VoldemortException("No such zone in cluster: " + id
-                                         + " Available zones : " + displayZones());
+                    + " Available zones : " + displayZones());
         }
         return zone;
     }
 
     private String displayZones() {
         String zoneIDS = "{";
-        for(Zone z: this.getZones()) {
-            if(zoneIDS.length() != 1)
+        for (Zone z : this.getZones()) {
+            if (zoneIDS.length() != 1) {
                 zoneIDS += ",";
+            }
             zoneIDS += z.getId();
         }
         zoneIDS += "}";
@@ -241,7 +244,7 @@ public class Cluster implements Serializable {
     }
 
     /**
-     * 
+     *
      * @return Map of partition id to node id.
      */
     public Map<Integer, Integer> getPartitionIdToNodeIdMap() {
@@ -250,20 +253,21 @@ public class Cluster implements Serializable {
 
     public Node getNodeById(int id) {
         Node node = nodesById.get(id);
-        if(node == null)
+        if (node == null) {
             throw new VoldemortException("No such node in cluster: " + id);
+        }
         return node;
     }
 
     /**
      * Given a cluster and a node id checks if the node exists
-     * 
+     *
      * @param nodeId The node id to search for
      * @return True if cluster contains the node id, else false
      */
     public boolean hasNodeWithId(int nodeId) {
         Node node = nodesById.get(nodeId);
-        if(node == null) {
+        if (node == null) {
             return false;
         }
         return true;
@@ -284,7 +288,7 @@ public class Cluster implements Serializable {
         builder.append("Cluster('");
         builder.append(getName());
         builder.append("', [");
-        for(Node n: getNodes()) {
+        for (Node n : getNodes()) {
             builder.append(n.toString());
             builder.append('\n');
         }
@@ -295,18 +299,18 @@ public class Cluster implements Serializable {
 
     /**
      * Return a detailed string representation of the current cluster
-     * 
+     *
      * @param isDetailed
      * @return descripton of cluster
      */
     public String toString(boolean isDetailed) {
-        if(!isDetailed) {
+        if (!isDetailed) {
             return toString();
         }
         StringBuilder builder = new StringBuilder("Cluster [" + getName() + "] Nodes ["
-                                                  + getNumberOfNodes() + "] Zones ["
-                                                  + getNumberOfZones() + "] Partitions ["
-                                                  + getNumberOfPartitions() + "]");
+                + getNumberOfNodes() + "] Zones ["
+                + getNumberOfZones() + "] Partitions ["
+                + getNumberOfPartitions() + "]");
         builder.append(" Zone Info [" + getZones() + "]");
         builder.append(" Node Info [" + getNodes() + "]");
         return builder.toString();
@@ -315,7 +319,7 @@ public class Cluster implements Serializable {
     /**
      * Clones the cluster by constructing a new one with same name, partition
      * layout, and nodes.
-     * 
+     *
      * @param cluster
      * @return clone of Cluster cluster.
      */
@@ -325,8 +329,8 @@ public class Cluster implements Serializable {
         // can be slow for large numbers of partitions. Probably faster to copy
         // all the maps and stuff.
         return new Cluster(cluster.getName(),
-                           new ArrayList<Node>(cluster.getNodes()),
-                           new ArrayList<Zone>(cluster.getZones()));
+                new ArrayList<Node>(cluster.getNodes()),
+                new ArrayList<Zone>(cluster.getZones()));
         /*-
          * Historic "clone" code being kept in case this, for some reason, was the "right" way to be doing this.
         ClusterMapper mapper = new ClusterMapper();
@@ -340,8 +344,8 @@ public class Cluster implements Serializable {
 
     public List<String> getBootStrapUrls(int maxSize) {
         List<String> bootStrapUrls = new ArrayList<String>();
-        for(Node node: getNodes()) {
-            if(bootStrapUrls.size() >= maxSize) {
+        for (Node node : getNodes()) {
+            if (bootStrapUrls.size() >= maxSize) {
                 break;
             }
             String bootStrapUrl = node.getSocketUrl().toString();
@@ -352,55 +356,58 @@ public class Cluster implements Serializable {
 
     @Override
     public boolean equals(Object second) {
-        if(this == second)
+        if (this == second) {
             return true;
-        if(second == null || second.getClass() != getClass())
+        }
+        if (second == null || second.getClass() != getClass()) {
             return false;
+        }
 
         Cluster secondCluster = (Cluster) second;
-        if(this.getZones().size() != secondCluster.getZones().size()) {
+        if (this.getZones().size() != secondCluster.getZones().size()) {
             return false;
         }
 
-        if(this.getNodes().size() != secondCluster.getNodes().size()) {
+        if (this.getNodes().size() != secondCluster.getNodes().size()) {
             return false;
         }
 
-        for(Zone zoneA: this.getZones()) {
+        for (Zone zoneA : this.getZones()) {
             Zone zoneB;
             try {
                 zoneB = secondCluster.getZoneById(zoneA.getId());
-            } catch(VoldemortException e) {
+            } catch (VoldemortException e) {
                 return false;
             }
-            if(zoneB == null || zoneB.getProximityList().size() != zoneA.getProximityList().size()) {
+            if (zoneB == null || zoneB.getProximityList().size() != zoneA.getProximityList().size()) {
                 return false;
             }
 
-            for(int index = 0; index < zoneA.getProximityList().size(); index++) {
-                if(zoneA.getProximityList().get(index) != zoneB.getProximityList().get(index)) {
+            for (int index = 0; index < zoneA.getProximityList().size(); index++) {
+                if (zoneA.getProximityList().get(index) != zoneB.getProximityList().get(index)) {
                     return false;
                 }
             }
         }
-        for(Node nodeA: this.getNodes()) {
+        for (Node nodeA : this.getNodes()) {
             Node nodeB;
             try {
                 nodeB = secondCluster.getNodeById(nodeA.getId());
-            } catch(VoldemortException e) {
+            } catch (VoldemortException e) {
                 return false;
             }
-            if(nodeA.getNumberOfPartitions() != nodeB.getNumberOfPartitions()) {
-                return false;
-            }
-
-            if(nodeA.isEqualState(nodeB) == false) {
+            if (nodeA.getNumberOfPartitions() != nodeB.getNumberOfPartitions()) {
                 return false;
             }
 
-            if(!Sets.newHashSet(nodeA.getPartitionIds())
-                    .equals(Sets.newHashSet(nodeB.getPartitionIds())))
+            if (nodeA.isEqualState(nodeB) == false) {
                 return false;
+            }
+
+            if (!Sets.newHashSet(nodeA.getPartitionIds())
+                    .equals(Sets.newHashSet(nodeB.getPartitionIds()))) {
+                return false;
+            }
         }
 
         return true;
@@ -409,7 +416,7 @@ public class Cluster implements Serializable {
     @Override
     public int hashCode() {
         int hc = getNodes().size();
-        for(Node node: getNodes()) {
+        for (Node node : getNodes()) {
             hc ^= node.getHost().hashCode();
         }
 

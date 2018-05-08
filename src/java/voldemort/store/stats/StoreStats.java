@@ -16,21 +16,20 @@
 
 package voldemort.store.stats;
 
+import org.apache.log4j.Logger;
+import voldemort.utils.JmxUtils;
+
+import javax.management.ObjectName;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.Map;
-
-import javax.management.ObjectName;
-
-import org.apache.log4j.Logger;
-
-import voldemort.utils.JmxUtils;
 
 /**
  * Some convenient statistics to track about the store
  *
  *
  */
+// TODO: 2018/4/3 by zmyer
 public class StoreStats {
 
     private final Map<Tracked, RequestCounter> counters;
@@ -60,7 +59,7 @@ public class StoreStats {
 
         counters = new EnumMap<Tracked, RequestCounter>(Tracked.class);
 
-        for(Tracked tracked: Tracked.values()) {
+        for (Tracked tracked : Tracked.values()) {
             String requestCounterName = "store-stats" + "." + storeName + "." + tracked.toString();
             RequestCounter requestCounter;
 
@@ -75,9 +74,9 @@ public class StoreStats {
             counters.put(tracked, requestCounter);
         }
 
-        if(logger.isDebugEnabled()) {
+        if (logger.isDebugEnabled()) {
             logger.debug("Constructed StoreStats object (" + System.identityHashCode(this)
-                         + ") with parent object (" + System.identityHashCode(parent) + ")");
+                    + ") with parent object (" + System.identityHashCode(parent) + ")");
         }
     }
 
@@ -128,16 +127,16 @@ public class StoreStats {
      * returned.
      */
     public void recordGetAllTime(long timeNS,
-                                 int requested,
-                                 int returned,
-                                 long totalValueBytes,
-                                 long totalKeyBytes) {
+            int requested,
+            int returned,
+            long totalValueBytes,
+            long totalKeyBytes) {
         recordTime(Tracked.GET_ALL,
-                   timeNS,
-                   requested - returned,
-                   totalValueBytes,
-                   totalKeyBytes,
-                   requested);
+                timeNS,
+                requested - returned,
+                totalValueBytes,
+                totalKeyBytes,
+                requested);
     }
 
     /**
@@ -152,20 +151,21 @@ public class StoreStats {
      * @param getAllAggregateRequests Total of amount of keys requested in the operation (GET_ALL only)
      */
     private void recordTime(Tracked op,
-                            long timeNS,
-                            long numEmptyResponses,
-                            long valueSize,
-                            long keySize,
-                            long getAllAggregateRequests) {
+            long timeNS,
+            long numEmptyResponses,
+            long valueSize,
+            long keySize,
+            long getAllAggregateRequests) {
         counters.get(op).addRequest(timeNS,
-                                    numEmptyResponses,
-                                    valueSize,
-                                    keySize,
-                                    getAllAggregateRequests);
+                numEmptyResponses,
+                valueSize,
+                keySize,
+                getAllAggregateRequests);
 
-        if (logger.isTraceEnabled() && !storeName.contains("aggregate") && !storeName.contains("voldsys$"))
+        if (logger.isTraceEnabled() && !storeName.contains("aggregate") && !storeName.contains("voldsys$")) {
             logger.trace("Store '" + storeName + "' logged a " + op.toString() + " request taking " +
                     ((double) timeNS / voldemort.utils.Time.NS_PER_MS) + " ms");
+        }
     }
 
     public long getCount(Tracked op) {
@@ -236,12 +236,15 @@ public class StoreStats {
     /**
      * @return The rate of keys per seconds that were queried through GetAll requests.
      */
-    public float getGetAllKeysThroughput() { return counters.get(Tracked.GET_ALL).getGetAllKeysThroughput(); }
+    public float getGetAllKeysThroughput() {
+        return counters.get(Tracked.GET_ALL).getGetAllKeysThroughput();
+    }
 
     private volatile boolean isJmxRegistered = false;
     private volatile ObjectName jmxObjectName;
+
     public synchronized void registerJmx(String identifierString) {
-        if(isJmxRegistered == false) {
+        if (isJmxRegistered == false) {
             StoreStatsJmx statsJmx = new StoreStatsJmx(this);
             String domain = JmxUtils.getPackageName(this.getClass());
             String type = this.storeName + identifierString;
@@ -253,7 +256,7 @@ public class StoreStats {
     }
 
     public synchronized void unregisterJmx() {
-        if(isJmxRegistered == true && jmxObjectName != null) {
+        if (isJmxRegistered == true && jmxObjectName != null) {
             JmxUtils.unregisterMbean(jmxObjectName);
             isJmxRegistered = false;
         }

@@ -16,16 +16,12 @@
 
 package voldemort.client.protocol.pb;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.IOException;
-import java.io.StringReader;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.protobuf.ByteString;
+import com.google.protobuf.CodedInputStream;
+import com.google.protobuf.CodedOutputStream;
+import com.google.protobuf.Message;
 import voldemort.VoldemortException;
 import voldemort.client.protocol.pb.VAdminProto.ROStoreVersionDirMap;
 import voldemort.client.protocol.pb.VAdminProto.RebalanceTaskInfoMap;
@@ -40,18 +36,21 @@ import voldemort.versioning.Version;
 import voldemort.versioning.Versioned;
 import voldemort.xml.ClusterMapper;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.protobuf.ByteString;
-import com.google.protobuf.CodedInputStream;
-import com.google.protobuf.CodedOutputStream;
-import com.google.protobuf.Message;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.io.StringReader;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 
 /**
  * Helper functions for serializing or deserializing client requests in protocol
  * buffers
- * 
- * 
+ *
+ *
  */
 public class ProtoUtils {
 
@@ -62,23 +61,24 @@ public class ProtoUtils {
     /**
      * Given a protobuf rebalance-partition info, converts it into our
      * rebalance-partition info
-     * 
+     *
      * @param rebalanceTaskInfoMap Proto-buff version of
      *        RebalanceTaskInfoMap
      * @return RebalanceTaskInfo object.
      */
     public static RebalanceTaskInfo decodeRebalanceTaskInfoMap(VAdminProto.RebalanceTaskInfoMap rebalanceTaskInfoMap) {
         RebalanceTaskInfo rebalanceTaskInfo = new RebalanceTaskInfo(
-                                                                    rebalanceTaskInfoMap.getStealerId(),
-                                                                    rebalanceTaskInfoMap.getDonorId(),
-                                                                    decodeStoreToPartitionIds(rebalanceTaskInfoMap.getPerStorePartitionIdsList()),
-                                                                    new ClusterMapper().readCluster(new StringReader(rebalanceTaskInfoMap.getInitialCluster())));
+                rebalanceTaskInfoMap.getStealerId(),
+                rebalanceTaskInfoMap.getDonorId(),
+                decodeStoreToPartitionIds(rebalanceTaskInfoMap.getPerStorePartitionIdsList()),
+                new ClusterMapper().readCluster(new StringReader(rebalanceTaskInfoMap.getInitialCluster())));
         return rebalanceTaskInfo;
     }
 
-    public static HashMap<String, List<Integer>> decodeStoreToPartitionIds(List<StoreToPartitionsIds> storeToPartitionIds) {
+    public static HashMap<String, List<Integer>> decodeStoreToPartitionIds(
+            List<StoreToPartitionsIds> storeToPartitionIds) {
         HashMap<String, List<Integer>> storeToPartitionIdsList = Maps.newHashMap();
-        for(StoreToPartitionsIds tuple: storeToPartitionIds) {
+        for (StoreToPartitionsIds tuple : storeToPartitionIds) {
             storeToPartitionIdsList.put(tuple.getStoreName(), tuple.getPartitionIdsList());
         }
         return storeToPartitionIdsList;
@@ -94,22 +94,23 @@ public class ProtoUtils {
 
     /**
      * Given a rebalance-task info, convert it into the protobuf equivalent
-     * 
+     *
      * @param stealInfo Rebalance task info
      * @return Protobuf equivalent of the same
      */
     public static RebalanceTaskInfoMap encodeRebalanceTaskInfoMap(RebalanceTaskInfo stealInfo) {
         return RebalanceTaskInfoMap.newBuilder()
-                                   .setStealerId(stealInfo.getStealerId())
-                                   .setDonorId(stealInfo.getDonorId())
-                                   .addAllPerStorePartitionIds(ProtoUtils.encodeStoreToPartitionsTuple(stealInfo.getStoreToPartitionIds()))
-                                   .setInitialCluster(new ClusterMapper().writeCluster(stealInfo.getInitialCluster()))
-                                   .build();
+                .setStealerId(stealInfo.getStealerId())
+                .setDonorId(stealInfo.getDonorId())
+                .addAllPerStorePartitionIds(ProtoUtils.encodeStoreToPartitionsTuple(stealInfo.getStoreToPartitionIds()))
+                .setInitialCluster(new ClusterMapper().writeCluster(stealInfo.getInitialCluster()))
+                .build();
     }
 
-    public static List<StoreToPartitionsIds> encodeStoreToPartitionsTuple(HashMap<String, List<Integer>> storeToPartitionIds) {
+    public static List<StoreToPartitionsIds> encodeStoreToPartitionsTuple(
+            HashMap<String, List<Integer>> storeToPartitionIds) {
         List<StoreToPartitionsIds> perStorePartitionTuples = Lists.newArrayList();
-        for(Entry<String, List<Integer>> entry: storeToPartitionIds.entrySet()) {
+        for (Entry<String, List<Integer>> entry : storeToPartitionIds.entrySet()) {
             StoreToPartitionsIds.Builder tupleBuilder = StoreToPartitionsIds.newBuilder();
             tupleBuilder.setStoreName(entry.getKey());
             tupleBuilder.addAllPartitionIds(entry.getValue());
@@ -124,7 +125,7 @@ public class ProtoUtils {
 
     public static Map<String, String> encodeROMap(List<ROStoreVersionDirMap> metadataMap) {
         Map<String, String> storeToValue = Maps.newHashMap();
-        for(ROStoreVersionDirMap currentStore: metadataMap) {
+        for (ROStoreVersionDirMap currentStore : metadataMap) {
             storeToValue.put(currentStore.getStoreName(), currentStore.getStoreDir());
         }
         return storeToValue;
@@ -132,19 +133,19 @@ public class ProtoUtils {
 
     public static VProto.Error.Builder encodeError(ErrorCodeMapper mapper, VoldemortException e) {
         return VProto.Error.newBuilder()
-                           .setErrorCode(mapper.getCode(e))
-                           .setErrorMessage(e.getMessage());
+                .setErrorCode(mapper.getCode(e))
+                .setErrorMessage(e.getMessage());
     }
 
     public static VProto.Versioned.Builder encodeVersioned(Versioned<byte[]> versioned) {
         return VProto.Versioned.newBuilder()
-                               .setValue(ByteString.copyFrom(versioned.getValue()))
-                               .setVersion(ProtoUtils.encodeClock(versioned.getVersion()));
+                .setValue(ByteString.copyFrom(versioned.getValue()))
+                .setVersion(ProtoUtils.encodeClock(versioned.getVersion()));
     }
 
     public static Versioned<byte[]> decodeVersioned(VProto.Versioned versioned) {
         return new Versioned<byte[]>(versioned.getValue().toByteArray(),
-                                     decodeClock(versioned.getVersion()));
+                decodeClock(versioned.getVersion()));
     }
 
     /**
@@ -152,7 +153,7 @@ public class ProtoUtils {
      * interested in the value at index 0 This is because even if we have to
      * update the cluster.xml we marshall a single key into a versioned list
      * Hence we just look at the value at index 0
-     * 
+     *
      */
     public static Versioned<byte[]> decodeVersionedMetadataKeyValue(KeyedVersions keyValue) {
         return decodeVersioned(keyValue.getVersions(0));
@@ -160,15 +161,17 @@ public class ProtoUtils {
 
     public static List<Versioned<byte[]>> decodeVersions(List<VProto.Versioned> versioned) {
         List<Versioned<byte[]>> values = new ArrayList<Versioned<byte[]>>(versioned.size());
-        for(VProto.Versioned v: versioned)
+        for (VProto.Versioned v : versioned) {
             values.add(decodeVersioned(v));
+        }
         return values;
     }
 
     public static VectorClock decodeClock(VProto.VectorClock encoded) {
         List<ClockEntry> entries = new ArrayList<ClockEntry>(encoded.getEntriesCount());
-        for(VProto.ClockEntry entry: encoded.getEntriesList())
+        for (VProto.ClockEntry entry : encoded.getEntriesList()) {
             entries.add(new ClockEntry((short) entry.getNodeId(), entry.getVersion()));
+        }
         return new VectorClock(entries, encoded.getTimestamp());
     }
 
@@ -176,10 +179,11 @@ public class ProtoUtils {
         VectorClock clock = (VectorClock) version;
         VProto.VectorClock.Builder encoded = VProto.VectorClock.newBuilder();
         encoded.setTimestamp(clock.getTimestamp());
-        for(ClockEntry entry: clock.getEntries())
+        for (ClockEntry entry : clock.getEntries()) {
             encoded.addEntries(VProto.ClockEntry.newBuilder()
-                                                .setNodeId(entry.getNodeId())
-                                                .setVersion(entry.getVersion()));
+                    .setNodeId(entry.getNodeId())
+                    .setVersion(entry.getVersion()));
+        }
         return encoded;
     }
 

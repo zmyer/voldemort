@@ -1,13 +1,14 @@
 package voldemort.store;
 
-import java.util.List;
-import java.util.Map;
-
 import voldemort.VoldemortException;
 import voldemort.utils.Utils;
 import voldemort.versioning.Version;
 import voldemort.versioning.Versioned;
 
+import java.util.List;
+import java.util.Map;
+
+// TODO: 2018/4/26 by zmyer
 public abstract class AbstractStore<K, V, T> implements Store<K, V, T> {
 
     private final String storeName;
@@ -28,7 +29,8 @@ public abstract class AbstractStore<K, V, T> implements Store<K, V, T> {
     }
 
     @Override
-    public void put(K key, Versioned<V> value, T transforms) throws VoldemortException {}
+    public void put(K key, Versioned<V> value, T transforms) throws VoldemortException {
+    }
 
     @Override
     public boolean delete(K key, Version version) throws VoldemortException {
@@ -41,7 +43,8 @@ public abstract class AbstractStore<K, V, T> implements Store<K, V, T> {
     }
 
     @Override
-    public void close() throws VoldemortException {}
+    public void close() throws VoldemortException {
+    }
 
     @Override
     public Object getCapability(StoreCapabilityType capability) {
@@ -65,7 +68,8 @@ public abstract class AbstractStore<K, V, T> implements Store<K, V, T> {
     }
 
     @Override
-    public void put(CompositeVoldemortRequest<K, V> request) throws VoldemortException {}
+    public void put(CompositeVoldemortRequest<K, V> request) throws VoldemortException {
+    }
 
     @Override
     public boolean delete(CompositeVoldemortRequest<K, V> request) throws VoldemortException {

@@ -16,6 +16,10 @@
 
 package voldemort.utils;
 
+import org.apache.commons.codec.DecoderException;
+import org.apache.commons.codec.binary.Hex;
+import voldemort.VoldemortException;
+
 import java.io.DataInputStream;
 import java.io.EOFException;
 import java.io.IOException;
@@ -25,16 +29,12 @@ import java.nio.ByteBuffer;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
-import org.apache.commons.codec.DecoderException;
-import org.apache.commons.codec.binary.Hex;
-
-import voldemort.VoldemortException;
-
 /**
  * Utility functions for munging on bytes
- * 
- * 
+ *
+ *
  */
+// TODO: 2018/4/26 by zmyer
 public class ByteUtils {
 
     public static final int SIZE_OF_BYTE = Byte.SIZE / Byte.SIZE;
@@ -65,14 +65,14 @@ public class ByteUtils {
     public static MessageDigest getDigest(String algorithm) {
         try {
             return MessageDigest.getInstance(algorithm);
-        } catch(NoSuchAlgorithmException e) {
+        } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException("Unknown algorithm: " + algorithm, e);
         }
     }
 
     /**
      * Translate the given byte array into a hexadecimal string
-     * 
+     *
      * @param bytes The bytes to translate
      * @return The string
      */
@@ -86,17 +86,17 @@ public class ByteUtils {
 
     /**
      * Translate the given byte array into a string of 1s and 0s
-     * 
+     *
      * @param bytes The bytes to translate
      * @return The string
      */
     public static String toBinaryString(byte[] bytes) {
         StringBuilder buffer = new StringBuilder();
-        for(byte b: bytes) {
+        for (byte b : bytes) {
             String bin = Integer.toBinaryString(0xFF & b);
             bin = bin.substring(0, Math.min(bin.length(), 8));
 
-            for(int j = 0; j < 8 - bin.length(); j++) {
+            for (int j = 0; j < 8 - bin.length(); j++) {
                 buffer.append('0');
             }
 
@@ -108,19 +108,21 @@ public class ByteUtils {
     /**
      * Concatenate the given arrays TODO: cut and paste for every primitive type
      * and Object (yay! java!)
-     * 
+     *
      * @param arrays The arrays to concatenate
      * @return A concatenated array
      */
     public static byte[] cat(byte[]... arrays) {
         int size = 0;
-        for(byte[] a: arrays)
-            if(a != null)
+        for (byte[] a : arrays) {
+            if (a != null) {
                 size += a.length;
+            }
+        }
         byte[] cated = new byte[size];
         int pos = 0;
-        for(byte[] a: arrays) {
-            if(a != null) {
+        for (byte[] a : arrays) {
+            if (a != null) {
                 System.arraycopy(a, 0, cated, pos, a.length);
                 pos += a.length;
             }
@@ -131,14 +133,14 @@ public class ByteUtils {
 
     /**
      * Copy the specified bytes into a new array
-     * 
+     *
      * @param array The array to copy from
      * @param from The index in the array to begin copying from
      * @param to The least index not copied
      * @return A new byte[] containing the copied bytes
      */
     public static byte[] copy(byte[] array, int from, int to) {
-        if(to - from < 0) {
+        if (to - from < 0) {
             return new byte[0];
         } else {
             byte[] a = new byte[to - from];
@@ -149,7 +151,7 @@ public class ByteUtils {
 
     /**
      * Read a short from the byte array starting at the given offset
-     * 
+     *
      * @param bytes The byte array to read from
      * @param offset The offset to start reading at
      * @return The short read
@@ -160,7 +162,7 @@ public class ByteUtils {
 
     /**
      * Read an unsigned short from the byte array starting at the given offset
-     * 
+     *
      * @param bytes The byte array to read from
      * @param offset The offset to start reading at
      * @return The short read
@@ -171,7 +173,7 @@ public class ByteUtils {
 
     /**
      * Read an int from the byte array starting at the given offset
-     * 
+     *
      * @param bytes The byte array to read from
      * @param offset The offset to start reading at
      * @return The int read
@@ -183,7 +185,7 @@ public class ByteUtils {
 
     /**
      * Read an unsigned integer from the given byte array
-     * 
+     *
      * @param bytes The bytes to read from
      * @param offset The offset to begin reading at
      * @return The integer as a long
@@ -195,7 +197,7 @@ public class ByteUtils {
 
     /**
      * Read a long from the byte array starting at the given offset
-     * 
+     *
      * @param bytes The byte array to read from
      * @param offset The offset to start reading at
      * @return The long read
@@ -212,7 +214,7 @@ public class ByteUtils {
 
     /**
      * Read the given number of bytes into a long
-     * 
+     *
      * @param bytes The byte array to read from
      * @param offset The offset at which to begin reading
      * @param numBytes The number of bytes to read
@@ -221,7 +223,7 @@ public class ByteUtils {
     public static long readBytes(byte[] bytes, int offset, int numBytes) {
         int shift = 0;
         long value = 0;
-        for(int i = offset + numBytes - 1; i >= offset; i--) {
+        for (int i = offset + numBytes - 1; i >= offset; i--) {
             value |= (bytes[i] & 0xFFL) << shift;
             shift += 8;
         }
@@ -230,7 +232,7 @@ public class ByteUtils {
 
     /**
      * Write a short to the byte array starting at the given offset
-     * 
+     *
      * @param bytes The byte array
      * @param value The short to write
      * @param offset The offset to begin writing at
@@ -242,7 +244,7 @@ public class ByteUtils {
 
     /**
      * Write an unsigned short to the byte array starting at the given offset
-     * 
+     *
      * @param bytes The byte array
      * @param value The short to write
      * @param offset The offset to begin writing at
@@ -254,7 +256,7 @@ public class ByteUtils {
 
     /**
      * Write an int to the byte array starting at the given offset
-     * 
+     *
      * @param bytes The byte array
      * @param value The int to write
      * @param offset The offset to begin writing at
@@ -268,7 +270,7 @@ public class ByteUtils {
 
     /**
      * Write a long to the byte array starting at the given offset
-     * 
+     *
      * @param bytes The byte array
      * @param value The long to write
      * @param offset The offset to begin writing at
@@ -286,7 +288,7 @@ public class ByteUtils {
 
     /**
      * Write the given number of bytes out to the array
-     * 
+     *
      * @param bytes The array to write to
      * @param value The value to write from
      * @param offset the offset into the array
@@ -294,7 +296,7 @@ public class ByteUtils {
      */
     public static void writeBytes(byte[] bytes, long value, int offset, int numBytes) {
         int shift = 0;
-        for(int i = offset + numBytes - 1; i >= offset; i--) {
+        for (int i = offset + numBytes - 1; i >= offset; i--) {
             bytes[i] = (byte) (0xFF & (value >> shift));
             shift += 8;
         }
@@ -302,41 +304,44 @@ public class ByteUtils {
 
     /**
      * The number of bytes required to hold the given number
-     * 
+     *
      * @param number The number being checked.
      * @return The required number of bytes (must be 8 or less)
      */
     public static byte numberOfBytesRequired(long number) {
-        if(number < 0)
+        if (number < 0) {
             number = -number;
-        for(byte i = 1; i <= SIZE_OF_LONG; i++)
-            if(number < (1L << (8 * i)))
+        }
+        for (byte i = 1; i <= SIZE_OF_LONG; i++) {
+            if (number < (1L << (8 * i))) {
                 return i;
+            }
+        }
         throw new IllegalStateException("Should never happen.");
     }
 
     public static long readVarNumber(DataInputStream input) throws IOException {
         int b = 0xFF & input.readByte();
-        if((b & MASK_10000000) == 0) {
+        if ((b & MASK_10000000) == 0) {
             // one byte value, mask off the size bit and return
             return MASK_01111111 & b;
-        } else if((b & MASK_11000000) == MASK_10000000) {
+        } else if ((b & MASK_11000000) == MASK_10000000) {
             // two byte value, mask off first two bits
             long val = (b & MASK_00111111) << Byte.SIZE;
             val |= 0xFF & input.readByte();
             return val;
-        } else if((b & MASK_11100000) == MASK_11000000) {
+        } else if ((b & MASK_11100000) == MASK_11000000) {
             // four byte value, mask off three bits
             long val = (b & MASK_00011111);
-            for(int i = 0; i < 3; i++) {
+            for (int i = 0; i < 3; i++) {
                 val <<= Byte.SIZE;
                 val |= 0xFF & input.readByte();
             }
             return val;
-        } else if((b & MASK_11100000) == MASK_11100000) {
+        } else if ((b & MASK_11100000) == MASK_11100000) {
             // eight byte value, mask off three bits
             long val = (b & MASK_00011111);
-            for(int i = 0; i < 7; i++) {
+            for (int i = 0; i < 7; i++) {
                 val <<= Byte.SIZE;
                 val |= 0xFF & input.readByte();
             }
@@ -348,7 +353,7 @@ public class ByteUtils {
 
     /**
      * Get the nth byte from the right in the given number
-     * 
+     *
      * @param l The number from which to extract the byte
      * @param n The byte index
      * @return The given byte
@@ -359,24 +364,25 @@ public class ByteUtils {
 
     /**
      * Read exactly buffer.length bytes from the stream into the buffer
-     * 
+     *
      * @param stream The stream to read from
      * @param buffer The buffer to read into
      */
     public static void read(InputStream stream, byte[] buffer) throws IOException {
         int read = 0;
-        while(read < buffer.length) {
+        while (read < buffer.length) {
             int newlyRead = stream.read(buffer, read, buffer.length - read);
-            if(newlyRead == -1)
+            if (newlyRead == -1) {
                 throw new EOFException("Attempt to read " + buffer.length
-                                       + " bytes failed due to EOF.");
+                        + " bytes failed due to EOF.");
+            }
             read += newlyRead;
         }
     }
 
     /**
      * Translate the string to bytes using the given encoding
-     * 
+     *
      * @param string The string to translate
      * @param encoding The encoding to use
      * @return The bytes that make up the string
@@ -384,14 +390,14 @@ public class ByteUtils {
     public static byte[] getBytes(String string, String encoding) {
         try {
             return string.getBytes(encoding);
-        } catch(UnsupportedEncodingException e) {
+        } catch (UnsupportedEncodingException e) {
             throw new IllegalArgumentException(encoding + " is not a known encoding name.", e);
         }
     }
 
     /**
      * Create a string from bytes using the given encoding
-     * 
+     *
      * @param bytes The bytes to create a string from
      * @param encoding The encoding of the string
      * @return The created string
@@ -399,7 +405,7 @@ public class ByteUtils {
     public static String getString(byte[] bytes, String encoding) {
         try {
             return new String(bytes, encoding);
-        } catch(UnsupportedEncodingException e) {
+        } catch (UnsupportedEncodingException e) {
             throw new IllegalArgumentException(encoding + " is not a known encoding name.", e);
         }
     }
@@ -407,7 +413,7 @@ public class ByteUtils {
     /**
      * Compute the md5 hash of the input catching all the irritating exceptions
      * for you
-     * 
+     *
      * @param input The input to take the hash of
      * @return The MD5 hash of the input bytes
      */
@@ -418,7 +424,7 @@ public class ByteUtils {
     /**
      * Compute the sha1 hash of the input catching all the irritating exceptions
      * for you
-     * 
+     *
      * @param input The input to take the hash of
      * @return The sha1 hash of the input bytes
      */
@@ -434,7 +440,7 @@ public class ByteUtils {
      * <strong> bytes are considered unsigned. passing negative values into byte
      * will cause them to be considered as unsigned two's complement value.
      * </strong>
-     * 
+     *
      * @param b1 The first array
      * @param b2 The second array
      * @return -1 if b1 < b2, 1 if b1 > b2, and 0 if they are equal
@@ -445,7 +451,7 @@ public class ByteUtils {
 
     /**
      * Compare a byte array ( b1 ) with a sub
-     * 
+     *
      * @param b1 The first array
      * @param b2 The second array
      * @param offset The offset in b2 from which to compare
@@ -455,13 +461,14 @@ public class ByteUtils {
     public static int compare(byte[] b1, byte[] b2, int offset, int to) {
         int j = offset;
         int b2Length = to - offset;
-        if(to > b2.length)
+        if (to > b2.length) {
             throw new IllegalArgumentException("To offset (" + to + ") should be <= than length ("
-                                               + b2.length + ")");
-        for(int i = 0; i < b1.length && j < to; i++, j++) {
+                    + b2.length + ")");
+        }
+        for (int i = 0; i < b1.length && j < to; i++, j++) {
             int a = (b1[i] & 0xff);
             int b = (b2[j] & 0xff);
-            if(a != b) {
+            if (a != b) {
                 return (a - b) / (Math.abs(a - b));
             }
         }
@@ -474,16 +481,17 @@ public class ByteUtils {
      * and copy the current buffer to the new one.
      * <p/>
      * Note: the new buffer is allocated using ByteBuffer.allocate.
-     * 
+     *
      * @param buffer The buffer from which to copy the contents
      * @param newCapacity The new capacity size
      */
 
     public static ByteBuffer expand(ByteBuffer buffer, int newCapacity) {
-        if(newCapacity < buffer.capacity())
+        if (newCapacity < buffer.capacity()) {
             throw new IllegalArgumentException("newCapacity (" + newCapacity
-                                               + ") must be larger than existing capacity ("
-                                               + buffer.capacity() + ")");
+                    + ") must be larger than existing capacity ("
+                    + buffer.capacity() + ")");
+        }
 
         ByteBuffer newBuffer = ByteBuffer.allocate(newCapacity);
         int position = buffer.position();
@@ -502,13 +510,14 @@ public class ByteUtils {
     }
 
     public static boolean skipByteArray(ByteBuffer buffer, int dataSize) throws IOException {
-        if(dataSize < 0) {
+        if (dataSize < 0) {
             throw new VoldemortException("Invalid Size for byte Array " + dataSize);
         }
         int newPosition = buffer.position() + dataSize;
 
-        if(newPosition > buffer.limit())
+        if (newPosition > buffer.limit()) {
             return false;
+        }
 
         // Here we skip over the data (without reading it in) and
         // move our position to just past it.

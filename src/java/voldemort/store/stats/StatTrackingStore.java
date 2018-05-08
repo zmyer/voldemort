@@ -16,9 +16,6 @@
 
 package voldemort.store.stats;
 
-import java.util.List;
-import java.util.Map;
-
 import voldemort.VoldemortException;
 import voldemort.store.CompositeVoldemortRequest;
 import voldemort.store.DelegatingStore;
@@ -29,18 +26,22 @@ import voldemort.versioning.ObsoleteVersionException;
 import voldemort.versioning.Version;
 import voldemort.versioning.Versioned;
 
+import java.util.List;
+import java.util.Map;
+
 /**
  * A store wrapper that tracks basic usage statistics
- * 
- * 
+ *
+ *
  */
+// TODO: 2018/4/26 by zmyer
 public class StatTrackingStore extends DelegatingStore<ByteArray, byte[], byte[]> {
 
     private final StoreStats stats;
-    
+
     private StoreStats getOrCreateStoreStats(Map<String, StoreStats> cachedStats,
-                                                          StoreStats parentStats) {
-        if(cachedStats == null) {
+            StoreStats parentStats) {
+        if (cachedStats == null) {
             throw new IllegalArgumentException("cachedStats is null");
         }
         synchronized (cachedStats) {
@@ -55,8 +56,8 @@ public class StatTrackingStore extends DelegatingStore<ByteArray, byte[], byte[]
     }
 
     public StatTrackingStore(Store<ByteArray, byte[], byte[]> innerStore,
-                             StoreStats parentStats,
-                             Map<String, StoreStats> cachedStats) {
+            StoreStats parentStats,
+            Map<String, StoreStats> cachedStats) {
         super(innerStore);
         this.stats = getOrCreateStoreStats(cachedStats, parentStats);
     }
@@ -71,7 +72,7 @@ public class StatTrackingStore extends DelegatingStore<ByteArray, byte[], byte[]
         long start = System.nanoTime();
         try {
             return super.delete(key, version);
-        } catch(VoldemortException e) {
+        } catch (VoldemortException e) {
             stats.recordTime(Tracked.EXCEPTION, System.nanoTime() - start);
             throw e;
         } finally {
@@ -86,13 +87,13 @@ public class StatTrackingStore extends DelegatingStore<ByteArray, byte[], byte[]
         try {
             result = super.getVersions(key);
             return result;
-        } catch(VoldemortException e) {
+        } catch (VoldemortException e) {
             stats.recordTime(Tracked.EXCEPTION, System.nanoTime() - start);
             throw e;
         } finally {
             long duration = System.nanoTime() - start;
             boolean returningEmpty = true;
-            if(result != null) {
+            if (result != null) {
                 returningEmpty = result.size() == 0;
             }
             stats.recordGetVersionsTime(duration, returningEmpty);
@@ -106,16 +107,16 @@ public class StatTrackingStore extends DelegatingStore<ByteArray, byte[], byte[]
         try {
             result = super.get(key, transforms);
             return result;
-        } catch(VoldemortException e) {
+        } catch (VoldemortException e) {
             stats.recordTime(Tracked.EXCEPTION, System.nanoTime() - start);
             throw e;
         } finally {
             long duration = System.nanoTime() - start;
             long totalValueBytes = 0;
             boolean returningEmpty = true;
-            if(result != null) {
+            if (result != null) {
                 returningEmpty = result.size() == 0;
-                for(Versioned<byte[]> bytes: result) {
+                for (Versioned<byte[]> bytes : result) {
                     totalValueBytes += bytes.getValue().length;
                 }
             }
@@ -125,14 +126,14 @@ public class StatTrackingStore extends DelegatingStore<ByteArray, byte[], byte[]
 
     @Override
     public Map<ByteArray, List<Versioned<byte[]>>> getAll(Iterable<ByteArray> keys,
-                                                          Map<ByteArray, byte[]> transforms)
+            Map<ByteArray, byte[]> transforms)
             throws VoldemortException {
         Map<ByteArray, List<Versioned<byte[]>>> result = null;
         long start = System.nanoTime();
         try {
             result = super.getAll(keys, transforms);
             return result;
-        } catch(VoldemortException e) {
+        } catch (VoldemortException e) {
             stats.recordTime(Tracked.EXCEPTION, System.nanoTime() - start);
             throw e;
         } finally {
@@ -143,27 +144,27 @@ public class StatTrackingStore extends DelegatingStore<ByteArray, byte[], byte[]
             int returnedValues = 0;
 
             // Determine how many values were requested
-            for(ByteArray k: keys) {
+            for (ByteArray k : keys) {
                 totalKeyBytes += k.get().length;
                 requestedValues++;
             }
 
-            if(result != null) {
+            if (result != null) {
                 // Determine the number of values being returned
                 returnedValues = result.keySet().size();
                 // Determine the total size of the response
-                for(List<Versioned<byte[]>> value: result.values()) {
-                    for(Versioned<byte[]> bytes: value) {
+                for (List<Versioned<byte[]>> value : result.values()) {
+                    for (Versioned<byte[]> bytes : value) {
                         totalValueBytes += bytes.getValue().length;
                     }
                 }
             }
 
             stats.recordGetAllTime(duration,
-                                   requestedValues,
-                                   returnedValues,
-                                   totalValueBytes,
-                                   totalKeyBytes);
+                    requestedValues,
+                    returnedValues,
+                    totalValueBytes,
+                    totalKeyBytes);
         }
     }
 
@@ -173,25 +174,26 @@ public class StatTrackingStore extends DelegatingStore<ByteArray, byte[], byte[]
         long start = System.nanoTime();
         try {
             super.put(key, value, transforms);
-        } catch(ObsoleteVersionException e) {
+        } catch (ObsoleteVersionException e) {
             stats.recordTime(Tracked.OBSOLETE, System.nanoTime() - start);
             throw e;
-        } catch(VoldemortException e) {
+        } catch (VoldemortException e) {
             stats.recordTime(Tracked.EXCEPTION, System.nanoTime() - start);
             throw e;
         } finally {
             stats.recordPutTimeAndSize(System.nanoTime() - start,
-                                       value.getValue().length,
-                                       key.get().length);
+                    value.getValue().length,
+                    key.get().length);
         }
     }
 
     @Override
     public Object getCapability(StoreCapabilityType capability) {
-        if(StoreCapabilityType.STAT_TRACKER.equals(capability))
+        if (StoreCapabilityType.STAT_TRACKER.equals(capability)) {
             return this.stats;
-        else
+        } else {
             return super.getCapability(capability);
+        }
     }
 
     public StoreStats getStats() {
@@ -206,23 +208,23 @@ public class StatTrackingStore extends DelegatingStore<ByteArray, byte[], byte[]
         try {
             result = super.get(request);
             return result;
-        } catch(VoldemortException e) {
+        } catch (VoldemortException e) {
             stats.recordTime(Tracked.EXCEPTION, System.nanoTime() - start);
             throw e;
         } finally {
             long duration = System.nanoTime() - start;
             long totalValueBytes = 0;
             boolean returningEmpty = true;
-            if(result != null) {
+            if (result != null) {
                 returningEmpty = result.size() == 0;
-                for(Versioned<byte[]> bytes: result) {
+                for (Versioned<byte[]> bytes : result) {
                     totalValueBytes += bytes.getValue().length;
                 }
             }
             stats.recordGetTime(duration,
-                                returningEmpty,
-                                totalValueBytes,
-                                request.getKey().get().length);
+                    returningEmpty,
+                    totalValueBytes,
+                    request.getKey().get().length);
         }
     }
 
@@ -235,7 +237,7 @@ public class StatTrackingStore extends DelegatingStore<ByteArray, byte[], byte[]
         try {
             result = super.getAll(request);
             return result;
-        } catch(VoldemortException e) {
+        } catch (VoldemortException e) {
             stats.recordTime(Tracked.EXCEPTION, System.nanoTime() - start);
             throw e;
         } finally {
@@ -246,27 +248,27 @@ public class StatTrackingStore extends DelegatingStore<ByteArray, byte[], byte[]
             int returnedValues = 0;
 
             // Determine how many values were requested
-            for(ByteArray k: request.getIterableKeys()) {
+            for (ByteArray k : request.getIterableKeys()) {
                 totalKeyBytes += k.get().length;
                 requestedValues++;
             }
 
-            if(result != null) {
+            if (result != null) {
                 // Determine the number of values being returned
                 returnedValues = result.keySet().size();
                 // Determine the total size of the response
-                for(List<Versioned<byte[]>> value: result.values()) {
-                    for(Versioned<byte[]> bytes: value) {
+                for (List<Versioned<byte[]>> value : result.values()) {
+                    for (Versioned<byte[]> bytes : value) {
                         totalValueBytes += bytes.getValue().length;
                     }
                 }
             }
 
             stats.recordGetAllTime(duration,
-                                   requestedValues,
-                                   returnedValues,
-                                   totalValueBytes,
-                                   totalKeyBytes);
+                    requestedValues,
+                    returnedValues,
+                    totalValueBytes,
+                    totalKeyBytes);
         }
     }
 
@@ -275,16 +277,16 @@ public class StatTrackingStore extends DelegatingStore<ByteArray, byte[], byte[]
         long start = System.nanoTime();
         try {
             super.put(request);
-        } catch(ObsoleteVersionException e) {
+        } catch (ObsoleteVersionException e) {
             stats.recordTime(Tracked.OBSOLETE, System.nanoTime() - start);
             throw e;
-        } catch(VoldemortException e) {
+        } catch (VoldemortException e) {
             stats.recordTime(Tracked.EXCEPTION, System.nanoTime() - start);
             throw e;
         } finally {
             stats.recordPutTimeAndSize(System.nanoTime() - start,
-                                       request.getValue().getValue().length,
-                                       request.getKey().get().length);
+                    request.getValue().getValue().length,
+                    request.getKey().get().length);
         }
 
     }
@@ -295,7 +297,7 @@ public class StatTrackingStore extends DelegatingStore<ByteArray, byte[], byte[]
         long start = System.nanoTime();
         try {
             return super.delete(request);
-        } catch(VoldemortException e) {
+        } catch (VoldemortException e) {
             stats.recordTime(Tracked.EXCEPTION, System.nanoTime() - start);
             throw e;
         } finally {

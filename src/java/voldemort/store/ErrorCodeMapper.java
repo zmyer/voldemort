@@ -16,9 +16,6 @@
 
 package voldemort.store;
 
-import java.util.HashMap;
-import java.util.Map;
-
 import voldemort.VoldemortApplicationException;
 import voldemort.VoldemortException;
 import voldemort.VoldemortUnsupportedOperationalException;
@@ -35,11 +32,15 @@ import voldemort.utils.ReflectUtils;
 import voldemort.versioning.InconsistentDataException;
 import voldemort.versioning.ObsoleteVersionException;
 
+import java.util.HashMap;
+import java.util.Map;
+
 /**
  * Map error codes to exceptions and vice versa
- * 
- * 
+ *
+ *
  */
+// TODO: 2018/4/26 by zmyer
 public class ErrorCodeMapper {
 
     // These two maps act as a bijection from error codes to exceptions.
@@ -71,17 +72,19 @@ public class ErrorCodeMapper {
         codeToException.put((short) 22, StoreNotFoundException.class);
 
         exceptionToCode = new HashMap<Class<? extends VoldemortException>, Short>();
-        for(Map.Entry<Short, Class<? extends VoldemortException>> entry: codeToException.entrySet())
+        for (Map.Entry<Short, Class<? extends VoldemortException>> entry : codeToException.entrySet()) {
             exceptionToCode.put(entry.getValue(), entry.getKey());
+        }
     }
 
     public VoldemortException getError(short code, String message) {
         Class<? extends VoldemortException> klass = codeToException.get(code);
-        if(klass == null)
+        if (klass == null) {
             return new UnknownFailure(message + ". Unrecognized error code: "
-                                      + Integer.toString(code));
-        else
-            return ReflectUtils.callConstructor(klass, new Object[] { message });
+                    + Integer.toString(code));
+        } else {
+            return ReflectUtils.callConstructor(klass, new Object[]{ message });
+        }
     }
 
     public short getCode(VoldemortException e) {
@@ -90,10 +93,11 @@ public class ErrorCodeMapper {
 
     public short getCode(Class<? extends VoldemortException> c) {
         Short code = exceptionToCode.get(c);
-        if(code == null)
+        if (code == null) {
             throw new IllegalArgumentException("No mapping code for " + c);
-        else
+        } else {
             return code;
+        }
     }
 
 }

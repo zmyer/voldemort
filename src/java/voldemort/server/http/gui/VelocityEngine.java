@@ -16,24 +16,24 @@
 
 package voldemort.server.http.gui;
 
-import java.io.OutputStream;
-import java.io.OutputStreamWriter;
-import java.util.Map;
-
 import org.apache.log4j.Logger;
 import org.apache.velocity.VelocityContext;
 import org.apache.velocity.runtime.log.Log4JLogChute;
 import org.apache.velocity.runtime.resource.loader.ClasspathResourceLoader;
-
 import voldemort.VoldemortException;
 import voldemort.utils.Utils;
+
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.util.Map;
 
 /**
  * Wrapper class that abstracts some of the configuration details and wraps some
  * irritating exceptions.
- * 
- * 
+ *
+ *
  */
+// TODO: 2018/4/26 by zmyer
 public class VelocityEngine {
 
     private final String baseTemplateDir;
@@ -44,7 +44,7 @@ public class VelocityEngine {
         this.engine = new org.apache.velocity.app.VelocityEngine();
         engine.setProperty("resource.loader", "classpath");
         engine.setProperty("classpath.resource.loader.class",
-                           ClasspathResourceLoader.class.getName());
+                ClasspathResourceLoader.class.getName());
         engine.setProperty("classpath.resource.loader.cache", false);
         engine.setProperty("file.resource.loader.modificationCheckInterval", 0);
         engine.setProperty("input.encoding", "UTF-8");
@@ -52,7 +52,7 @@ public class VelocityEngine {
         engine.setProperty("velocimacro.library.autoreload", true);
         engine.setProperty("runtime.log.logsystem.class", Log4JLogChute.class);
         engine.setProperty("runtime.log.logsystem.log4j.logger",
-                           Logger.getLogger("org.apache.velocity.Logger"));
+                Logger.getLogger("org.apache.velocity.Logger"));
         engine.setProperty("parser.pool.size", 3);
     }
 
@@ -62,7 +62,7 @@ public class VelocityEngine {
         try {
             engine.mergeTemplate(baseTemplateDir + "/" + template, "UTF-8", context, writer);
             writer.flush();
-        } catch(Exception e) {
+        } catch (Exception e) {
             throw new VoldemortException(e);
         }
     }

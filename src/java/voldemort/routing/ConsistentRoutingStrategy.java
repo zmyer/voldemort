@@ -16,6 +16,14 @@
 
 package voldemort.routing;
 
+import com.google.common.collect.Sets;
+import org.apache.log4j.Logger;
+import voldemort.cluster.Cluster;
+import voldemort.cluster.Node;
+import voldemort.utils.ByteUtils;
+import voldemort.utils.FnvHashFunction;
+import voldemort.utils.HashFunction;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -24,29 +32,20 @@ import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 
-import org.apache.log4j.Logger;
-
-import voldemort.cluster.Cluster;
-import voldemort.cluster.Node;
-import voldemort.utils.ByteUtils;
-import voldemort.utils.FnvHashFunction;
-import voldemort.utils.HashFunction;
-
-import com.google.common.collect.Sets;
-
 /**
  * A Routing strategy that routes each request to the first N nodes where N is a
  * user defined replication factor.
- * 
+ *
  * The mapping is computed by creating partitions of a fixed size, and
  * maintaining a mapping from partition tag to Node. These nodes are mapped onto
  * a ring.
- * 
+ *
  * A preference list of nodes to route to is created by taking the partition
  * into which the key hashes, and then taking the next N nodes on the ring.
- * 
- * 
+ *
+ *
  */
+// TODO: 2018/4/26 by zmyer
 public class ConsistentRoutingStrategy implements RoutingStrategy {
 
     // the replication factor.
@@ -81,19 +80,21 @@ public class ConsistentRoutingStrategy implements RoutingStrategy {
         this.hash = hash;
         // sanity check that we don't assign the same partition to multiple nodes
         SortedMap<Integer, Node> m = new TreeMap<Integer, Node>();
-        for(Node n: nodes) {
-            for(Integer partition: n.getPartitionIds()) {
-                if(m.containsKey(partition))
+        for (Node n : nodes) {
+            for (Integer partition : n.getPartitionIds()) {
+                if (m.containsKey(partition)) {
                     throw new IllegalArgumentException("Duplicate partition id " + partition
-                                                       + " in cluster configuration " + nodes);
+                            + " in cluster configuration " + nodes);
+                }
                 m.put(partition, n);
             }
         }
 
         this.partitionToNode = new Node[m.size()];
-        for(int i = 0; i < m.size(); i++) {
-            if(!m.containsKey(i))
+        for (int i = 0; i < m.size(); i++) {
+            if (!m.containsKey(i)) {
                 throw new IllegalArgumentException("Invalid configuration, missing partition " + i);
+            }
             this.partitionToNode[i] = m.get(i);
         }
     }
@@ -104,10 +105,11 @@ public class ConsistentRoutingStrategy implements RoutingStrategy {
      * method returns Integer.MAX_VALUE in that case.
      */
     private static int abs(int a) {
-        if(a >= 0)
+        if (a >= 0) {
             return a;
-        else if(a != Integer.MIN_VALUE)
+        } else if (a != Integer.MIN_VALUE) {
             return -a;
+        }
         return Integer.MAX_VALUE;
     }
 
@@ -115,20 +117,21 @@ public class ConsistentRoutingStrategy implements RoutingStrategy {
     public List<Node> routeRequest(byte[] key) {
         List<Integer> partitionList = getPartitionList(key);
 
-        if(partitionList.size() == 0)
+        if (partitionList.size() == 0) {
             return new ArrayList<Node>(0);
+        }
         // pull out the nodes corresponding to the target partitions
         List<Node> preferenceList = new ArrayList<Node>(partitionList.size());
-        for(int partition: partitionList) {
+        for (int partition : partitionList) {
             preferenceList.add(partitionToNode[partition]);
         }
-        if(logger.isDebugEnabled()) {
+        if (logger.isDebugEnabled()) {
             List<Integer> nodeIdList = new ArrayList<Integer>();
-            for(int partition: partitionList) {
+            for (int partition : partitionList) {
                 nodeIdList.add(partitionToNode[partition].getId());
             }
             logger.debug("Key " + ByteUtils.toHexString(key) + " mapped to Nodes " + nodeIdList
-                         + " Partitions " + partitionList);
+                    + " Partitions " + partitionList);
         }
         return preferenceList;
     }
@@ -138,21 +141,22 @@ public class ConsistentRoutingStrategy implements RoutingStrategy {
         List<Node> preferenceList = new ArrayList<Node>(numReplicas);
         List<Integer> replicationPartitionsList = new ArrayList<Integer>(numReplicas);
 
-        if(partitionToNode.length == 0) {
+        if (partitionToNode.length == 0) {
             return new ArrayList<Integer>(0);
         }
         // go over clockwise to find the next 'numReplicas' unique nodes
         // to replicate to
-        for(int i = 0; i < partitionToNode.length; i++) {
+        for (int i = 0; i < partitionToNode.length; i++) {
             // add this one if we haven't already
-            if(!preferenceList.contains(partitionToNode[index])) {
+            if (!preferenceList.contains(partitionToNode[index])) {
                 preferenceList.add(partitionToNode[index]);
                 replicationPartitionsList.add(index);
             }
 
             // if we have enough, go home
-            if(preferenceList.size() >= numReplicas)
+            if (preferenceList.size() >= numReplicas) {
                 return replicationPartitionsList;
+            }
             // move to next clockwise slot on the ring
             index = (index + 1) % partitionToNode.length;
         }
@@ -163,7 +167,7 @@ public class ConsistentRoutingStrategy implements RoutingStrategy {
 
     /**
      * Obtain the master partition for a given key
-     * 
+     *
      * @param key
      * @return master partition id
      */
@@ -175,8 +179,9 @@ public class ConsistentRoutingStrategy implements RoutingStrategy {
     @Override
     public Set<Node> getNodes() {
         Set<Node> s = Sets.newHashSetWithExpectedSize(partitionToNode.length);
-        for(Node n: this.partitionToNode)
+        for (Node n : this.partitionToNode) {
             s.add(n);
+        }
         return s;
     }
 
@@ -186,9 +191,11 @@ public class ConsistentRoutingStrategy implements RoutingStrategy {
 
     Set<Integer> getPartitionsByNode(Node n) {
         Set<Integer> tags = new HashSet<Integer>();
-        for(int i = 0; i < partitionToNode.length; i++)
-            if(partitionToNode[i].equals(n))
+        for (int i = 0; i < partitionToNode.length; i++) {
+            if (partitionToNode[i].equals(n)) {
                 tags.add(i);
+            }
+        }
         return tags;
     }
 
@@ -197,7 +204,7 @@ public class ConsistentRoutingStrategy implements RoutingStrategy {
         // hash the key and perform a modulo on the total number of partitions,
         // to get the master partition
         int index = getMasterPartition(key);
-        if(logger.isDebugEnabled()) {
+        if (logger.isDebugEnabled()) {
             logger.debug("Key " + ByteUtils.toHexString(key) + " primary partition " + index);
         }
         // Now based on the preference list, pick the replicating partitions and

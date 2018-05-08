@@ -16,16 +16,7 @@
 
 package voldemort.store.memory;
 
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-
 import org.apache.log4j.Logger;
-
 import voldemort.VoldemortException;
 import voldemort.annotations.concurrency.NotThreadsafe;
 import voldemort.store.AbstractStorageEngine;
@@ -38,12 +29,21 @@ import voldemort.versioning.Occurred;
 import voldemort.versioning.Version;
 import voldemort.versioning.Versioned;
 
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+
 /**
  * A simple non-persistent, in-memory store. Useful for unit testing.
- * 
+ *
  * TODO Rewrite this class using striped locks for more granular locking.
- * 
+ *
  */
+// TODO: 2018/4/26 by zmyer
 public class InMemoryStorageEngine<K, V, T> extends AbstractStorageEngine<K, V, T> {
 
     private static final Logger logger = Logger.getLogger(InMemoryStorageEngine.class);
@@ -72,25 +72,25 @@ public class InMemoryStorageEngine<K, V, T> extends AbstractStorageEngine<K, V, 
         StoreUtils.assertValidKey(key);
 
         List<Versioned<V>> values = map.get(key);
-        if(values == null) {
+        if (values == null) {
             return false;
         }
 
-        if(version == null) {
+        if (version == null) {
             map.remove(key);
             return true;
         }
 
         boolean deletedSomething = false;
         Iterator<Versioned<V>> iterator = values.iterator();
-        while(iterator.hasNext()) {
+        while (iterator.hasNext()) {
             Versioned<V> item = iterator.next();
-            if(item.getVersion().compare(version) == Occurred.BEFORE) {
+            if (item.getVersion().compare(version) == Occurred.BEFORE) {
                 iterator.remove();
                 deletedSomething = true;
             }
         }
-        if(values.size() == 0) {
+        if (values.size() == 0) {
             // if there are no more versions left, also remove the key from the
             // map
             map.remove(key);
@@ -108,7 +108,7 @@ public class InMemoryStorageEngine<K, V, T> extends AbstractStorageEngine<K, V, 
     public synchronized List<Versioned<V>> get(K key, T transform) throws VoldemortException {
         StoreUtils.assertValidKey(key);
         List<Versioned<V>> results = map.get(key);
-        if(results == null) {
+        if (results == null) {
             return new ArrayList<Versioned<V>>(0);
         } else {
             return new ArrayList<Versioned<V>>(results);
@@ -127,18 +127,18 @@ public class InMemoryStorageEngine<K, V, T> extends AbstractStorageEngine<K, V, 
         StoreUtils.assertValidKey(key);
         List<Versioned<V>> items = map.get(key);
         // If we have no value, add the current value
-        if(items == null) {
+        if (items == null) {
             items = new ArrayList<Versioned<V>>();
         }
         // Check for existing versions - remember which items to
         // remove in case of success
         List<Versioned<V>> itemsToRemove = new ArrayList<Versioned<V>>(items.size());
-        for(Versioned<V> versioned: items) {
+        for (Versioned<V> versioned : items) {
             Occurred occurred = value.getVersion().compare(versioned.getVersion());
-            if(occurred == Occurred.BEFORE) {
+            if (occurred == Occurred.BEFORE) {
                 throw new ObsoleteVersionException("Obsolete version for key '" + key + "': "
-                                                   + value.getVersion());
-            } else if(occurred == Occurred.AFTER) {
+                        + value.getVersion());
+            } else if (occurred == Occurred.AFTER) {
                 itemsToRemove.add(versioned);
             }
         }
@@ -155,7 +155,7 @@ public class InMemoryStorageEngine<K, V, T> extends AbstractStorageEngine<K, V, 
         List<Versioned<V>> obsoleteVals = null;
         List<Versioned<V>> valuesInStorage = null;
         valuesInStorage = map.get(key);
-        if(valuesInStorage == null) {
+        if (valuesInStorage == null) {
             valuesInStorage = new ArrayList<Versioned<V>>(values.size());
         }
         obsoleteVals = resolveAndConstructVersionsToPersist(valuesInStorage, values);
@@ -198,8 +198,8 @@ public class InMemoryStorageEngine<K, V, T> extends AbstractStorageEngine<K, V, 
         StringBuilder builder = new StringBuilder();
         builder.append("{");
         int count = 0;
-        for(Entry<K, List<Versioned<V>>> entry: map.entrySet()) {
-            if(count > size) {
+        for (Entry<K, List<Versioned<V>>> entry : map.entrySet()) {
+            if (count > size) {
                 builder.append("...");
                 break;
             }
@@ -226,7 +226,7 @@ public class InMemoryStorageEngine<K, V, T> extends AbstractStorageEngine<K, V, 
         private InMemoryStorageEngine<K, V, T> inMemoryStorageEngine;
 
         public InMemoryIterator(ConcurrentMap<K, List<Versioned<V>>> map,
-                                InMemoryStorageEngine<K, V, T> inMemoryStorageEngine) {
+                InMemoryStorageEngine<K, V, T> inMemoryStorageEngine) {
             this.iterator = map.entrySet().iterator();
             this.inMemoryStorageEngine = inMemoryStorageEngine;
         }
@@ -247,20 +247,21 @@ public class InMemoryStorageEngine<K, V, T> extends AbstractStorageEngine<K, V, 
 
         @Override
         public Pair<K, Versioned<V>> next() {
-            if(hasNextInCurrentValues()) {
+            if (hasNextInCurrentValues()) {
                 return nextInCurrentValues();
             } else {
                 // keep trying to get a next, until we find one (they could get
                 // removed)
-                while(true) {
+                while (true) {
                     Entry<K, List<Versioned<V>>> entry = iterator.next();
 
                     List<Versioned<V>> list = entry.getValue();
-                    synchronized(this.inMemoryStorageEngine) {
+                    synchronized (this.inMemoryStorageEngine) {
                         // okay we may have gotten an empty list, if so try
                         // again
-                        if(list.size() == 0)
+                        if (list.size() == 0) {
                             continue;
+                        }
 
                         // grab a snapshot of the list while we have exclusive
                         // access

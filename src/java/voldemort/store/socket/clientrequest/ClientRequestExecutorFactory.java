@@ -16,6 +16,19 @@
 
 package voldemort.store.socket.clientrequest;
 
+import org.apache.log4j.Level;
+import org.apache.log4j.Logger;
+import voldemort.common.nio.AbstractSelectorManager;
+import voldemort.store.StoreTimeoutException;
+import voldemort.store.UnreachableStoreException;
+import voldemort.store.nonblockingstore.NonblockingStoreCallback;
+import voldemort.store.socket.SocketDestination;
+import voldemort.store.stats.ClientSocketStats;
+import voldemort.utils.DaemonThreadFactory;
+import voldemort.utils.Time;
+import voldemort.utils.pool.KeyedResourcePool;
+import voldemort.utils.pool.ResourceFactory;
+
 import java.net.ConnectException;
 import java.net.InetSocketAddress;
 import java.nio.channels.ClosedChannelException;
@@ -34,24 +47,11 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
-
-import voldemort.common.nio.AbstractSelectorManager;
-import voldemort.store.StoreTimeoutException;
-import voldemort.store.UnreachableStoreException;
-import voldemort.store.nonblockingstore.NonblockingStoreCallback;
-import voldemort.store.socket.SocketDestination;
-import voldemort.store.stats.ClientSocketStats;
-import voldemort.utils.DaemonThreadFactory;
-import voldemort.utils.Time;
-import voldemort.utils.pool.KeyedResourcePool;
-import voldemort.utils.pool.ResourceFactory;
-
 /**
  * A Factory for creating ClientRequestExecutor instances.
  */
 
+// TODO: 2018/4/26 by zmyer
 public class ClientRequestExecutorFactory implements
         ResourceFactory<SocketDestination, ClientRequestExecutor> {
 
@@ -71,14 +71,14 @@ public class ClientRequestExecutorFactory implements
     private final ClientSocketStats stats;
 
     public ClientRequestExecutorFactory(int selectors,
-                                        int connectTimeoutMs,
-                                        int soTimeoutMs,
-                                        long idleConnectionTimeoutMs,
-                                        int socketBufferSize,
-                                        boolean socketKeepAlive,
-                                        ClientSocketStats stats,
-                                        String identifier,
-                                        ClientRequestExecutorPool executorPool) {
+            int connectTimeoutMs,
+            int soTimeoutMs,
+            long idleConnectionTimeoutMs,
+            int socketBufferSize,
+            boolean socketKeepAlive,
+            ClientSocketStats stats,
+            String identifier,
+            ClientRequestExecutorPool executorPool) {
         this.connectTimeoutMs = connectTimeoutMs;
         this.soTimeoutMs = soTimeoutMs;
         if (idleConnectionTimeoutMs > 0) {
@@ -95,7 +95,7 @@ public class ClientRequestExecutorFactory implements
         this.selectorManagers = new ClientRequestSelectorManager[selectors];
 
         String threadPrefix = "voldemort-niosocket-client";
-        if(identifier != null && identifier.length() > 0) {
+        if (identifier != null && identifier.length() > 0) {
             // Append the factory identifier to the thread Prefix
             // JMX counters are exposes at a factory level and they have the
             // factory identifier if the client creates more than one
@@ -104,9 +104,9 @@ public class ClientRequestExecutorFactory implements
         }
 
         this.selectorManagerThreadPool = Executors.newFixedThreadPool(selectorManagers.length,
-                                                                      new DaemonThreadFactory(threadPrefix));
+                new DaemonThreadFactory(threadPrefix));
 
-        for(int i = 0; i < selectorManagers.length; i++) {
+        for (int i = 0; i < selectorManagers.length; i++) {
             selectorManagers[i] = new ClientRequestSelectorManager();
             selectorManagerThreadPool.execute(selectorManagers[i]);
         }
@@ -122,13 +122,14 @@ public class ClientRequestExecutorFactory implements
             throws Exception {
         clientRequestExecutor.close();
         int numDestroyed = destroyed.incrementAndGet();
-        if(stats != null) {
+        if (stats != null) {
             stats.incrementCount(dest, ClientSocketStats.Tracked.CONNECTION_DESTROYED_EVENT);
         }
 
-        if(logger.isDebugEnabled())
+        if (logger.isDebugEnabled()) {
             logger.debug("Destroyed socket " + numDestroyed + " connection to " + dest.getHost()
-                         + ":" + dest.getPort());
+                    + ":" + dest.getPort());
+        }
     }
 
     /**
@@ -138,13 +139,14 @@ public class ClientRequestExecutorFactory implements
      */
     @Override
     public void createAsync(final SocketDestination dest,
-                            final KeyedResourcePool<SocketDestination, ClientRequestExecutor> pool)
+            final KeyedResourcePool<SocketDestination, ClientRequestExecutor> pool)
             throws Exception {
         int numCreated = created.incrementAndGet();
-        if(logger.isDebugEnabled())
+        if (logger.isDebugEnabled()) {
             logger.debug("Creating socket " + numCreated + " for " + dest.getHost() + ":"
-                         + dest.getPort() + " using protocol "
-                         + dest.getRequestFormatType().getCode());
+                    + dest.getPort() + " using protocol "
+                    + dest.getRequestFormatType().getCode());
+        }
 
         SocketChannel socketChannel = null;
         ClientRequestExecutor clientRequestExecutor = null;
@@ -160,31 +162,32 @@ public class ClientRequestExecutorFactory implements
             socketChannel.configureBlocking(false);
             socketChannel.connect(new InetSocketAddress(dest.getHost(), dest.getPort()));
 
-            if(logger.isDebugEnabled()) {
+            if (logger.isDebugEnabled()) {
                 logger.debug("Created socket " + numCreated + " for " + dest.getHost() + ":"
-                             + dest.getPort() + " using protocol "
-                             + dest.getRequestFormatType().getCode() + " after " + durationMs
-                             + " ms.");
+                        + dest.getPort() + " using protocol "
+                        + dest.getRequestFormatType().getCode() + " after " + durationMs
+                        + " ms.");
             }
 
             ClientRequestSelectorManager selectorManager = selectorManagers[counter.getAndIncrement()
-                                                                            % selectorManagers.length];
+                    % selectorManagers.length];
 
             Selector selector = selectorManager.getSelector();
             clientRequestExecutor = new ClientRequestExecutor(selector,
-                                                              socketChannel,
-                                                              socketBufferSize,
-                                                              idleConnectionTimeoutNs,
-                                                              dest);
+                    socketChannel,
+                    socketBufferSize,
+                    idleConnectionTimeoutNs,
+                    dest);
             int timeoutMs = this.getTimeout();
 
-            ProtocolNegotiatorClientRequest protocolRequest = new ProtocolNegotiatorClientRequest(dest.getRequestFormatType());
+            ProtocolNegotiatorClientRequest protocolRequest = new ProtocolNegotiatorClientRequest(
+                    dest.getRequestFormatType());
 
             NonblockingStoreCallback callback = new NonblockingStoreCallback() {
 
                 @Override
                 public void requestComplete(Object result, long requestTime) {
-                    if(result instanceof Exception) {
+                    if (result instanceof Exception) {
                         Exception e = (Exception) result;
                         /*
                          * There are 2 places where we can get a store timeout
@@ -214,15 +217,15 @@ public class ClientRequestExecutorFactory implements
                          * to treat the server as dead and let the clients
                          * recover faster.
                          */
-                        if(e instanceof StoreTimeoutException) {
+                        if (e instanceof StoreTimeoutException) {
                             e = new UnreachableStoreException("Error establishing connection for destination "
-                                                                      + dest,
-                                                              new ConnectException(e.getMessage()));
+                                    + dest,
+                                    new ConnectException(e.getMessage()));
                         }
 
-                        if(logger.isDebugEnabled()) {
-                          logger.debug("Reporting exception to pool " + e.getClass()
-                                      + " for destination " + dest);
+                        if (logger.isDebugEnabled()) {
+                            logger.debug("Reporting exception to pool " + e.getClass()
+                                    + " for destination " + dest);
                         }
 
                         pool.reportException(dest, e);
@@ -231,25 +234,27 @@ public class ClientRequestExecutorFactory implements
 
             };
 
-            NonblockingStoreCallbackClientRequest<String> clientRequest = new NonblockingStoreCallbackClientRequest<String>(pool,
-                                                                                                                            dest,
-                                                                                                                            protocolRequest,
-                                                                                                                            clientRequestExecutor,
-                                                                                                                            callback,
-                                                                                                                            stats);
+            NonblockingStoreCallbackClientRequest<String> clientRequest =
+                    new NonblockingStoreCallbackClientRequest<String>(pool,
+                            dest,
+                            protocolRequest,
+                            clientRequestExecutor,
+                            callback,
+                            stats);
 
             clientRequestExecutor.setConnectRequest(clientRequest, timeoutMs);
 
             selectorManager.add(clientRequestExecutor);
             selector.wakeup();
-        } catch(Exception e) {
+        } catch (Exception e) {
             // Make sure not to leak socketChannels
-            if(socketChannel != null) {
+            if (socketChannel != null) {
                 try {
                     socketChannel.close();
-                } catch(Exception ex) {
-                    if(logger.isEnabledFor(Level.WARN))
+                } catch (Exception ex) {
+                    if (logger.isEnabledFor(Level.WARN)) {
                         logger.warn(ex, ex);
+                    }
                 }
             }
             // If clientRequestExector is not null, some additional clean up may
@@ -259,9 +264,9 @@ public class ClientRequestExecutorFactory implements
             // never checked out.
 
             throw UnreachableStoreException.wrap("Error establishing connection for destination "
-                                                 + dest, e);
+                    + dest, e);
         }
-        if(stats != null) {
+        if (stats != null) {
             stats.incrementCount(dest, ClientSocketStats.Tracked.CONNECTION_CREATED_EVENT);
             stats.recordConnectionEstablishmentTimeUs(dest, durationMs * Time.US_PER_MS);
         }
@@ -282,22 +287,24 @@ public class ClientRequestExecutorFactory implements
          */
         long lastClosedTimestamp = getLastClosedTimestamp(dest);
 
-        if(clientRequestExecutor.getCreateTimestamp() <= lastClosedTimestamp) {
-            if(logger.isDebugEnabled())
+        if (clientRequestExecutor.getCreateTimestamp() <= lastClosedTimestamp) {
+            if (logger.isDebugEnabled()) {
                 logger.debug("Socket connection "
-                             + clientRequestExecutor
-                             + " was created on "
-                             + new Date(clientRequestExecutor.getCreateTimestamp() / Time.NS_PER_MS)
-                             + " before socket pool was closed and re-created (on "
-                             + new Date(lastClosedTimestamp / Time.NS_PER_MS) + ")");
+                        + clientRequestExecutor
+                        + " was created on "
+                        + new Date(clientRequestExecutor.getCreateTimestamp() / Time.NS_PER_MS)
+                        + " before socket pool was closed and re-created (on "
+                        + new Date(lastClosedTimestamp / Time.NS_PER_MS) + ")");
+            }
             return false;
         }
 
         boolean isValid = clientRequestExecutor.isValid();
 
-        if(!isValid && logger.isDebugEnabled())
+        if (!isValid && logger.isDebugEnabled()) {
             logger.debug("Client request executor connection " + clientRequestExecutor
-                         + " is no longer valid, closing.");
+                    + " is no longer valid, closing.");
+        }
 
         return isValid;
     }
@@ -323,12 +330,13 @@ public class ClientRequestExecutorFactory implements
             // implementations interruptions are not handled gracefully and/or
             // indicate other errors which cause odd side effects. So we
             // implement a non-interrupt-based shutdown via close.
-            for(int i = 0; i < selectorManagers.length; i++) {
+            for (int i = 0; i < selectorManagers.length; i++) {
                 try {
                     selectorManagers[i].close();
-                } catch(Exception e) {
-                    if(logger.isEnabledFor(Level.WARN))
+                } catch (Exception e) {
+                    if (logger.isEnabledFor(Level.WARN)) {
                         logger.warn(e.getMessage(), e);
+                    }
                 }
             }
 
@@ -336,21 +344,24 @@ public class ClientRequestExecutorFactory implements
             // to avoid using interrupts to signal shutdown.
             selectorManagerThreadPool.shutdown();
 
-            if(logger.isTraceEnabled())
+            if (logger.isTraceEnabled()) {
                 logger.trace("Shut down SelectorManager thread pool acceptor, waiting "
-                             + SHUTDOWN_TIMEOUT_MS + " ms for termination");
+                        + SHUTDOWN_TIMEOUT_MS + " ms for termination");
+            }
 
             boolean terminated = selectorManagerThreadPool.awaitTermination(SHUTDOWN_TIMEOUT_MS,
-                                                                            TimeUnit.MILLISECONDS);
+                    TimeUnit.MILLISECONDS);
 
-            if(!terminated) {
-                if(logger.isEnabledFor(Level.WARN))
+            if (!terminated) {
+                if (logger.isEnabledFor(Level.WARN)) {
                     logger.warn("SelectorManager thread pool did not stop cleanly after "
-                                + SHUTDOWN_TIMEOUT_MS + " ms");
+                            + SHUTDOWN_TIMEOUT_MS + " ms");
+                }
             }
-        } catch(Exception e) {
-            if(logger.isEnabledFor(Level.WARN))
+        } catch (Exception e) {
+            if (logger.isEnabledFor(Level.WARN)) {
                 logger.warn(e.getMessage(), e);
+            }
         }
     }
 
@@ -360,7 +371,8 @@ public class ClientRequestExecutorFactory implements
             super(TimeUnit.MILLISECONDS.convert(3, TimeUnit.MINUTES));
         }
 
-        private final Queue<ClientRequestExecutor> registrationQueue = new ConcurrentLinkedQueue<ClientRequestExecutor>();
+        private final Queue<ClientRequestExecutor> registrationQueue =
+                new ConcurrentLinkedQueue<ClientRequestExecutor>();
 
         public void add(ClientRequestExecutor executor) {
             registrationQueue.add(executor);
@@ -381,10 +393,11 @@ public class ClientRequestExecutorFactory implements
             try {
                 ClientRequestExecutor clientRequestExecutor = null;
 
-                while((clientRequestExecutor = registrationQueue.poll()) != null) {
-                    if(isClosed.get()) {
-                        if(logger.isDebugEnabled())
+                while ((clientRequestExecutor = registrationQueue.poll()) != null) {
+                    if (isClosed.get()) {
+                        if (logger.isDebugEnabled()) {
                             logger.debug("Closed, exiting");
+                        }
 
                         break;
                     }
@@ -392,32 +405,36 @@ public class ClientRequestExecutorFactory implements
                     SocketChannel socketChannel = clientRequestExecutor.getSocketChannel();
 
                     try {
-                        if(logger.isDebugEnabled())
+                        if (logger.isDebugEnabled()) {
                             logger.debug("Registering connection from " + socketChannel.socket());
+                        }
 
                         socketChannel.register(selector,
-                                               SelectionKey.OP_CONNECT,
-                                               clientRequestExecutor);
+                                SelectionKey.OP_CONNECT,
+                                clientRequestExecutor);
 
-                    } catch(ClosedSelectorException e) {
-                        if(logger.isDebugEnabled())
+                    } catch (ClosedSelectorException e) {
+                        if (logger.isDebugEnabled()) {
                             logger.debug("Selector is closed, exiting");
+                        }
 
                         close();
 
                         break;
-                    } catch(ClosedChannelException ex) {
-                        if(logger.isEnabledFor(Level.ERROR)) {
+                    } catch (ClosedChannelException ex) {
+                        if (logger.isEnabledFor(Level.ERROR)) {
                             logger.error("ClosedChannelException " + socketChannel.socket(), ex);
                         }
-                    } catch(Exception e) {
-                        if(logger.isEnabledFor(Level.ERROR))
+                    } catch (Exception e) {
+                        if (logger.isEnabledFor(Level.ERROR)) {
                             logger.error(e.getMessage(), e);
+                        }
                     }
                 }
-            } catch(Exception e) {
-                if(logger.isEnabledFor(Level.ERROR))
+            } catch (Exception e) {
+                if (logger.isEnabledFor(Level.ERROR)) {
                     logger.error(e.getMessage(), e);
+                }
             }
 
             // In blocking I/O, the higher level code can interrupt the thread
@@ -430,25 +447,27 @@ public class ClientRequestExecutorFactory implements
             try {
                 Iterator<SelectionKey> i = selector.keys().iterator();
 
-                while(i.hasNext()) {
+                while (i.hasNext()) {
                     SelectionKey selectionKey = i.next();
                     ClientRequestExecutor clientRequestExecutor = (ClientRequestExecutor) selectionKey.attachment();
 
                     // A race condition can occur wherein our SelectionKey is
                     // still registered but the attachment has be nulled out on
                     // its way to being canceled.
-                    if(clientRequestExecutor != null) {
+                    if (clientRequestExecutor != null) {
                         try {
                             clientRequestExecutor.checkTimeout();
-                        } catch(Exception e) {
-                            if(logger.isEnabledFor(Level.ERROR))
+                        } catch (Exception e) {
+                            if (logger.isEnabledFor(Level.ERROR)) {
                                 logger.error(e.getMessage(), e);
+                            }
                         }
                     }
                 }
-            } catch(Exception e) {
-                if(logger.isEnabledFor(Level.ERROR))
+            } catch (Exception e) {
+                if (logger.isEnabledFor(Level.ERROR)) {
                     logger.error(e.getMessage(), e);
+                }
             }
         }
     }

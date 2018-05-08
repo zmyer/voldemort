@@ -16,11 +16,12 @@ import voldemort.store.metadata.MetadataStore;
 /**
  * A factory that gets the appropriate request handler for a given
  * {@link voldemort.client.protocol.RequestFormatType}.
- * 
- * 
+ *
+ *
  */
+// TODO: 2018/4/26 by zmyer
 public class SocketRequestHandlerFactory implements RequestHandlerFactory {
-
+    //客户端请求处理工厂
     private final ClientRequestHandlerFactory clientFactory;
 
     private final StorageService storage;
@@ -33,13 +34,13 @@ public class SocketRequestHandlerFactory implements RequestHandlerFactory {
     private final VoldemortServer server;
 
     public SocketRequestHandlerFactory(StorageService storageService,
-                                       StoreRepository repository,
-                                       MetadataStore metadata,
-                                       VoldemortConfig voldemortConfig,
-                                       AsyncOperationService asyncService,
-                                       SchedulerService scheduler,
-                                       Rebalancer rebalancer,
-                                       VoldemortServer server) {
+            StoreRepository repository,
+            MetadataStore metadata,
+            VoldemortConfig voldemortConfig,
+            AsyncOperationService asyncService,
+            SchedulerService scheduler,
+            Rebalancer rebalancer,
+            VoldemortServer server) {
 
         this.clientFactory = new ClientRequestHandlerFactory(repository);
 
@@ -60,25 +61,25 @@ public class SocketRequestHandlerFactory implements RequestHandlerFactory {
 
     @Override
     public RequestHandler getRequestHandler(RequestFormatType type) {
-        if(type == RequestFormatType.ADMIN_PROTOCOL_BUFFERS) {
+        if (type == RequestFormatType.ADMIN_PROTOCOL_BUFFERS) {
             return new AdminServiceRequestHandler(new ErrorCodeMapper(),
-                                                  storage,
-                                                  repository,
-                                                  metadata,
-                                                  voldemortConfig,
-                                                  asyncService,
-                                                  scheduler,
-                                                  rebalancer,
-                                                  server);
+                    storage,
+                    repository,
+                    metadata,
+                    voldemortConfig,
+                    asyncService,
+                    scheduler,
+                    rebalancer,
+                    server);
         }
 
         try {
             return clientFactory.getRequestHandler(type);
-        } catch(VoldemortException e) {
+        } catch (VoldemortException e) {
 
         }
 
         throw new VoldemortException("Unknown wire format in " + this.getClass().getName()
-                                     + " Type : " + type);
+                + " Type : " + type);
     }
 }

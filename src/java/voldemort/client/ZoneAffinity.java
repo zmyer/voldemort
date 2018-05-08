@@ -19,8 +19,9 @@ package voldemort.client;
 /**
  * Encapsulates the zone affinity configuration for various Voldemort
  * operations
- * 
+ *
  */
+// TODO: 2018/4/26 by zmyer
 public class ZoneAffinity {
 
     private boolean getOpZoneAffinity;
@@ -36,8 +37,8 @@ public class ZoneAffinity {
     }
 
     public ZoneAffinity(boolean getOpZoneAffinity,
-                        boolean getAllOpZoneAffinity,
-                        boolean getVersionsOpZoneAffinity) {
+            boolean getAllOpZoneAffinity,
+            boolean getVersionsOpZoneAffinity) {
         this.getOpZoneAffinity = getOpZoneAffinity;
         this.getAllOpZoneAffinity = getAllOpZoneAffinity;
         this.getVersionsOpZoneAffinity = getVersionsOpZoneAffinity;

@@ -16,6 +16,11 @@
 
 package voldemort.utils.pool;
 
+import org.apache.log4j.Logger;
+import voldemort.utils.Pair;
+import voldemort.utils.Time;
+import voldemort.utils.Utils;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map.Entry;
@@ -27,12 +32,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-
-import org.apache.log4j.Logger;
-
-import voldemort.utils.Pair;
-import voldemort.utils.Time;
-import voldemort.utils.Utils;
 
 /**
  * A simple implementation of a per-key resource pool. <br>
@@ -65,6 +64,7 @@ import voldemort.utils.Utils;
  * <li>Also, checkout is never called after close.
  * </ul>
  */
+// TODO: 2018/4/26 by zmyer
 public class KeyedResourcePool<K, V> {
 
     private static final Logger logger = Logger.getLogger(KeyedResourcePool.class.getName());
@@ -76,7 +76,7 @@ public class KeyedResourcePool<K, V> {
     private final AtomicInteger connectionsInProgress = new AtomicInteger(0);
 
     public KeyedResourcePool(ResourceFactory<K, V> objectFactory,
-                             ResourcePoolConfig resourcePoolConfig) {
+            ResourcePoolConfig resourcePoolConfig) {
         this.objectFactory = Utils.notNull(objectFactory);
         this.resourcePoolConfig = Utils.notNull(resourcePoolConfig);
         this.resourcePoolMap = new ConcurrentHashMap<K, Pool<V>>();
@@ -92,7 +92,7 @@ public class KeyedResourcePool<K, V> {
      * @return The created pool
      */
     public static <K, V> KeyedResourcePool<K, V> create(ResourceFactory<K, V> factory,
-                                                        ResourcePoolConfig config) {
+            ResourcePoolConfig config) {
         return new KeyedResourcePool<K, V>(factory, config);
     }
 
@@ -137,13 +137,14 @@ public class KeyedResourcePool<K, V> {
             long totalBlockingElapsedNs = 0;
             final long MAX_WAIT_TIME = 300 * Time.NS_PER_MS;
 
-            while(resource == null && (iterStartTime = System.nanoTime()) < endNs) {
+            while (resource == null && (iterStartTime = System.nanoTime()) < endNs) {
                 // Must attempt a non blocking checkout before blockingGet to
                 // ensure resources are created for the pool.
                 resource = attemptNonBlockingCheckout(key, resourcePool);
 
-                if(resource != null)
+                if (resource != null) {
                     break;
+                }
 
                 // Non blocking operation is done, compute the non blocking time
                 // it took in this iteration and add it to overall.
@@ -154,28 +155,30 @@ public class KeyedResourcePool<K, V> {
                 long waitNs = timeRemainingNs;
                 // If the pool is not at the maximum size, wait and then try to
                 // grow the pool.
-                if(resourcePool.size.get() < resourcePool.maxPoolSize) {
+                if (resourcePool.size.get() < resourcePool.maxPoolSize) {
                     waitNs = Math.min(timeRemainingNs, MAX_WAIT_TIME);
                 }
 
-                if(waitNs > 0) {
+                if (waitNs > 0) {
                     resource = blockingGet(key, resourcePool, waitNs);
                     totalBlockingElapsedNs += (System.nanoTime() - nonBlockingFinishTime);
                 }
             }
 
-            if(resource == null) {
-                String errorMessage = String.format("Timeout while checking out resource (%s). Configured time (%d) ns NonBlocking time (%d) ns Blocking time (%d) ns ",
-                                                    key,
-                                                    timeoutNs,
-                                                    totalNonBlockingElapsedNs,
-                                                    totalBlockingElapsedNs);
+            if (resource == null) {
+                String errorMessage = String.format(
+                        "Timeout while checking out resource (%s). Configured time (%d) ns NonBlocking time (%d) ns Blocking time (%d) ns ",
+                        key,
+                        timeoutNs,
+                        totalNonBlockingElapsedNs,
+                        totalBlockingElapsedNs);
                 throw new TimeoutException(errorMessage);
             }
 
-            if(!objectFactory.validate(key, resource))
+            if (!objectFactory.validate(key, resource)) {
                 throw new ExcessiveInvalidResourcesException(1);
-        } catch(Exception e) {
+            }
+        } catch (Exception e) {
             destroyResource(key, resourcePool, resource);
             throw e;
         }
@@ -201,10 +204,10 @@ public class KeyedResourcePool<K, V> {
         // connectionsInProgress tries to avoid these edge cases by not
         // requesting a connection from the pool when other thread is
         // requesting one.
-        if(connectionsInProgress.get() == 0) {
+        if (connectionsInProgress.get() == 0) {
             resource = nonBlockingGet(key, pool);
         }
-        if(resource == null) {
+        if (resource == null) {
             connectionsInProgress.incrementAndGet();
             try {
                 attemptGrow(key, this.objectFactory, pool);
@@ -233,14 +236,14 @@ public class KeyedResourcePool<K, V> {
      */
     private boolean attemptGrow(K key, ResourceFactory<K, V> objectFactory, Pool<V> pool)
             throws Exception {
-        if(pool.size.get() >= pool.maxPoolSize) {
+        if (pool.size.get() >= pool.maxPoolSize) {
             return false;
         }
 
-        if(pool.size.incrementAndGet() <= pool.maxPoolSize) {
+        if (pool.size.incrementAndGet() <= pool.maxPoolSize) {
             try {
                 objectFactory.createAsync(key, this);
-            } catch(Exception e) {
+            } catch (Exception e) {
                 // If nonBlockingPut throws an exception, then we could leak
                 // the resource created by objectFactory.create().
                 pool.size.decrementAndGet();
@@ -255,8 +258,8 @@ public class KeyedResourcePool<K, V> {
 
     private V nonBlockingGet(K key, Pool<V> pool) throws Exception {
         V resource = pool.nonBlockingGet();
-        while(resource != null) {
-            if(isOpenAndValid(key, resource)) {
+        while (resource != null) {
+            if (isOpenAndValid(key, resource)) {
                 return resource;
             }
             resource = pool.nonBlockingGet();
@@ -266,8 +269,8 @@ public class KeyedResourcePool<K, V> {
 
     private V blockingGet(K key, Pool<V> pool, long timeoutNs) throws Exception {
         V resource = pool.blockingGet(timeoutNs);
-        if(resource != null) {
-            if(isOpenAndValid(key, resource)) {
+        if (resource != null) {
+            if (isOpenAndValid(key, resource)) {
                 return resource;
             }
         }
@@ -279,10 +282,10 @@ public class KeyedResourcePool<K, V> {
      */
     protected Pool<V> getResourcePoolForKey(K key) {
         Pool<V> resourcePool = resourcePoolMap.get(key);
-        if(resourcePool == null) {
+        if (resourcePool == null) {
             Pool<V> newResourcePool = new Pool<V>(this.resourcePoolConfig);
             resourcePool = resourcePoolMap.putIfAbsent(key, newResourcePool);
-            if(resourcePool == null) {
+            if (resourcePool == null) {
                 resourcePool = newResourcePool;
             }
         }
@@ -294,9 +297,9 @@ public class KeyedResourcePool<K, V> {
      */
     protected Pool<V> getResourcePoolForExistingKey(K key) {
         Pool<V> resourcePool = resourcePoolMap.get(key);
-        if(resourcePool == null) {
+        if (resourcePool == null) {
             throw new IllegalArgumentException("Invalid key '" + key
-                                               + "': no resource pool exists for that key.");
+                    + "': no resource pool exists for that key.");
         }
         return resourcePool;
     }
@@ -308,10 +311,10 @@ public class KeyedResourcePool<K, V> {
      * and so should be called no more than once for any resource.
      */
     protected void destroyResource(K key, Pool<V> resourcePool, V resource) {
-        if(resource != null) {
+        if (resource != null) {
             try {
                 objectFactory.destroy(key, resource);
-            } catch(Exception e) {
+            } catch (Exception e) {
                 logger.error("Exception while destroying invalid resource: ", e);
             } finally {
                 // Assumes destroyed resource was in fact checked out of the
@@ -334,18 +337,19 @@ public class KeyedResourcePool<K, V> {
      * @param resource The resource
      */
     public void checkin(K key, V resource) {
-        if(isOpenAndValid(key, resource)) {
+        if (isOpenAndValid(key, resource)) {
             Pool<V> resourcePool = getResourcePoolForExistingKey(key);
             boolean success = resourcePool.nonBlockingPut(resource);
-            if(!success) {
+            if (!success) {
                 destroyResource(key, resourcePool, resource);
-                throw new IllegalStateException("Checkin failed. Is the pool already full? (NB: see if KeyedResourcePool::destroyResource is being called multiple times.)");
+                throw new IllegalStateException(
+                        "Checkin failed. Is the pool already full? (NB: see if KeyedResourcePool::destroyResource is being called multiple times.)");
             }
         }
     }
 
     protected boolean isOpenAndValid(K key, V resource) {
-        if(isOpen.get() && objectFactory.validate(key, resource)) {
+        if (isOpen.get() && objectFactory.validate(key, resource)) {
             return true;
         } else {
             Pool<V> resourcePool = getResourcePoolForExistingKey(key);
@@ -357,13 +361,14 @@ public class KeyedResourcePool<K, V> {
     protected boolean internalClose() {
         boolean wasOpen = isOpen.compareAndSet(true, false);
         // change state to false and allow one thread.
-        if(wasOpen) {
-            for(Entry<K, Pool<V>> entry: resourcePoolMap.entrySet()) {
+        if (wasOpen) {
+            for (Entry<K, Pool<V>> entry : resourcePoolMap.entrySet()) {
                 Pool<V> pool = entry.getValue();
                 // destroy each resource in the queue
                 List<V> values = pool.close();
-                for(V value: values)
+                for (V value : values) {
                     destroyResource(entry.getKey(), entry.getValue(), value);
+                }
                 resourcePoolMap.remove(entry.getKey());
             }
         }
@@ -387,11 +392,12 @@ public class KeyedResourcePool<K, V> {
      * @param key The key for the pool to reset.
      */
     public void reset(K key) {
-        if(resourcePoolMap.containsKey(key)) {
+        if (resourcePoolMap.containsKey(key)) {
             Pool<V> resourcePool = getResourcePoolForExistingKey(key);
             List<V> list = resourcePool.close();
-            for(V value: list)
+            for (V value : list) {
                 destroyResource(key, resourcePool, value);
+            }
         }
     }
 
@@ -403,12 +409,12 @@ public class KeyedResourcePool<K, V> {
      *         given key.
      */
     public int getTotalResourceCount(K key) {
-        if(resourcePoolMap.containsKey(key)) {
+        if (resourcePoolMap.containsKey(key)) {
             try {
                 Pool<V> resourcePool = getResourcePoolForExistingKey(key);
                 return resourcePool.size.get();
-            } catch(IllegalArgumentException iae) {
-                if(logger.isDebugEnabled()) {
+            } catch (IllegalArgumentException iae) {
+                if (logger.isDebugEnabled()) {
                     logger.debug("getTotalResourceCount called on invalid key: ", iae);
                 }
             }
@@ -425,8 +431,9 @@ public class KeyedResourcePool<K, V> {
      */
     public int getTotalResourceCount() {
         int count = 0;
-        for(Entry<K, Pool<V>> entry: this.resourcePoolMap.entrySet())
+        for (Entry<K, Pool<V>> entry : this.resourcePoolMap.entrySet()) {
             count += entry.getValue().size.get();
+        }
         return count;
     }
 
@@ -438,12 +445,12 @@ public class KeyedResourcePool<K, V> {
      *         for given key.
      */
     public int getCheckedInResourcesCount(K key) {
-        if(resourcePoolMap.containsKey(key)) {
+        if (resourcePoolMap.containsKey(key)) {
             try {
                 Pool<V> resourcePool = getResourcePoolForExistingKey(key);
                 return resourcePool.queue.size();
-            } catch(IllegalArgumentException iae) {
-                if(logger.isDebugEnabled()) {
+            } catch (IllegalArgumentException iae) {
+                if (logger.isDebugEnabled()) {
                     logger.debug("getCheckedInResourceCount called on invalid key: ", iae);
                 }
             }
@@ -460,8 +467,9 @@ public class KeyedResourcePool<K, V> {
      */
     public int getCheckedInResourceCount() {
         int count = 0;
-        for(Entry<K, Pool<V>> entry: this.resourcePoolMap.entrySet())
+        for (Entry<K, Pool<V>> entry : this.resourcePoolMap.entrySet()) {
             count += entry.getValue().queue.size();
+        }
         return count;
     }
 
@@ -473,12 +481,12 @@ public class KeyedResourcePool<K, V> {
      *         key.
      */
     public int getBlockingGetsCount(K key) {
-        if(resourcePoolMap.containsKey(key)) {
+        if (resourcePoolMap.containsKey(key)) {
             try {
                 Pool<V> resourcePool = getResourcePoolForExistingKey(key);
                 return resourcePool.blockingGets.get();
-            } catch(IllegalArgumentException iae) {
-                if(logger.isDebugEnabled()) {
+            } catch (IllegalArgumentException iae) {
+                if (logger.isDebugEnabled()) {
                     logger.debug("getBlockingGetsCount called on invalid key: ", iae);
                 }
             }
@@ -495,8 +503,9 @@ public class KeyedResourcePool<K, V> {
      */
     public int getBlockingGetsCount() {
         int count = 0;
-        for(Entry<K, Pool<V>> entry: this.resourcePoolMap.entrySet())
+        for (Entry<K, Pool<V>> entry : this.resourcePoolMap.entrySet()) {
             count += entry.getValue().blockingGets.get();
+        }
         return count;
     }
 
@@ -505,8 +514,9 @@ public class KeyedResourcePool<K, V> {
      * it is.
      */
     protected void checkNotClosed() {
-        if(!isOpen.get())
+        if (!isOpen.get()) {
             throw new IllegalStateException("Pool is closed!");
+        }
     }
 
     /**
@@ -543,23 +553,23 @@ public class KeyedResourcePool<K, V> {
         private void throwReportedExceptions() throws Exception {
             Pair<Long, Exception> entry;
             int skippedExceptionCount = 0;
-            while(true) {
+            while (true) {
                 entry = asyncExceptions.poll();
-                if(entry == null) {
-                    if(skippedExceptionCount > 0) {
+                if (entry == null) {
+                    if (skippedExceptionCount > 0) {
                         logger.info(" All Exceptions were expired exceptions. Count "
-                                    + skippedExceptionCount);
+                                + skippedExceptionCount);
                     }
                     return;
                 }
 
                 long elapsedTime = System.currentTimeMillis() - entry.getFirst();
                 skippedExceptionCount++;
-                if(elapsedTime <= excpetionReportTimeMS) {
+                if (elapsedTime <= excpetionReportTimeMS) {
                     Exception e = entry.getSecond();
-                    if(logger.isDebugEnabled()) {
-                      logger.debug(" Throwing remembered exception. time elapsed (ms) " + elapsedTime
-                                  + ". Exception : " + e.getMessage());
+                    if (logger.isDebugEnabled()) {
+                        logger.debug(" Throwing remembered exception. time elapsed (ms) " + elapsedTime
+                                + ". Exception : " + e.getMessage());
                     }
                     throw e;
                 }
@@ -570,7 +580,7 @@ public class KeyedResourcePool<K, V> {
          * get a resource if it is available in the pool. If not return null.
          * The resource could be invalid and caller should validate them before
          * consuming it.
-         * 
+         *
          * @return resource if available else null
          * @throws Exception
          */
@@ -583,7 +593,7 @@ public class KeyedResourcePool<K, V> {
          * get a resource if it is available within the nanoseconds specified.
          * The resource could be invalid and caller should validate them before
          * consuming it.
-         * 
+         *
          * @param timeoutNs max time to wait in nanoseconds
          * @return resource if available else null
          * @throws Exception
@@ -598,7 +608,7 @@ public class KeyedResourcePool<K, V> {
                 blockingGets.decrementAndGet();
             }
 
-            if(v == null) {
+            if (v == null) {
                 throwReportedExceptions();
             }
             return v;

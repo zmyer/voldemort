@@ -19,9 +19,10 @@ package voldemort.versioning;
 /**
  * The result of comparing two times--either t1 is BEFORE t2, t1 is AFTER t2, or
  * t1 happens CONCURRENTLY to t2.
- * 
- * 
+ *
+ *
  */
+// TODO: 2018/4/26 by zmyer
 public enum Occurred {
     BEFORE,
     AFTER,

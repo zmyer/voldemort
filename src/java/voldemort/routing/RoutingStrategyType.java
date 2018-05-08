@@ -2,9 +2,10 @@ package voldemort.routing;
 
 /**
  * An enumeration of RoutingStrategies type
- * 
- * 
+ *
+ *
  */
+// TODO: 2018/4/26 by zmyer
 public class RoutingStrategyType {
 
     public final static String CONSISTENT_STRATEGY = "consistent-routing";

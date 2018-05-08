@@ -16,26 +16,26 @@
 
 package voldemort.cluster.failuredetector;
 
-import java.lang.Thread.UncaughtExceptionHandler;
-
 import org.apache.log4j.Level;
-
 import voldemort.annotations.jmx.JmxManaged;
 import voldemort.cluster.Node;
 import voldemort.store.UnreachableStoreException;
 
+import java.lang.Thread.UncaughtExceptionHandler;
+
 /**
  * AsyncRecoveryFailureDetector detects failures and then attempts to contact
  * the failing node's Store to determine availability.
- * 
+ *
  * <p/>
- * 
+ *
  * When a node does go down, attempts to access the remote Store for that node
  * may take several seconds. Rather than cause the thread to block, we perform
  * this check in a background thread.
- * 
+ *
  */
 
+// TODO: 2018/4/26 by zmyer
 @JmxManaged(description = "Detects the availability of the nodes on which a Voldemort cluster runs")
 public class AsyncRecoveryFailureDetector extends AbstractFailureDetector implements Runnable {
 
@@ -51,8 +51,9 @@ public class AsyncRecoveryFailureDetector extends AbstractFailureDetector implem
         recoveryThread.setUncaughtExceptionHandler(new UncaughtExceptionHandler() {
 
             public void uncaughtException(Thread t, Throwable e) {
-                if(logger.isEnabledFor(Level.ERROR))
+                if (logger.isEnabledFor(Level.ERROR)) {
                     logger.error("Uncaught exception in failure detector recovery thread:", e);
+                }
             }
         });
 
@@ -63,7 +64,7 @@ public class AsyncRecoveryFailureDetector extends AbstractFailureDetector implem
         checkNodeArg(node);
         NodeStatus nodeStatus = getNodeStatus(node);
 
-        synchronized(nodeStatus) {
+        synchronized (nodeStatus) {
             return nodeStatus.isAvailable();
         }
     }
@@ -87,52 +88,57 @@ public class AsyncRecoveryFailureDetector extends AbstractFailureDetector implem
     public void run() {
         long asyncRecoveryInterval = getConfig().getAsyncRecoveryInterval();
 
-        while(!Thread.currentThread().isInterrupted() && isRunning) {
+        while (!Thread.currentThread().isInterrupted() && isRunning) {
             try {
-                if(logger.isDebugEnabled()) {
+                if (logger.isDebugEnabled()) {
                     logger.debug("Sleeping for " + asyncRecoveryInterval
-                                 + " ms before checking node availability");
+                            + " ms before checking node availability");
                 }
 
                 getConfig().getTime().sleep(asyncRecoveryInterval);
-            } catch(InterruptedException e) {
-                if(logger.isDebugEnabled()) {
+            } catch (InterruptedException e) {
+                if (logger.isDebugEnabled()) {
                     logger.debug("InterruptedException while sleeping " + asyncRecoveryInterval
-                                 + " ms before checking node availability", e);
+                            + " ms before checking node availability", e);
                 }
 
                 break;
             }
 
-            for(Node node: getConfig().getCluster().getNodes()) {
-                if(isAvailable(node))
+            for (Node node : getConfig().getCluster().getNodes()) {
+                if (isAvailable(node)) {
                     continue;
+                }
 
-                if(logger.isDebugEnabled())
+                if (logger.isDebugEnabled()) {
                     logger.debug("Checking previously unavailable node " + node.getId());
+                }
 
                 ConnectionVerifier verifier = getConfig().getConnectionVerifier();
 
                 try {
                     // This is our test.
-                    if(logger.isDebugEnabled())
+                    if (logger.isDebugEnabled()) {
                         logger.debug("Verifying previously unavailable node " + node.getId());
+                    }
 
                     verifier.verifyConnection(node);
 
-                    if(logger.isDebugEnabled())
+                    if (logger.isDebugEnabled()) {
                         logger.debug("Verified previously unavailable node " + node.getId()
-                                     + "is now available.");
+                                + "is now available.");
+                    }
 
                     nodeRecovered(node);
-                } catch(UnreachableStoreException e) {
-                    if(logger.isDebugEnabled()) {
+                } catch (UnreachableStoreException e) {
+                    if (logger.isDebugEnabled()) {
                         logger.debug("Node " + node.getId()
-                                     + " still unavailable due to UnreachableStoreException", e);
+                                + " still unavailable due to UnreachableStoreException", e);
                     }
-                } catch(Exception e) {
-                    if(logger.isEnabledFor(Level.ERROR))
+                } catch (Exception e) {
+                    if (logger.isEnabledFor(Level.ERROR)) {
                         logger.error("Node " + node.getId() + " unavailable due to error", e);
+                    }
                 }
             }
         }

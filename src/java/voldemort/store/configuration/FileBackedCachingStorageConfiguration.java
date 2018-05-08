@@ -25,11 +25,12 @@ import voldemort.utils.ByteArray;
 
 /**
  * Storage configuration class for FileBackedCachingStorageEngine
- * 
+ *
  * @author csoman
- * 
+ *
  */
 
+// TODO: 2018/4/26 by zmyer
 public class FileBackedCachingStorageConfiguration implements StorageConfiguration {
 
     public static final String TYPE_NAME = "file-backed-cache";
@@ -40,7 +41,7 @@ public class FileBackedCachingStorageConfiguration implements StorageConfigurati
     }
 
     public StorageEngine<ByteArray, byte[], byte[]> getStore(StoreDefinition storeDef,
-                                                             RoutingStrategy strategy) {
+            RoutingStrategy strategy) {
         return new FileBackedCachingStorageEngine(storeDef.getName(), inputPath);
     }
 
@@ -48,7 +49,8 @@ public class FileBackedCachingStorageConfiguration implements StorageConfigurati
         return TYPE_NAME;
     }
 
-    public void close() {}
+    public void close() {
+    }
 
     public void update(StoreDefinition storeDef) {
 
@@ -56,5 +58,6 @@ public class FileBackedCachingStorageConfiguration implements StorageConfigurati
 
     // Nothing to do here: we're not tracking the created storage engine.
     @Override
-    public void removeStorageEngine(StorageEngine<ByteArray, byte[], byte[]> engine) {}
+    public void removeStorageEngine(StorageEngine<ByteArray, byte[], byte[]> engine) {
+    }
 }

@@ -16,8 +16,6 @@
 
 package voldemort.store.nonblockingstore;
 
-import java.util.Map;
-
 import voldemort.VoldemortException;
 import voldemort.store.Store;
 import voldemort.store.routed.RoutedStore;
@@ -26,23 +24,25 @@ import voldemort.utils.ByteArray;
 import voldemort.versioning.Version;
 import voldemort.versioning.Versioned;
 
+import java.util.Map;
+
 /**
  * A NonblockingStore mimics the {@link Store} interface but instead of blocking
  * for the request to complete, it simply submits it for later processing and
  * returns immediately. When the request is processed, the provided
  * {@link NonblockingStoreCallback callback} is invoked in order to provide
  * interested parties with the results of the request.
- * 
+ *
  * <p/>
- * 
+ *
  * At this point, the NonblockingStore is used from within the
  * {@link RoutedStore} in order to provide asynchronous processing against
  * multiple remote stores in parallel using a single thread approach.
- * 
+ *
  * <p/>
- * 
+ *
  * There are two main implementations:
- * 
+ *
  * <ol>
  * <li>{@link ThreadPoolBasedNonblockingStoreImpl} wraps a "blocking"
  * {@link Store} inside a thread pool to provide a submit-and-return style of
@@ -53,7 +53,7 @@ import voldemort.versioning.Versioned;
  * which will process <b>all</b> requests to remote servers in a dedicated
  * thread.
  * </ol>
- * 
+ *
  * @see Store
  * @see ThreadPoolBasedNonblockingStoreImpl
  * @see SocketStore
@@ -61,32 +61,33 @@ import voldemort.versioning.Versioned;
  * @see RoutedStore
  */
 
+// TODO: 2018/4/3 by zmyer
 public interface NonblockingStore {
 
     public void submitGetRequest(ByteArray key,
-                                 byte[] transforms,
-                                 NonblockingStoreCallback callback,
-                                 long timeoutMs);
+            byte[] transforms,
+            NonblockingStoreCallback callback,
+            long timeoutMs);
 
     public void submitGetAllRequest(Iterable<ByteArray> keys,
-                                    Map<ByteArray, byte[]> transforms,
-                                    NonblockingStoreCallback callback,
-                                    long timeoutMs);
+            Map<ByteArray, byte[]> transforms,
+            NonblockingStoreCallback callback,
+            long timeoutMs);
 
     public void submitGetVersionsRequest(ByteArray key,
-                                         NonblockingStoreCallback callback,
-                                         long timeoutMs);
+            NonblockingStoreCallback callback,
+            long timeoutMs);
 
     public void submitPutRequest(ByteArray key,
-                                 Versioned<byte[]> value,
-                                 byte[] transforms,
-                                 NonblockingStoreCallback callback,
-                                 long timeoutMs);
+            Versioned<byte[]> value,
+            byte[] transforms,
+            NonblockingStoreCallback callback,
+            long timeoutMs);
 
     public void submitDeleteRequest(ByteArray key,
-                                    Version version,
-                                    NonblockingStoreCallback callback,
-                                    long timeoutMs);
+            Version version,
+            NonblockingStoreCallback callback,
+            long timeoutMs);
 
     public void close() throws VoldemortException;
 

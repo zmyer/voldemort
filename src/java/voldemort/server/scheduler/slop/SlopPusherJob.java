@@ -1,9 +1,6 @@
 package voldemort.server.scheduler.slop;
 
-import java.util.Set;
-
 import org.apache.log4j.Logger;
-
 import voldemort.cluster.Cluster;
 import voldemort.cluster.failuredetector.FailureDetector;
 import voldemort.server.StoreRepository;
@@ -17,11 +14,14 @@ import voldemort.utils.Pair;
 import voldemort.utils.Utils;
 import voldemort.versioning.Versioned;
 
+import java.util.Set;
+
 /**
- * 
+ *
  * TODO there is potentially lot more the two slop pushers can share.
- * 
+ *
  */
+// TODO: 2018/4/26 by zmyer
 public abstract class SlopPusherJob {
 
     protected final StoreRepository storeRepo;
@@ -31,10 +31,10 @@ public abstract class SlopPusherJob {
     protected final VoldemortConfig voldemortConfig;
 
     SlopPusherJob(StoreRepository storeRepo,
-                  MetadataStore metadataStore,
-                  FailureDetector failureDetector,
-                  VoldemortConfig voldemortConfig,
-                  ScanPermitWrapper repairPermits) {
+            MetadataStore metadataStore,
+            FailureDetector failureDetector,
+            VoldemortConfig voldemortConfig,
+            ScanPermitWrapper repairPermits) {
         this.storeRepo = storeRepo;
         this.metadataStore = metadataStore;
         this.repairPermits = Utils.notNull(repairPermits);
@@ -45,18 +45,18 @@ public abstract class SlopPusherJob {
     /**
      * A slop is dead if the destination node or the store does not exist
      * anymore on the cluster.
-     * 
+     *
      * @param slop
      * @return
      */
     protected boolean isSlopDead(Cluster cluster, Set<String> storeNames, Slop slop) {
         // destination node , no longer exists
-        if(!cluster.getNodeIds().contains(slop.getNodeId())) {
+        if (!cluster.getNodeIds().contains(slop.getNodeId())) {
             return true;
         }
 
         // destination store, no longer exists
-        if(!storeNames.contains(slop.getStoreName())) {
+        if (!storeNames.contains(slop.getStoreName())) {
             return true;
         }
 
@@ -69,18 +69,18 @@ public abstract class SlopPusherJob {
      * always be the case. For example, shrinking a zone or deleting a store.
      */
     protected void handleDeadSlop(SlopStorageEngine slopStorageEngine,
-                                  Pair<ByteArray, Versioned<Slop>> keyAndVal) {
+            Pair<ByteArray, Versioned<Slop>> keyAndVal) {
         Versioned<Slop> versioned = keyAndVal.getSecond();
         // If configured to delete the dead slop
-        if(voldemortConfig.getAutoPurgeDeadSlops()) {
+        if (voldemortConfig.getAutoPurgeDeadSlops()) {
             slopStorageEngine.delete(keyAndVal.getFirst(), versioned.getVersion());
 
-            if(getLogger().isDebugEnabled()) {
+            if (getLogger().isDebugEnabled()) {
                 getLogger().debug("Auto purging dead slop :" + versioned.getValue());
             }
         } else {
             // Keep ignoring the dead slops
-            if(getLogger().isDebugEnabled()) {
+            if (getLogger().isDebugEnabled()) {
                 getLogger().debug("Ignoring dead slop :" + versioned.getValue());
             }
         }

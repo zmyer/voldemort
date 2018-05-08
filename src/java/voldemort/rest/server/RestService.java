@@ -1,17 +1,11 @@
 package voldemort.rest.server;
 
-import java.net.InetSocketAddress;
-import java.util.List;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadPoolExecutor;
-
 import org.apache.log4j.Logger;
 import org.jboss.netty.bootstrap.ServerBootstrap;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.group.ChannelGroup;
 import org.jboss.netty.channel.group.DefaultChannelGroup;
 import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory;
-
 import voldemort.annotations.jmx.JmxGetter;
 import voldemort.annotations.jmx.JmxManaged;
 import voldemort.common.service.AbstractService;
@@ -21,6 +15,12 @@ import voldemort.server.VoldemortConfig;
 import voldemort.store.StoreDefinition;
 import voldemort.utils.JmxUtils;
 
+import java.net.InetSocketAddress;
+import java.util.List;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadPoolExecutor;
+
+// TODO: 2018/4/26 by zmyer
 @JmxManaged(description = "Rest Service to serve Http requests")
 public class RestService extends AbstractService {
 
@@ -36,10 +36,10 @@ public class RestService extends AbstractService {
     private int localZoneId;
 
     public RestService(VoldemortConfig config,
-                       int restPort,
-                       StoreRepository storeRepository,
-                       int zoneId,
-                       List<StoreDefinition> storeDefinitions) {
+            int restPort,
+            StoreRepository storeRepository,
+            int zoneId,
+            List<StoreDefinition> storeDefinitions) {
         super(ServiceType.RESTSERVICE);
         this.config = config;
         this.port = restPort;
@@ -52,18 +52,20 @@ public class RestService extends AbstractService {
     protected void startInner() {
 
         // Configure the server.
-        this.workerPool = (ThreadPoolExecutor) Executors.newFixedThreadPool(config.getNumRestServiceNettyWorkerThreads());
-        this.bootstrap = new ServerBootstrap(new NioServerSocketChannelFactory(Executors.newFixedThreadPool(config.getNumRestServiceNettyBossThreads()),
-                                                                               workerPool));
+        this.workerPool = (ThreadPoolExecutor) Executors.newFixedThreadPool(
+                config.getNumRestServiceNettyWorkerThreads());
+        this.bootstrap = new ServerBootstrap(new NioServerSocketChannelFactory(
+                Executors.newFixedThreadPool(config.getNumRestServiceNettyBossThreads()),
+                workerPool));
         this.bootstrap.setOption("backlog", config.getRestServiceNettyServerBacklog());
         this.bootstrap.setOption("child.tcpNoDelay", true);
         this.bootstrap.setOption("child.keepAlive", true);
         this.bootstrap.setOption("child.reuseAddress", true);
         this.bootstrap.setPipelineFactory(new RestPipelineFactory(storeRepository,
-                                                                  config,
-                                                                  localZoneId,
-                                                                  storeDefinitions,
-                                                                  allChannels));
+                config,
+                localZoneId,
+                storeDefinitions,
+                allChannels));
 
         // Bind and start to accept incoming connections.
         this.nettyServerChannel = this.bootstrap.bind(new InetSocketAddress(this.port));
@@ -71,10 +73,10 @@ public class RestService extends AbstractService {
         logger.info("REST service started on port " + this.port);
 
         // Register MBeans for Netty worker pool stats
-        if(config.isJmxEnabled()) {
+        if (config.isJmxEnabled()) {
             JmxUtils.registerMbean(this,
-                                   JmxUtils.createObjectName(JmxUtils.getPackageName(this.getClass()),
-                                                             JmxUtils.getClassName(this.getClass())));
+                    JmxUtils.createObjectName(JmxUtils.getPackageName(this.getClass()),
+                            JmxUtils.getClassName(this.getClass())));
         }
     }
 
@@ -88,11 +90,11 @@ public class RestService extends AbstractService {
          * the existing async operations when a channel.close() is issued in
          * Netty?
          */
-        if(this.nettyServerChannel != null) {
+        if (this.nettyServerChannel != null) {
             this.nettyServerChannel.close();
         }
 
-        if(allChannels != null) {
+        if (allChannels != null) {
             allChannels.close().awaitUninterruptibly();
         }
         this.bootstrap.releaseExternalResources();
@@ -103,12 +105,14 @@ public class RestService extends AbstractService {
         return this.workerPool.getActiveCount();
     }
 
-    @JmxGetter(name = "TotalNettyWorkerThreads", description = "The total number of Netty worker threads, active and idle.")
+    @JmxGetter(name = "TotalNettyWorkerThreads",
+            description = "The total number of Netty worker threads, active and idle.")
     public int getAllThreadInWorkerPool() {
         return this.workerPool.getPoolSize();
     }
 
-    @JmxGetter(name = "QueuedNetworkRequests", description = "Number of requests in the Netty worker queue waiting to execute.")
+    @JmxGetter(name = "QueuedNetworkRequests",
+            description = "Number of requests in the Netty worker queue waiting to execute.")
     public int getQueuedRequests() {
         return this.workerPool.getQueue().size();
     }

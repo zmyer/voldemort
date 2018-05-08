@@ -16,17 +16,9 @@
 
 package voldemort.store;
 
-import java.io.Closeable;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import org.apache.log4j.Logger;
-
 import voldemort.cluster.Node;
 import voldemort.routing.RoutingStrategy;
 import voldemort.serialization.Serializer;
@@ -39,27 +31,37 @@ import voldemort.utils.Pair;
 import voldemort.versioning.Version;
 import voldemort.versioning.Versioned;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
+import java.io.Closeable;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Group of store utilities
- * 
+ *
  */
+// TODO: 2018/4/26 by zmyer
 public class StoreUtils {
 
     private static Logger logger = Logger.getLogger(StoreUtils.class);
 
     public static void assertValidKeys(Iterable<?> keys) {
-        if(keys == null)
+        if (keys == null) {
             throw new IllegalArgumentException("Keys cannot be null.");
-        for(Object key: keys)
+        }
+        for (Object key : keys) {
             assertValidKey(key);
+        }
     }
 
     public static <K> void assertValidKey(K key) {
-        if(key == null)
+        if (key == null) {
             throw new IllegalArgumentException("Key cannot be null.");
+        }
     }
 
     /**
@@ -67,27 +69,26 @@ public class StoreUtils {
      */
     public static <K, V, T> List<Versioned<V>> get(Store<K, V, T> storageEngine, K key, T transform) {
         Map<K, List<Versioned<V>>> result = storageEngine.getAll(Collections.singleton(key),
-                                                                 Collections.singletonMap(key,
-                                                                                          transform));
-        if(result.size() > 0)
+                Collections.singletonMap(key, transform));
+        if (result.size() > 0) {
             return result.get(key);
-        else
+        } else {
             return Collections.emptyList();
+        }
     }
 
     /**
      * Implements getAll by delegating to get.
      */
     public static <K, V, T> Map<K, List<Versioned<V>>> getAll(Store<K, V, T> storageEngine,
-                                                              Iterable<K> keys,
-                                                              Map<K, T> transforms) {
+            Iterable<K> keys, Map<K, T> transforms) {
         Map<K, List<Versioned<V>>> result = newEmptyHashMap(keys);
-        for(K key: keys) {
+        for (K key : keys) {
             List<Versioned<V>> value = storageEngine.get(key,
-                                                         transforms != null ? transforms.get(key)
-                                                                           : null);
-            if(!value.isEmpty())
+                    transforms != null ? transforms.get(key) : null);
+            if (!value.isEmpty()) {
                 result.put(key, value);
+            }
         }
         return result;
     }
@@ -98,25 +99,26 @@ public class StoreUtils {
      * returned.
      */
     public static <K, V> HashMap<K, V> newEmptyHashMap(Iterable<?> iterable) {
-        if(iterable instanceof Collection<?>)
+        if (iterable instanceof Collection<?>) {
             return Maps.newHashMapWithExpectedSize(((Collection<?>) iterable).size());
+        }
         return Maps.newHashMap();
     }
 
     /**
      * Closes a Closeable and logs a potential error instead of re-throwing the
      * exception. If {@code null} is passed, this method is a no-op.
-     * 
+     *
      * This is typically used in finally blocks to prevent an exception thrown
      * during close from hiding an exception thrown inside the try.
-     * 
+     *
      * @param c The Closeable to close, may be null.
      */
     public static void close(Closeable c) {
-        if(c != null) {
+        if (c != null) {
             try {
                 c.close();
-            } catch(IOException e) {
+            } catch (IOException e) {
                 logger.error("Error closing stream", e);
             }
         }
@@ -125,24 +127,24 @@ public class StoreUtils {
     /**
      * Check if the current node is part of routing request based on cluster.xml
      * or throw an exception.
-     * 
+     *
      * @param key The key we are checking
      * @param routingStrategy The routing strategy
      * @param currentNode Current node
      */
     public static void assertValidMetadata(ByteArray key,
-                                           RoutingStrategy routingStrategy,
-                                           Node currentNode) {
+            RoutingStrategy routingStrategy,
+            Node currentNode) {
         List<Node> nodes = routingStrategy.routeRequest(key.get());
-        for(Node node: nodes) {
-            if(node.getId() == currentNode.getId()) {
+        for (Node node : nodes) {
+            if (node.getId() == currentNode.getId()) {
                 return;
             }
         }
 
         throw new InvalidMetadataException("Client accessing key belonging to partitions "
-                                           + routingStrategy.getPartitionList(key.get())
-                                           + " not present at " + currentNode);
+                + routingStrategy.getPartitionList(key.get())
+                + " not present at " + currentNode);
     }
 
     /**
@@ -152,15 +154,16 @@ public class StoreUtils {
      * @param nodeId The nodeId to check existence of
      */
     public static void assertValidNode(MetadataStore metadataStore, Integer nodeId) {
-        if(!metadataStore.getCluster().hasNodeWithId(nodeId)) {
+        if (!metadataStore.getCluster().hasNodeWithId(nodeId)) {
             throw new InvalidMetadataException("NodeId " + nodeId + " is not or no longer in this cluster");
         }
     }
 
     public static <V> List<Version> getVersions(List<Versioned<V>> versioneds) {
         List<Version> versions = Lists.newArrayListWithCapacity(versioneds.size());
-        for(Versioned<?> versioned: versioneds)
+        for (Versioned<?> versioned : versioneds) {
             versions.add(versioned.getVersion());
+        }
         return versions;
     }
 
@@ -177,8 +180,9 @@ public class StoreUtils {
 
             public K next() {
                 Pair<K, V> value = values.next();
-                if(value == null)
+                if (value == null) {
                     return null;
+                }
                 return value.getFirst();
             }
 
@@ -196,46 +200,52 @@ public class StoreUtils {
      */
     @SuppressWarnings("unchecked")
     public static <T> Serializer<T> unsafeGetSerializer(SerializerFactory serializerFactory,
-                                                        SerializerDefinition serializerDefinition) {
+            SerializerDefinition serializerDefinition) {
         return (Serializer<T>) serializerFactory.getSerializer(serializerDefinition);
     }
 
     /**
      * Get a store definition from the given list of store definitions
-     * 
+     *
      * @param list A list of store definitions
      * @param name The name of the store
      * @return The store definition
      */
     public static StoreDefinition getStoreDef(List<StoreDefinition> list, String name) {
-        for(StoreDefinition def: list)
-            if(def.getName().equals(name))
+        for (StoreDefinition def : list) {
+            if (def.getName().equals(name)) {
                 return def;
+            }
+        }
         return null;
     }
 
     /**
      * Get the list of store names from a list of store definitions
-     * 
+     *
      * @param list
      * @param ignoreViews
      * @return list of store names
      */
     public static List<String> getStoreNames(List<StoreDefinition> list, boolean ignoreViews) {
         List<String> storeNameSet = new ArrayList<String>();
-        for(StoreDefinition def: list)
-            if(!def.isView() || !ignoreViews)
+        for (StoreDefinition def : list) {
+            if (!def.isView() || !ignoreViews) {
                 storeNameSet.add(def.getName());
+            }
+        }
         return storeNameSet;
     }
 
     public static HashMap<String, StoreDefinition> getStoreDefsAsMap(List<StoreDefinition> storeDefs) {
-        if(storeDefs == null)
+        if (storeDefs == null) {
             return null;
+        }
 
         HashMap<String, StoreDefinition> storeDefMap = new HashMap<String, StoreDefinition>();
-        for(StoreDefinition def: storeDefs)
+        for (StoreDefinition def : storeDefs) {
             storeDefMap.put(def.getName(), def);
+        }
         return storeDefMap;
     }
 }

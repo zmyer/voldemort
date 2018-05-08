@@ -18,9 +18,10 @@ package voldemort;
 
 /**
  * Base exception that all other Voldemort exceptions extend.
- * 
- * 
+ *
+ *
  */
+// TODO: 2018/4/26 by zmyer
 public class VoldemortException extends RuntimeException {
 
     private static final long serialVersionUID = 1L;

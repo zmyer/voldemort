@@ -4,6 +4,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  */
+// TODO: 2018/4/4 by zmyer
 public class AsyncOperationStatus {
 
     private volatile String status = "initializing";
@@ -65,7 +66,7 @@ public class AsyncOperationStatus {
         builder.append(isComplete());
         builder.append(", status = ");
         builder.append(getStatus());
-        if(this.hasException()) {
+        if (this.hasException()) {
             builder.append(", Exception = ");
             builder.append(getException());
         }

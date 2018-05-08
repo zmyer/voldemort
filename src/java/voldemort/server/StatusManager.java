@@ -2,6 +2,7 @@ package voldemort.server;
 
 import java.util.concurrent.ThreadPoolExecutor;
 
+// TODO: 2018/4/26 by zmyer
 public class StatusManager {
 
     private final ThreadPoolExecutor threadPool;
@@ -31,10 +32,10 @@ public class StatusManager {
         long minutes = (time / 60) - (days * 1440) - (hours * 60);
         long seconds = time % 60;
         return String.format("%d days, %d hours, %d minutes, %d seconds",
-                             days,
-                             hours,
-                             minutes,
-                             seconds);
+                days,
+                hours,
+                minutes,
+                seconds);
     }
 
 }

@@ -16,9 +16,6 @@
 
 package voldemort.store.memory;
 
-import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
-
 import voldemort.VoldemortException;
 import voldemort.routing.RoutingStrategy;
 import voldemort.server.VoldemortConfig;
@@ -28,38 +25,46 @@ import voldemort.store.StoreDefinition;
 import voldemort.utils.ByteArray;
 import voldemort.versioning.Versioned;
 
+import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
+
 /**
  * A storage engine that uses a java.util.ConcurrentHashMap to hold the entries
- * 
- * 
+ *
+ *
  */
+// TODO: 2018/4/26 by zmyer
 public class InMemoryStorageConfiguration implements StorageConfiguration {
 
     public static final String TYPE_NAME = "memory";
 
-    public InMemoryStorageConfiguration() {}
+    public InMemoryStorageConfiguration() {
+    }
 
     @SuppressWarnings("unused")
-    public InMemoryStorageConfiguration(VoldemortConfig config) {}
+    public InMemoryStorageConfiguration(VoldemortConfig config) {
+    }
 
     public StorageEngine<ByteArray, byte[], byte[]> getStore(StoreDefinition storeDef,
-                                                             RoutingStrategy strategy) {
+            RoutingStrategy strategy) {
         return new InMemoryStorageEngine<ByteArray, byte[], byte[]>(storeDef.getName(),
-                                                                    new ConcurrentHashMap<ByteArray, List<Versioned<byte[]>>>());
+                new ConcurrentHashMap<ByteArray, List<Versioned<byte[]>>>());
     }
 
     public String getType() {
         return TYPE_NAME;
     }
 
-    public void close() {}
+    public void close() {
+    }
 
     public void update(StoreDefinition storeDef) {
         throw new VoldemortException("Storage config updates not permitted for "
-                                     + this.getClass().getCanonicalName());
+                + this.getClass().getCanonicalName());
     }
 
     // Nothing to do here: we're not tracking the created storage engine.
     @Override
-    public void removeStorageEngine(StorageEngine<ByteArray, byte[], byte[]> engine) {}
+    public void removeStorageEngine(StorageEngine<ByteArray, byte[], byte[]> engine) {
+    }
 }

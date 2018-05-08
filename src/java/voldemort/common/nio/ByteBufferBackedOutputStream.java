@@ -16,11 +16,11 @@
 
 package voldemort.common.nio;
 
+import voldemort.annotations.concurrency.NotThreadsafe;
+
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
-
-import voldemort.annotations.concurrency.NotThreadsafe;
 
 /**
  * ByteBufferBackedOutputStream serves two purposes:
@@ -36,9 +36,10 @@ import voldemort.annotations.concurrency.NotThreadsafe;
  * buffer as the object reference passed into the constructor is changed upon
  * expansion. Additionally, some callers might wish to "un-expand" the buffer
  * back to a more reasonable size after use.
- * 
+ *
  */
 
+// TODO: 2018/4/26 by zmyer
 @NotThreadsafe
 public class ByteBufferBackedOutputStream extends OutputStream {
 
@@ -81,8 +82,9 @@ public class ByteBufferBackedOutputStream extends OutputStream {
         ByteBuffer buffer = bufferContainer.getBuffer();
         int need = len - buffer.remaining();
 
-        if(need <= 0)
+        if (need <= 0) {
             return buffer;
+        }
 
         wasExpanded = true;
         int newCapacity = (buffer.capacity() + need) * 2;

@@ -15,9 +15,6 @@
  */
 package voldemort.serialization.avro;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericDatumWriter;
@@ -25,16 +22,18 @@ import org.apache.avro.io.BinaryEncoder;
 import org.apache.avro.io.Decoder;
 import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.io.Encoder;
-
 import voldemort.serialization.SerializationException;
 import voldemort.serialization.SerializationUtils;
 import voldemort.serialization.Serializer;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 
 /**
  * Avro serializer that uses the generic representation for Avro data. This
  * representation is best for applications which deal with dynamic data, whose
  * schemas are not known until runtime.
- * 
+ *
  */
 public class AvroGenericSerializer implements Serializer<Object> {
 
@@ -42,7 +41,7 @@ public class AvroGenericSerializer implements Serializer<Object> {
 
     /**
      * Constructor accepting the schema definition as a JSON string.
-     * 
+     *
      * @param schema a serialized JSON object representing a Avro schema.
      */
     public AvroGenericSerializer(String schema) {
@@ -57,7 +56,7 @@ public class AvroGenericSerializer implements Serializer<Object> {
             datumWriter = new GenericDatumWriter<Object>(typeDef);
             datumWriter.write(object, encoder);
             encoder.flush();
-        } catch(IOException e) {
+        } catch (IOException e) {
             throw new SerializationException(e);
         } finally {
             SerializationUtils.close(output);
@@ -71,7 +70,7 @@ public class AvroGenericSerializer implements Serializer<Object> {
         try {
             reader = new GenericDatumReader<Object>(typeDef);
             return reader.read(null, decoder);
-        } catch(IOException e) {
+        } catch (IOException e) {
             throw new SerializationException(e);
         }
     }
@@ -86,18 +85,23 @@ public class AvroGenericSerializer implements Serializer<Object> {
 
     @Override
     public boolean equals(Object obj) {
-        if(this == obj)
+        if (this == obj) {
             return true;
-        if(obj == null)
+        }
+        if (obj == null) {
             return false;
-        if(getClass() != obj.getClass())
+        }
+        if (getClass() != obj.getClass()) {
             return false;
+        }
         AvroGenericSerializer other = (AvroGenericSerializer) obj;
-        if(typeDef == null) {
-            if(other.typeDef != null)
+        if (typeDef == null) {
+            if (other.typeDef != null) {
                 return false;
-        } else if(!typeDef.equals(other.typeDef))
+            }
+        } else if (!typeDef.equals(other.typeDef)) {
             return false;
+        }
         return true;
     }
 

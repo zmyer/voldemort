@@ -16,11 +16,11 @@
 
 package voldemort.common.nio;
 
+import voldemort.annotations.concurrency.NotThreadsafe;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
-
-import voldemort.annotations.concurrency.NotThreadsafe;
 
 /**
  * ByteBufferBackedInputStream allows a ByteBuffer to be the source of data for
@@ -30,9 +30,10 @@ import voldemort.annotations.concurrency.NotThreadsafe;
  * For code that manages the ByteBufferBackedInputStream, there are accessor
  * methods for the underlying buffer should it need to expand and contract on
  * reuse.
- * 
+ *
  */
 
+// TODO: 2018/4/26 by zmyer
 @NotThreadsafe
 public class ByteBufferBackedInputStream extends InputStream {
 
@@ -57,8 +58,9 @@ public class ByteBufferBackedInputStream extends InputStream {
     @Override
     public int read() throws IOException {
         ByteBuffer buffer = bufferContainer.getBuffer();
-        if(!buffer.hasRemaining())
+        if (!buffer.hasRemaining()) {
             return -1;
+        }
 
         return buffer.get() & 0xff;
     }
@@ -67,8 +69,9 @@ public class ByteBufferBackedInputStream extends InputStream {
     public int read(byte[] bytes, int off, int len) throws IOException {
 
         ByteBuffer buffer = bufferContainer.getBuffer();
-        if(!buffer.hasRemaining())
+        if (!buffer.hasRemaining()) {
             return -1;
+        }
 
         len = Math.min(len, buffer.remaining());
         buffer.get(bytes, off, len);

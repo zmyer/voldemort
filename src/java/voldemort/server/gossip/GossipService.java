@@ -28,6 +28,7 @@ import voldemort.store.metadata.MetadataStore;
  * This service runs a metadata Gossip protocol. See
  * {@link voldemort.server.gossip.Gossiper} for more details.
  */
+// TODO: 2018/4/26 by zmyer
 @JmxManaged(description = "Gossip protocol for synchronizing state/configuration in a cluster.")
 public class GossipService extends AbstractService {
 
@@ -36,13 +37,13 @@ public class GossipService extends AbstractService {
     private final AdminClient adminClient;
 
     public GossipService(MetadataStore metadataStore,
-                         SchedulerService service,
-                         VoldemortConfig voldemortConfig) {
+            SchedulerService service,
+            VoldemortConfig voldemortConfig) {
         super(ServiceType.GOSSIP);
         schedulerService = service;
         adminClient = AdminClient.createTempAdminClient(voldemortConfig,
-                                                           metadataStore.getCluster(),
-                                                           4);
+                metadataStore.getCluster(),
+                4);
         gossiper = new Gossiper(metadataStore, adminClient, voldemortConfig.getGossipInterval());
     }
 

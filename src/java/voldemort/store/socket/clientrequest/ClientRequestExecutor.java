@@ -16,17 +16,7 @@
 
 package voldemort.store.socket.clientrequest;
 
-import java.io.Closeable;
-import java.io.DataInputStream;
-import java.io.EOFException;
-import java.io.IOException;
-import java.net.Socket;
-import java.nio.channels.SelectionKey;
-import java.nio.channels.Selector;
-import java.nio.channels.SocketChannel;
-
 import org.apache.log4j.Level;
-
 import voldemort.VoldemortApplicationException;
 import voldemort.common.nio.ByteBufferBackedInputStream;
 import voldemort.common.nio.ByteBufferBackedOutputStream;
@@ -36,20 +26,30 @@ import voldemort.common.nio.SelectorManagerWorker;
 import voldemort.store.socket.SocketDestination;
 import voldemort.utils.Time;
 
+import java.io.Closeable;
+import java.io.DataInputStream;
+import java.io.EOFException;
+import java.io.IOException;
+import java.net.Socket;
+import java.nio.channels.SelectionKey;
+import java.nio.channels.Selector;
+import java.nio.channels.SocketChannel;
+
 /**
  * ClientRequestExecutor represents a persistent link between a client and
  * server and is used by the {@link ClientRequestExecutorPool} to execute
  * {@link ClientRequest requests} for the client.
- * 
+ *
  * Instances are maintained in a pool by {@link ClientRequestExecutorPool} using
  * a checkout/checkin pattern. When an instance is checked out, the calling code
  * has exclusive access to that instance. Then the
  * {@link #addClientRequest(ClientRequest) request can be executed}.
- * 
+ *
  * @see SelectorManagerWorker
  * @see ClientRequestExecutorPool
  */
 
+// TODO: 2018/4/26 by zmyer
 public class ClientRequestExecutor extends SelectorManagerWorker implements Closeable {
 
     private ClientRequest<?> clientRequest;
@@ -63,17 +63,17 @@ public class ClientRequestExecutor extends SelectorManagerWorker implements Clos
     private final long idleConnectionTimeoutNs;
 
     public ClientRequestExecutor(Selector selector,
-                                 SocketChannel socketChannel,
-                                 int socketBufferSize,
-                                 long idleConnectionTimeoutNs,
-                                 SocketDestination socketDesination) {
+            SocketChannel socketChannel,
+            int socketBufferSize,
+            long idleConnectionTimeoutNs,
+            SocketDestination socketDesination) {
         // Not tracking or exposing the comm buffer statistics for now
         super(selector, socketChannel, socketBufferSize);
         isExpired = false;
         this.idleConnectionTimeoutNs = idleConnectionTimeoutNs;
 
         initializeStreams(socketBufferSize, new CommBufferSizeStats());
-        if(this.inputStream == null || this.outputStream == null) {
+        if (this.inputStream == null || this.outputStream == null) {
             throw new VoldemortApplicationException("InputStream or OutputStream is null after initialization");
         }
         this.socketDesination = socketDesination;
@@ -83,7 +83,7 @@ public class ClientRequestExecutor extends SelectorManagerWorker implements Clos
     @Override
     protected String getDebugInfo() {
         return "Destination: " + String.valueOf(socketDesination) + " , Socket: "
-               + String.valueOf(socketChannel.socket());
+                + String.valueOf(socketChannel.socket());
     }
 
     public SocketChannel getSocketChannel() {
@@ -104,12 +104,13 @@ public class ClientRequestExecutor extends SelectorManagerWorker implements Clos
     }
 
     public boolean isValid() {
-        if(isClosed())
+        if (isClosed()) {
             return false;
+        }
 
         Socket s = socketChannel.socket();
         boolean isValidSocket = !s.isClosed() && s.isBound() && s.isConnected();
-        if(!isValidSocket) {
+        if (!isValidSocket) {
             return false;
         }
 
@@ -127,8 +128,9 @@ public class ClientRequestExecutor extends SelectorManagerWorker implements Clos
             }
         } else {
             long nowNs = System.nanoTime();
-            if (nowNs <= expiration)
+            if (nowNs <= expiration) {
                 return true;
+            }
 
             if (logger.isEnabledFor(Level.WARN)) {
                 long allowedTime = expiration - startTime;
@@ -150,18 +152,19 @@ public class ClientRequestExecutor extends SelectorManagerWorker implements Clos
         this.timeoutMs = timeoutMs;
         startTime = System.nanoTime();
 
-        if(elapsedNs > (Time.NS_PER_MS * timeoutMs)) {
+        if (elapsedNs > (Time.NS_PER_MS * timeoutMs)) {
             this.expiration = startTime;
         } else {
             this.expiration = startTime + (Time.NS_PER_MS * timeoutMs) - elapsedNs;
         }
 
-        if(this.expiration < startTime) {
-            String errorMessage = String.format("Invalid timeout specified. startTime (%d) ns expiration (%d) ns timeout (%d) ms elapsed (%d) ns",
-                                                startTime,
-                                                expiration,
-                                                timeoutMs,
-                                                elapsedNs);
+        if (this.expiration < startTime) {
+            String errorMessage = String.format(
+                    "Invalid timeout specified. startTime (%d) ns expiration (%d) ns timeout (%d) ms elapsed (%d) ns",
+                    startTime,
+                    expiration,
+                    timeoutMs,
+                    elapsedNs);
             throw new IllegalArgumentException(errorMessage);
         }
 
@@ -173,9 +176,9 @@ public class ClientRequestExecutor extends SelectorManagerWorker implements Clos
     }
 
     public synchronized void addClientRequest(ClientRequest<?> clientRequest,
-                                              long timeoutMs,
-                                              long elapsedNs) {
-        if(logger.isTraceEnabled()) {
+            long timeoutMs,
+            long elapsedNs) {
+        if (logger.isTraceEnabled()) {
             logger.trace("Associating client with " + socketChannel.socket());
         }
 
@@ -186,10 +189,10 @@ public class ClientRequestExecutor extends SelectorManagerWorker implements Clos
         boolean wasSuccessful = clientRequest.formatRequest(outputStream);
         outputStream.getBuffer().flip();
 
-        if(wasSuccessful) {
+        if (wasSuccessful) {
             SelectionKey selectionKey = socketChannel.keyFor(selector);
 
-            if(selectionKey != null) {
+            if (selectionKey != null) {
                 selectionKey.interestOps(SelectionKey.OP_WRITE);
 
                 // This wakeup is required because it's invoked by the calling
@@ -210,8 +213,8 @@ public class ClientRequestExecutor extends SelectorManagerWorker implements Clos
                  * and the server closing the socket.
                  */
                 String message = "Client associated with " + socketChannel.socket()
-                            + " was not registered with Selector " + selector
-                                 + ", it could have been closed due to server restarts ";
+                        + " was not registered with Selector " + selector
+                        + ", it could have been closed due to server restarts ";
                 logger.warn(message);
                 IOException ex = new IOException(message);
                 reportException(ex);
@@ -219,7 +222,7 @@ public class ClientRequestExecutor extends SelectorManagerWorker implements Clos
             }
         } else {
             logger.warn("Client associated with " + socketChannel.socket()
-                        + " did not successfully buffer output for request");
+                    + " did not successfully buffer output for request");
             completeClientRequest();
         }
     }
@@ -228,8 +231,8 @@ public class ClientRequestExecutor extends SelectorManagerWorker implements Clos
     protected void initializeStreams(int socketBufferSize, CommBufferSizeStats commBufferStats) {
 
         bufferContainer = new ByteBufferContainer(socketBufferSize,
-                                                  resizeThreshold,
-                                                  commBufferStats.getCommReadBufferSizeTracker());
+                resizeThreshold,
+                commBufferStats.getCommReadBufferSizeTracker());
         this.inputStream = new ByteBufferBackedInputStream(bufferContainer);
         this.outputStream = new ByteBufferBackedOutputStream(bufferContainer);
     }
@@ -244,8 +247,9 @@ public class ClientRequestExecutor extends SelectorManagerWorker implements Clos
         // fashion. Rather than trying to handle all of the cases, simply keep
         // track of whether we've been called before and only perform the logic
         // once.
-        if(!isClosed.compareAndSet(false, true))
+        if (!isClosed.compareAndSet(false, true)) {
             return;
+        }
 
         completeClientRequest();
         closeInternal();
@@ -253,19 +257,23 @@ public class ClientRequestExecutor extends SelectorManagerWorker implements Clos
 
     @Override
     protected void read(SelectionKey selectionKey) throws IOException {
-        if(!checkTimeout())
+        if (!checkTimeout()) {
             return;
+        }
 
         int count = 0;
 
-        if((count = socketChannel.read(inputStream.getBuffer())) == -1)
+        if ((count = socketChannel.read(inputStream.getBuffer())) == -1) {
             throw new EOFException("EOF for " + socketChannel.socket());
+        }
 
-        if(logger.isTraceEnabled())
+        if (logger.isTraceEnabled()) {
             traceInputBufferState("Read " + count + " bytes");
+        }
 
-        if(count == 0)
+        if (count == 0) {
             return;
+        }
 
         // Take note of the position after we read the bytes. We'll need it in
         // case of incomplete reads later on down the method.
@@ -279,9 +287,9 @@ public class ClientRequestExecutor extends SelectorManagerWorker implements Clos
         // when atomicNullOutClientRequest() is called by another thread
         ClientRequest<?> request = clientRequest;
 
-        if(request != null) {
+        if (request != null) {
 
-            if(!request.isCompleteResponse(inputStream.getBuffer())) {
+            if (!request.isCompleteResponse(inputStream.getBuffer())) {
                 // Ouch - we're missing some data for a full request, so handle
                 // that and return.
                 handleIncompleteRequest(position);
@@ -292,16 +300,18 @@ public class ClientRequestExecutor extends SelectorManagerWorker implements Clos
             // so rewind the buffer for reading and execute the request.
             inputStream.getBuffer().rewind();
 
-            if(logger.isTraceEnabled())
+            if (logger.isTraceEnabled()) {
                 logger.trace("Starting read for " + socketChannel.socket());
+            }
 
             request.parseResponse(new DataInputStream(inputStream));
 
             // At this point we've completed a full stand-alone request. So
             // clear our input buffer and prepare for outputting back to the
             // client.
-            if(logger.isTraceEnabled())
+            if (logger.isTraceEnabled()) {
                 logger.trace("Finished read for " + socketChannel.socket());
+            }
 
             resetStreams();
             /*
@@ -324,40 +334,41 @@ public class ClientRequestExecutor extends SelectorManagerWorker implements Clos
         }
         ClientRequest<?> originalRequest = completeClientRequest();
 
-        if(originalRequest == null && logger.isEnabledFor(Level.WARN))
+        if (originalRequest == null && logger.isEnabledFor(Level.WARN)) {
             logger.warn("No client associated with " + socketChannel.socket());
+        }
     }
 
     @Override
     protected void reportException(IOException e) {
         ClientRequest<?> local = clientRequest;
-        if(local != null) {
+        if (local != null) {
             local.reportException(e);
         }
     }
 
     @Override
     protected void connect(SelectionKey selectionKey) throws IOException {
-        if(!checkTimeout()) {
+        if (!checkTimeout()) {
             return;
         }
 
-        if(socketChannel.finishConnect() == false) {
+        if (socketChannel.finishConnect() == false) {
             return;
         }
 
-        if(logger.isDebugEnabled()) {
+        if (logger.isDebugEnabled()) {
             // check buffer sizes you often don't get out what you put in!
-            if(socketChannel.socket().getReceiveBufferSize() != this.socketBufferSize) {
+            if (socketChannel.socket().getReceiveBufferSize() != this.socketBufferSize) {
                 logger.debug("Requested socket receive buffer size was " + this.socketBufferSize
-                             + " bytes but actual size is "
-                             + socketChannel.socket().getReceiveBufferSize() + " bytes.");
+                        + " bytes but actual size is "
+                        + socketChannel.socket().getReceiveBufferSize() + " bytes.");
             }
 
-            if(socketChannel.socket().getSendBufferSize() != this.socketBufferSize) {
+            if (socketChannel.socket().getSendBufferSize() != this.socketBufferSize) {
                 logger.debug("Requested socket send buffer size was " + this.socketBufferSize
-                             + " bytes but actual size is "
-                             + socketChannel.socket().getSendBufferSize() + " bytes.");
+                        + " bytes but actual size is "
+                        + socketChannel.socket().getSendBufferSize() + " bytes.");
             }
         }
 
@@ -366,27 +377,31 @@ public class ClientRequestExecutor extends SelectorManagerWorker implements Clos
 
     @Override
     protected void write(SelectionKey selectionKey) throws IOException {
-        if(!checkTimeout())
+        if (!checkTimeout()) {
             return;
+        }
 
-        if(outputStream.getBuffer().hasRemaining()) {
+        if (outputStream.getBuffer().hasRemaining()) {
             // If we have data, write what we can now...
             int count = socketChannel.write(outputStream.getBuffer());
 
-            if(logger.isTraceEnabled())
+            if (logger.isTraceEnabled()) {
                 logger.trace("Wrote " + count + " bytes, remaining: "
-                             + outputStream.getBuffer().remaining() + " for "
-                             + socketChannel.socket());
+                        + outputStream.getBuffer().remaining() + " for "
+                        + socketChannel.socket());
+            }
         } else {
-            if(logger.isTraceEnabled())
+            if (logger.isTraceEnabled()) {
                 logger.trace("Wrote no bytes for " + socketChannel.socket());
+            }
         }
 
         // If there's more to write but we didn't write it, we'll take that to
         // mean that we're done here. We don't clear or reset anything. We leave
         // our buffer state where it is and try our luck next time.
-        if(outputStream.getBuffer().hasRemaining())
+        if (outputStream.getBuffer().hasRemaining()) {
             return;
+        }
 
         resetStreams();
 
@@ -419,19 +434,19 @@ public class ClientRequestExecutor extends SelectorManagerWorker implements Clos
      */
     private ClientRequest<?> completeClientRequest() {
         ClientRequest<?> local = atomicNullOutClientRequest();
-        if(local == null) {
+        if (local == null) {
             return null;
         }
 
-        if(isExpired) {
+        if (isExpired) {
             local.timeOut();
-        }
-        else {
+        } else {
             local.complete();
         }
 
-        if(logger.isTraceEnabled())
+        if (logger.isTraceEnabled()) {
             logger.trace("Marked client associated with " + socketChannel.socket() + " as complete");
+        }
 
         return local;
     }

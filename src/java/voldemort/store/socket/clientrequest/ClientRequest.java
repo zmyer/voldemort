@@ -16,33 +16,34 @@
 
 package voldemort.store.socket.clientrequest;
 
-import java.io.DataInputStream;
-import java.io.IOException;
-import java.nio.ByteBuffer;
-
 import voldemort.client.protocol.RequestFormat;
 import voldemort.common.nio.ByteBufferBackedOutputStream;
 import voldemort.store.UnreachableStoreException;
+
+import java.io.DataInputStream;
+import java.io.IOException;
+import java.nio.ByteBuffer;
 
 /**
  * ClientRequest represents a <b>single</b> request/response combination to a
  * remote Voldemort instance -- a new instance is created for each request to
  * the server.
- * 
+ *
  * <p/>
- * 
+ *
  * This class is used to support both blocking and non-blocking communication
  * with a remote server.
- * 
+ *
  * @param <T> Type of data that is returned by the request
  */
 
+// TODO: 2018/4/26 by zmyer
 public interface ClientRequest<T> {
 
     /**
      * Once completed has been called, this will return the result of the
      * request <b>or</b> thrown an error if the request wasn't completed.
-     * 
+     *
      * @return Result or an exception is thrown if the request failed
      */
 
@@ -55,12 +56,12 @@ public interface ClientRequest<T> {
      * writeXxx method. The ClientRequest actually buffers all I/O, so the data
      * written via formatRequest is actually inserted into a {@link ByteBuffer}
      * which is later sent over the wire to the server.
-     * 
+     *
      * <p/>
-     * 
+     *
      * This is used internally by the {@link ClientRequest} logic and should not
      * be invoked by users of the sub-system.
-     * 
+     *
      * @param outputStream Write the request to this output stream
      */
 
@@ -71,14 +72,14 @@ public interface ClientRequest<T> {
      * {@link ClientRequestExecutor}'s received thus far is inclusive of the
      * entire response. This relies on the {@link RequestFormat} instance's
      * isCompleteXxxResponse methods.
-     * 
+     *
      * <p/>
-     * 
+     *
      * This is used internally by the {@link ClientRequest} logic and should not
      * be invoked by users of the sub-system.
-     * 
+     *
      * @param buffer ByteBuffer containing the data received thus far
-     * 
+     *
      * @return True if the buffer contains the complete response, false if it
      *         only includes part of the response.
      */
@@ -89,12 +90,12 @@ public interface ClientRequest<T> {
      * Parses the response from the server to turn it into a result. If this
      * causes an application-level error to arise, it should not be thrown here,
      * but instead stored until {@link #getResult()} is called.
-     * 
+     *
      * <p/>
-     * 
+     *
      * This is used internally by the {@link ClientRequest} logic and should not
      * be invoked by users of the sub-system.
-     * 
+     *
      * @param inputStream InputStream from which to read the response
      */
 
@@ -105,9 +106,9 @@ public interface ClientRequest<T> {
      * (normal or abnormal) has occurred on the {@link ClientRequest} object.
      * This exists mainly to implement blocking operations whereby we need to
      * have a mechanism to unblock the caller waiting for the response.
-     * 
+     *
      * <p/>
-     * 
+     *
      * This is used internally by the {@link ClientRequest} logic and should not
      * be invoked by users of the sub-system.
      */
@@ -116,7 +117,7 @@ public interface ClientRequest<T> {
 
     /**
      * Returns <code>true</code> if {@link #complete()} was called.
-     * 
+     *
      * @return <code>true</code> if completed, <code>false</code> otherwise
      */
 
@@ -127,7 +128,7 @@ public interface ClientRequest<T> {
      * is different from the complete call, since the timeout event needs to be
      * notified to the caller in a special way.
      * <p/>
-     * 
+     *
      * This is used internally by the {@link ClientRequest} logic and should not
      * be invoked by users of the sub-system.
      */
@@ -136,7 +137,7 @@ public interface ClientRequest<T> {
 
     /**
      * Returns <code>true</code> if {@link ClientRequestExecutor} timed out.
-     * 
+     *
      * @return <code>true</code> if timed out, <code>false</code> otherwise
      */
 

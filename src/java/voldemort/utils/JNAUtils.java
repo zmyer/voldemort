@@ -1,14 +1,14 @@
 package voldemort.utils;
 
-import org.apache.log4j.Logger;
-
 import com.sun.jna.LastErrorException;
 import com.sun.jna.Native;
+import org.apache.log4j.Logger;
 
 /**
  * Native functions used through JNA
- * 
+ *
  */
+// TODO: 2018/4/26 by zmyer
 public class JNAUtils {
 
     private static final Logger logger = Logger.getLogger(JNAUtils.class);
@@ -22,11 +22,11 @@ public class JNAUtils {
     static {
         try {
             Native.register("c");
-        } catch(NoClassDefFoundError e) {
+        } catch (NoClassDefFoundError e) {
             logger.info("Could not locate JNA classes");
-        } catch(UnsatisfiedLinkError e) {
+        } catch (UnsatisfiedLinkError e) {
             logger.info("Failed to link to native library");
-        } catch(NoSuchMethodError e) {
+        } catch (NoSuchMethodError e) {
             logger.warn("Older version of JNA. Please upgrade to 3.2.7+");
         }
     }
@@ -36,30 +36,33 @@ public class JNAUtils {
     private static native int munlockall() throws LastErrorException;
 
     private static boolean isOperatingSystem(String os) {
-        if(System.getProperty("os.name").toLowerCase().contains(os))
+        if (System.getProperty("os.name").toLowerCase().contains(os)) {
             return true;
-        else
+        } else {
             return false;
+        }
     }
 
     public static void tryMlockall() {
         try {
-            if(isOperatingSystem("windows"))
+            if (isOperatingSystem("windows")) {
                 return;
+            }
             // Since we demand-zero every page of the heap while bringing up the
             // jvm, MCL_FUTURE is not needed
             mlockall(MCL_CURRENT);
             logger.info("mlockall() on JVM Heap successful");
-        } catch(Exception e) {
-            if(!(e instanceof LastErrorException))
+        } catch (Exception e) {
+            if (!(e instanceof LastErrorException)) {
                 logger.error("Unexpected error during mlock of server heap", e);
+            }
 
             LastErrorException le = (LastErrorException) e;
-            if(le.getErrorCode() == ENOMEM && isOperatingSystem("linux")) {
+            if (le.getErrorCode() == ENOMEM && isOperatingSystem("linux")) {
                 logger.warn("Unable to lock JVM memory (ENOMEM)."
-                            + " This can result in part of the JVM being swapped out with higher Young gen stalls"
-                            + " Increase RLIMIT_MEMLOCK or run Voldemort as root.");
-            } else if(!isOperatingSystem("mac")) {
+                        + " This can result in part of the JVM being swapped out with higher Young gen stalls"
+                        + " Increase RLIMIT_MEMLOCK or run Voldemort as root.");
+            } else if (!isOperatingSystem("mac")) {
                 // fixes a OS X oddity, where it still throws an error, even
                 // though mlockall succeeds
                 logger.warn("Unknown mlockall error " + le.getErrorCode());
@@ -69,13 +72,15 @@ public class JNAUtils {
 
     public static void tryMunlockall() {
         try {
-            if(isOperatingSystem("windows"))
+            if (isOperatingSystem("windows")) {
                 return;
+            }
             munlockall();
             logger.info("munlockall() on JVM Heap successful");
-        } catch(Exception e) {
-            if(!(e instanceof LastErrorException))
+        } catch (Exception e) {
+            if (!(e instanceof LastErrorException)) {
                 logger.error("Unexpected error during mlock of server heap", e);
+            }
             LastErrorException le = (LastErrorException) e;
             logger.warn("Error unlocking JVM heap  " + le.getErrorCode());
         }

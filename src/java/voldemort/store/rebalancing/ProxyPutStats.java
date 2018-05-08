@@ -16,14 +16,15 @@
 
 package voldemort.store.rebalancing;
 
-import java.util.concurrent.atomic.AtomicLong;
-
 import voldemort.annotations.jmx.JmxGetter;
+
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Statistics on Proxy puts issued from the redirecting store
- * 
+ *
  */
+// TODO: 2018/4/3 by zmyer
 public class ProxyPutStats {
 
     private AtomicLong numProxyPutFailures;
@@ -40,14 +41,14 @@ public class ProxyPutStats {
 
     public void reportProxyPutSubmission() {
         this.numPendingProxyPuts.incrementAndGet();
-        if(this.parent != null) {
+        if (this.parent != null) {
             this.parent.reportProxyPutSubmission();
         }
     }
 
     public void reportProxyPutCompletion() {
         this.numPendingProxyPuts.decrementAndGet();
-        if(this.parent != null) {
+        if (this.parent != null) {
             this.parent.reportProxyPutCompletion();
         }
     }
@@ -55,7 +56,7 @@ public class ProxyPutStats {
     public void reportProxyPutFailure() {
         this.reportProxyPutCompletion();
         this.numProxyPutFailures.incrementAndGet();
-        if(this.parent != null) {
+        if (this.parent != null) {
             this.parent.reportProxyPutFailure();
         }
     }

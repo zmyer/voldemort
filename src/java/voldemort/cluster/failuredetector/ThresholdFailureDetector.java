@@ -16,15 +16,14 @@
 
 package voldemort.cluster.failuredetector;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import org.apache.commons.lang.StringUtils;
-
 import voldemort.annotations.jmx.JmxGetter;
 import voldemort.annotations.jmx.JmxManaged;
 import voldemort.cluster.Node;
 import voldemort.store.UnreachableStoreException;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * ThresholdFailureDetector builds upon the AsyncRecoveryFailureDetector and
@@ -36,17 +35,17 @@ import voldemort.store.UnreachableStoreException;
  * to recordSuccess increments the success count. Calls to recordSuccess
  * increase the success ratio while calls to recordException by contrast
  * decrease the success ratio.
- * 
+ *
  * <p/>
- * 
+ *
  * As the success ratio threshold continues to exceed the threshold, the node
  * will be considered as available. Once the success ratio dips below the
  * threshold, the node is marked as unavailable. As this class extends the
  * AsyncRecoveryFailureDetector, an unavailable node is only marked as available
  * once a background thread has been able to contact the node asynchronously.
- * 
+ *
  * <p/>
- * 
+ *
  * There is also a minimum number of requests that must occur before the success
  * ratio is checked against the threshold. This is to prevent occurrences like 1
  * failure out of 1 attempt yielding a success ratio of 0%. There is also a
@@ -55,9 +54,10 @@ import voldemort.store.UnreachableStoreException;
  * prevents scenarios like 100,000,000 successful requests (and thus 100%
  * success threshold) overshadowing a subsequent stream of 10,000,000 failures
  * because this is only 10% of the total and above a given threshold.
- * 
+ *
  */
 
+// TODO: 2018/4/26 by zmyer
 @JmxManaged(description = "Detects the availability of the nodes on which a Voldemort cluster runs")
 public class ThresholdFailureDetector extends AsyncRecoveryFailureDetector {
 
@@ -78,13 +78,13 @@ public class ThresholdFailureDetector extends AsyncRecoveryFailureDetector {
         boolean isSuccess = true;
         UnreachableStoreException e = null;
 
-        if(requestTime > getConfig().getRequestLengthThreshold()) {
+        if (requestTime > getConfig().getRequestLengthThreshold()) {
             // Consider slow requests as "soft" errors that are counted against
             // us in our success threshold.
             e = new UnreachableStoreException("Node " + node.getId()
-                                              + " recording success, but request time ("
-                                              + requestTime + ") exceeded threshold ("
-                                              + getConfig().getRequestLengthThreshold() + ")");
+                    + " recording success, but request time ("
+                    + requestTime + ") exceeded threshold ("
+                    + getConfig().getRequestLengthThreshold() + ")");
 
             isSuccess = false;
         }
@@ -98,19 +98,19 @@ public class ThresholdFailureDetector extends AsyncRecoveryFailureDetector {
     public String getNodeThresholdStats() {
         List<String> list = new ArrayList<String>();
 
-        for(Node node: getConfig().getCluster().getNodes()) {
+        for (Node node : getConfig().getCluster().getNodes()) {
             NodeStatus nodeStatus = getNodeStatus(node);
             boolean isAvailabile = false;
             long percentage = 0;
 
-            synchronized(nodeStatus) {
+            synchronized (nodeStatus) {
                 isAvailabile = nodeStatus.isAvailable();
                 percentage = nodeStatus.getTotal() > 0 ? (nodeStatus.getSuccess() * 100)
-                                                         / nodeStatus.getTotal() : 0;
+                        / nodeStatus.getTotal() : 0;
             }
 
             list.add(node.getId() + ",status=" + (isAvailabile ? "available" : "unavailable")
-                     + ",percentage=" + percentage + "%");
+                    + ",percentage=" + percentage + "%");
         }
 
         return StringUtils.join(list, ";");
@@ -127,23 +127,24 @@ public class ThresholdFailureDetector extends AsyncRecoveryFailureDetector {
     protected void nodeRecovered(Node node) {
         NodeStatus nodeStatus = getNodeStatus(node);
 
-        synchronized(nodeStatus) {
+        synchronized (nodeStatus) {
             nodeStatus.resetCounters(getConfig().getTime().getMilliseconds());
             super.nodeRecovered(node);
         }
     }
 
     protected void update(Node node, boolean isSuccess, UnreachableStoreException e) {
-        if(logger.isTraceEnabled()) {
-            if(e != null)
+        if (logger.isTraceEnabled()) {
+            if (e != null) {
                 logger.trace("Node " + node.getId() + " updated, isSuccess: " + isSuccess, e);
-            else
+            } else {
                 logger.trace("Node " + node.getId() + " updated, isSuccess: " + isSuccess);
+            }
         }
 
         final long currentTime = getConfig().getTime().getMilliseconds();
         String catastrophicError = null;
-        if(!isSuccess) {
+        if (!isSuccess) {
             catastrophicError = getCatastrophicError(e);
         }
         NodeStatus nodeStatus = getNodeStatus(node);
@@ -152,9 +153,9 @@ public class ThresholdFailureDetector extends AsyncRecoveryFailureDetector {
         boolean invokeSetUnavailable = false;
         // Protect all logic to decide on available/unavailable w/in
         // synchronized section
-        synchronized(nodeStatus) {
+        synchronized (nodeStatus) {
 
-            if(currentTime >= nodeStatus.getStartMillis() + getConfig().getThresholdInterval()) {
+            if (currentTime >= nodeStatus.getStartMillis() + getConfig().getThresholdInterval()) {
                 // We've passed into a new interval, so reset our counts
                 // appropriately.
                 nodeStatus.resetCounters(currentTime);
@@ -164,38 +165,38 @@ public class ThresholdFailureDetector extends AsyncRecoveryFailureDetector {
 
             int numCatastrophicErrors;
 
-            if(catastrophicError != null) {
+            if (catastrophicError != null) {
                 numCatastrophicErrors = nodeStatus.incrementConsecutiveCatastrophicErrors();
 
-                if(logger.isTraceEnabled()) {
+                if (logger.isTraceEnabled()) {
                     logger.trace("Node " + node.getId() + " experienced catastrophic error: "
-                                 + catastrophicError + " on node : " + node
-                                 + " # accumulated errors = " + numCatastrophicErrors);
+                            + catastrophicError + " on node : " + node
+                            + " # accumulated errors = " + numCatastrophicErrors);
                 }
             } else {
                 numCatastrophicErrors = nodeStatus.getNumConsecutiveCatastrophicErrors();
 
-                if(numCatastrophicErrors > 0 && isSuccess) {
+                if (numCatastrophicErrors > 0 && isSuccess) {
                     numCatastrophicErrors = 0;
                     nodeStatus.resetNumConsecutiveCatastrophicErrors();
-                    if(logger.isTraceEnabled()) {
+                    if (logger.isTraceEnabled()) {
                         logger.trace("Resetting # consecutive connect errors for node : " + node);
                     }
                 }
             }
 
-            if(numCatastrophicErrors > 0
-               && numCatastrophicErrors >= this.failureDetectorConfig.getMaximumTolerableFatalFailures()) {
+            if (numCatastrophicErrors > 0
+                    && numCatastrophicErrors >= this.failureDetectorConfig.getMaximumTolerableFatalFailures()) {
                 invokeSetUnavailable = true;
-            } else if(nodeStatus.getFailure() >= getConfig().getThresholdCountMinimum()) {
+            } else if (nodeStatus.getFailure() >= getConfig().getThresholdCountMinimum()) {
                 long successPercentage = (nodeStatus.getSuccess() * 100) / nodeStatus.getTotal();
 
-                if(logger.isTraceEnabled()) {
+                if (logger.isTraceEnabled()) {
                     logger.trace("Node " + node.getId() + " success percentage: "
-                                 + successPercentage + "%");
+                            + successPercentage + "%");
                 }
 
-                if(successPercentage >= getConfig().getThreshold()) {
+                if (successPercentage >= getConfig().getThreshold()) {
                     invokeSetAvailable = true;
                 } else {
                     invokeSetUnavailable = true;
@@ -206,9 +207,9 @@ public class ThresholdFailureDetector extends AsyncRecoveryFailureDetector {
         // Call set(Un)Available outside of synchronized section. This
         // ensures that side effects are not w/in a sync section (e.g., alerting
         // all the failure detector listeners).
-        if(isSuccess && invokeSetAvailable) {
+        if (isSuccess && invokeSetAvailable) {
             setAvailable(node);
-        } else if(invokeSetUnavailable) {
+        } else if (invokeSetUnavailable) {
             setUnavailable(node, e);
         }
     }
@@ -216,12 +217,14 @@ public class ThresholdFailureDetector extends AsyncRecoveryFailureDetector {
     protected String getCatastrophicError(UnreachableStoreException e) {
         Throwable t = e != null ? e.getCause() : null;
 
-        if(t == null)
+        if (t == null) {
             return null;
+        }
 
-        for(String errorType: getConfig().getCatastrophicErrorTypes()) {
-            if(t.getClass().getName().equals(errorType))
+        for (String errorType : getConfig().getCatastrophicErrorTypes()) {
+            if (t.getClass().getName().equals(errorType)) {
                 return errorType;
+            }
         }
 
         return null;

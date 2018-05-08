@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicLong;
 
+// TODO: 2018/4/3 by zmyer
 public class ScanPermitWrapper {
 
     private final Semaphore scanPermits;
@@ -30,19 +31,19 @@ public class ScanPermitWrapper {
 
     public void acquire(AtomicLong progress, String ownerName) throws InterruptedException {
         this.scanPermits.acquire();
-        synchronized(permitOwnersScanProgressMap) {
+        synchronized (permitOwnersScanProgressMap) {
             permitOwnersScanProgressMap.put(ownerName, progress);
         }
     }
 
     private void initializeProgressMaps(AtomicLong scanProgress,
-                                        AtomicLong deleteProgress,
-                                        String ownerName) {
-        synchronized(permitOwnersScanProgressMap) {
+            AtomicLong deleteProgress,
+            String ownerName) {
+        synchronized (permitOwnersScanProgressMap) {
             permitOwnersScanProgressMap.put(ownerName, scanProgress);
         }
 
-        synchronized(permitOwnersDeleteProgressMap) {
+        synchronized (permitOwnersDeleteProgressMap) {
             permitOwnersDeleteProgressMap.put(ownerName, deleteProgress);
         }
     }
@@ -55,34 +56,37 @@ public class ScanPermitWrapper {
 
     public void release(String ownerName) {
         this.scanPermits.release();
-        synchronized(permitOwnersScanProgressMap) {
+        synchronized (permitOwnersScanProgressMap) {
             AtomicLong scannedCount = permitOwnersScanProgressMap.get(ownerName);
-            if(scannedCount != null)
+            if (scannedCount != null) {
                 totalEntriesScanned += scannedCount.get();
+            }
             permitOwnersScanProgressMap.remove(ownerName);
         }
 
-        synchronized(permitOwnersDeleteProgressMap) {
+        synchronized (permitOwnersDeleteProgressMap) {
             AtomicLong deletedCount = permitOwnersDeleteProgressMap.get(ownerName);
-            if(deletedCount != null)
+            if (deletedCount != null) {
                 totalEntriesDeleted += deletedCount.get();
+            }
             permitOwnersDeleteProgressMap.remove(ownerName);
         }
     }
 
     public List<String> getPermitOwners() {
         List<String> ownerList = new ArrayList<String>();
-        synchronized(permitOwnersScanProgressMap) {
+        synchronized (permitOwnersScanProgressMap) {
             Iterator<String> i = this.permitOwnersScanProgressMap.keySet().iterator();
-            while(i.hasNext())
+            while (i.hasNext()) {
                 ownerList.add(i.next());
+            }
         }
         return ownerList;
     }
 
     public boolean tryAcquire(AtomicLong scanProgress, AtomicLong deleteProgress, String ownerName) {
         boolean gotPermit = this.scanPermits.tryAcquire();
-        if(gotPermit) {
+        if (gotPermit) {
             initializeProgressMaps(scanProgress, deleteProgress, ownerName);
         }
         return gotPermit;
@@ -98,11 +102,11 @@ public class ScanPermitWrapper {
 
     public long getEntriesScanned() {
         long itemsScanned = 0;
-        synchronized(permitOwnersScanProgressMap) {
-            for(Map.Entry<String, AtomicLong> progressEntry: permitOwnersScanProgressMap.entrySet()) {
+        synchronized (permitOwnersScanProgressMap) {
+            for (Map.Entry<String, AtomicLong> progressEntry : permitOwnersScanProgressMap.entrySet()) {
                 AtomicLong progress = progressEntry.getValue();
                 // slops are not included since they are tracked separately
-                if(progress != null) {
+                if (progress != null) {
                     itemsScanned += progress.get();
                 }
             }
@@ -112,11 +116,11 @@ public class ScanPermitWrapper {
 
     public long getEntriesDeleted() {
         long itemsDeleted = 0;
-        synchronized(permitOwnersDeleteProgressMap) {
-            for(Map.Entry<String, AtomicLong> progressEntry: permitOwnersDeleteProgressMap.entrySet()) {
+        synchronized (permitOwnersDeleteProgressMap) {
+            for (Map.Entry<String, AtomicLong> progressEntry : permitOwnersDeleteProgressMap.entrySet()) {
                 AtomicLong progress = progressEntry.getValue();
                 // slops are not included since they are tracked separately
-                if(progress != null) {
+                if (progress != null) {
                     itemsDeleted += progress.get();
                 }
             }

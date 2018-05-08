@@ -16,18 +16,7 @@
 
 package voldemort.server.jmx;
 
-import java.lang.management.ManagementFactory;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-
-import javax.management.MBeanServer;
-import javax.management.ObjectName;
-
 import org.apache.log4j.Logger;
-
 import voldemort.annotations.jmx.JmxManaged;
 import voldemort.cluster.Cluster;
 import voldemort.common.service.AbstractService;
@@ -39,11 +28,21 @@ import voldemort.store.Store;
 import voldemort.utils.ByteArray;
 import voldemort.utils.JmxUtils;
 
+import javax.management.MBeanServer;
+import javax.management.ObjectName;
+import java.lang.management.ManagementFactory;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
 /**
  * A service that manages JMX registration
- * 
- * 
+ *
+ *
  */
+// TODO: 2018/4/26 by zmyer
 @JmxManaged(description = "The JMX service")
 public class JmxService extends AbstractService {
 
@@ -57,9 +56,9 @@ public class JmxService extends AbstractService {
     private final StoreRepository storeRepository;
 
     public JmxService(VoldemortServer server,
-                      Cluster cluster,
-                      StoreRepository storeRepository,
-                      Collection<VoldemortService> services) {
+            Cluster cluster,
+            StoreRepository storeRepository,
+            Collection<VoldemortService> services) {
         super(ServiceType.JMX);
         this.server = server;
         this.cluster = cluster;
@@ -73,67 +72,70 @@ public class JmxService extends AbstractService {
     protected void startInner() {
         registerBean(server, JmxUtils.createObjectName(VoldemortServer.class));
         registerBean(cluster, JmxUtils.createObjectName(Cluster.class));
-        for(VoldemortService service: services)
+        for (VoldemortService service : services) {
             registerBean(service, JmxUtils.createObjectName(service.getClass()));
-        for(Store<ByteArray, byte[], byte[]> store: this.storeRepository.getAllStorageEngines()) {
-            if(server.getVoldemortConfig().isEnableJmxClusterName())
+        }
+        for (Store<ByteArray, byte[], byte[]> store : this.storeRepository.getAllStorageEngines()) {
+            if (server.getVoldemortConfig().isEnableJmxClusterName()) {
                 registerBean(store,
-                             JmxUtils.createObjectName(this.cluster.getName()
-                                                               + "."
-                                                               + JmxUtils.getPackageName(store.getClass()),
-                                                       store.getName()));
-            else
+                        JmxUtils.createObjectName(this.cluster.getName()
+                                        + "."
+                                        + JmxUtils.getPackageName(store.getClass()),
+                                store.getName()));
+            } else {
                 registerBean(store,
-                             JmxUtils.createObjectName(JmxUtils.getPackageName(store.getClass()),
-                                                       store.getName()));
+                        JmxUtils.createObjectName(JmxUtils.getPackageName(store.getClass()),
+                                store.getName()));
+            }
         }
     }
 
     @Override
     protected void stopInner() {
-        for(ObjectName name: registeredBeans)
+        for (ObjectName name : registeredBeans) {
             JmxUtils.unregisterMbean(mbeanServer, name);
+        }
         registeredBeans.clear();
     }
 
     public void registerServices(List<VoldemortService> services) {
-        for(VoldemortService service: services) {
+        for (VoldemortService service : services) {
             registerBean(service, JmxUtils.createObjectName(service.getClass()));
         }
     }
 
     public void unregisterServices(List<VoldemortService> services) {
-        for(VoldemortService service: services) {
+        for (VoldemortService service : services) {
             unregisterBean(JmxUtils.createObjectName(service.getClass()));
         }
     }
 
     private void registerBean(Object o, ObjectName name) {
-        synchronized(registeredBeans) {
+        synchronized (registeredBeans) {
             try {
-                if(mbeanServer.isRegistered(name)) {
+                if (mbeanServer.isRegistered(name)) {
                     logger.warn("Overwriting mbean " + name);
                     JmxUtils.unregisterMbean(mbeanServer, name);
                 }
                 JmxUtils.registerMbean(mbeanServer, JmxUtils.createModelMBean(o), name);
                 this.registeredBeans.add(name);
-            } catch(Exception e) {
+            } catch (Exception e) {
                 logger.error("Error registering bean with name '" + name + "':", e);
             }
         }
     }
 
     private void unregisterBean(ObjectName name) {
-        synchronized(registeredBeans) {
+        synchronized (registeredBeans) {
             try {
-                if(mbeanServer.isRegistered(name)) {
+                if (mbeanServer.isRegistered(name)) {
                     logger.warn("Overwriting mbean " + name);
                     JmxUtils.unregisterMbean(mbeanServer, name);
                 }
-                if(registeredBeans.contains(name)) {
+                if (registeredBeans.contains(name)) {
                     registeredBeans.remove(name);
                 }
-            } catch(Exception e) {
+            } catch (Exception e) {
                 logger.error("Error unregistering bean with name '" + name + "':", e);
             }
         }

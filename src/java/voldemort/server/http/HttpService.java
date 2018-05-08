@@ -23,7 +23,6 @@ import org.mortbay.jetty.nio.SelectChannelConnector;
 import org.mortbay.jetty.servlet.Context;
 import org.mortbay.jetty.servlet.ServletHolder;
 import org.mortbay.thread.QueuedThreadPool;
-
 import voldemort.VoldemortException;
 import voldemort.annotations.jmx.JmxGetter;
 import voldemort.annotations.jmx.JmxManaged;
@@ -48,6 +47,7 @@ import voldemort.server.storage.StorageService;
  * not been maintained properly.
  *
  */
+// TODO: 2018/4/26 by zmyer
 @Deprecated
 @JmxManaged(description = "A store connector that serves remote clients via HTTP.")
 public class HttpService extends AbstractService {
@@ -64,24 +64,24 @@ public class HttpService extends AbstractService {
 
     @SuppressWarnings("unused")
     public HttpService(VoldemortServer server,
-                       StorageService storageService,
-                       StoreRepository storeRepository,
-                       RequestFormatType requestType,
-                       int numberOfThreads,
-                       int httpPort) {
+            StorageService storageService,
+            StoreRepository storeRepository,
+            RequestFormatType requestType,
+            int numberOfThreads,
+            int httpPort) {
         super(ServiceType.HTTP);
         this.port = httpPort;
         this.numberOfThreads = numberOfThreads;
         this.server = server;
         this.velocityEngine = new VelocityEngine(VoldemortServletContextListener.VOLDEMORT_TEMPLATE_DIR);
         this.requestHandler = new SocketRequestHandlerFactory(storageService,
-                                                              server.getStoreRepository(),
-                                                              server.getMetadataStore(),
-                                                              server.getVoldemortConfig(),
-                                                              server.getAsyncRunner(),
-                                                              null,
-                                                              null,
-                                                              null).getRequestHandler(requestType);
+                server.getStoreRepository(),
+                server.getMetadataStore(),
+                server.getVoldemortConfig(),
+                server.getAsyncRunner(),
+                null,
+                null,
+                null).getRequestHandler(requestType);
     }
 
     @Override
@@ -95,27 +95,27 @@ public class HttpService extends AbstractService {
             threadPool.setName("VoldemortHttp");
             threadPool.setMaxThreads(this.numberOfThreads);
             Server httpServer = new Server();
-            httpServer.setConnectors(new Connector[] { connector });
+            httpServer.setConnectors(new Connector[]{ connector });
             httpServer.setThreadPool(threadPool);
             httpServer.setSendServerVersion(false);
             httpServer.setSendDateHeader(false);
             Context context = new Context(httpServer, "/", Context.NO_SESSIONS);
             context.setAttribute(VoldemortServletContextListener.SERVER_KEY, server);
             context.setAttribute(VoldemortServletContextListener.VELOCITY_ENGINE_KEY,
-                                 velocityEngine);
+                    velocityEngine);
             context.addServlet(new ServletHolder(new AdminServlet(server, velocityEngine)),
-                               "/admin");
+                    "/admin");
             context.addServlet(new ServletHolder(new StoreServlet(requestHandler)), "/stores");
             context.addServlet(new ServletHolder(new ReadOnlyStoreManagementServlet(server,
-                                                                                    velocityEngine)),
-                               "/read-only/mgmt");
+                            velocityEngine)),
+                    "/read-only/mgmt");
             context.addServlet(new ServletHolder(new StatusServlet(server, velocityEngine)),
-                               "/server-status");
+                    "/server-status");
             this.context = context;
             this.httpServer = httpServer;
             this.httpServer.start();
             logger.info("HTTP service started on port " + this.port);
-        } catch(Exception e) {
+        } catch (Exception e) {
             String errorMessage = " Error starting service on port " + this.port;
             throw new VoldemortException(errorMessage, e);
         }
@@ -124,15 +124,16 @@ public class HttpService extends AbstractService {
     @Override
     public void stopInner() {
         try {
-            if(httpServer != null) {
+            if (httpServer != null) {
                 httpServer.stop();
-                for(Connector c: httpServer.getConnectors()) {
+                for (Connector c : httpServer.getConnectors()) {
                     c.close();
                 }
             }
-            if(context != null)
+            if (context != null) {
                 context.destroy();
-        } catch(Exception e) {
+            }
+        } catch (Exception e) {
             throw new VoldemortException(e);
         }
         this.httpServer = null;

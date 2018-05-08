@@ -16,13 +16,12 @@
 
 package voldemort.store;
 
-import java.util.List;
-
-import voldemort.VoldemortException;
 import voldemort.server.storage.KeyLockHandle;
 import voldemort.utils.ClosableIterator;
 import voldemort.utils.Pair;
 import voldemort.versioning.Versioned;
+
+import java.util.List;
 
 /**
  * A base storage class which is actually responsible for data persistence. This
@@ -37,34 +36,35 @@ import voldemort.versioning.Versioned;
  * <li>The implementation MUST contain an ID identifying it as part of the
  * cluster</li>
  * </ol>
- * 
+ *
  * A hash value can be produced for known subtrees of a StorageEngine
- * 
- * 
+ *
+ *
  * @param <K> The type of the key being stored
  * @param <V> The type of the value being stored
  * @param <T> The type of the transforms
- * 
+ *
  */
+// TODO: 2018/4/26 by zmyer
 public interface StorageEngine<K, V, T> extends Store<K, V, T> {
 
     /**
      * Get an iterator over pairs of entries in the store. The key is the first
      * element in the pair and the versioned value is the second element.
-     * 
+     *
      * Note that the iterator need not be threadsafe, and that it must be
      * manually closed after use.
-     * 
+     *
      * @return An iterator over the entries in this StorageEngine.
      */
     public ClosableIterator<Pair<K, Versioned<V>>> entries();
 
     /**
      * Get an iterator over keys in the store.
-     * 
+     *
      * Note that the iterator need not be threadsafe, and that it must be
      * manually closed after use.
-     * 
+     *
      * @return An iterator over the keys in this StorageEngine.
      */
     public ClosableIterator<K> keys();
@@ -73,10 +73,10 @@ public interface StorageEngine<K, V, T> extends Store<K, V, T> {
      * Get an iterator over pairs of entries in a store's partition. The key is
      * the first element in the pair and the versioned value is the second
      * element.
-     * 
+     *
      * Note that the iterator need not be threadsafe, and that it must be
      * manually closed after use.
-     * 
+     *
      * @param partition partition whose entries are to be fetched
      * @return An iterator over the entries in this StorageEngine.
      */
@@ -84,10 +84,10 @@ public interface StorageEngine<K, V, T> extends Store<K, V, T> {
 
     /**
      * Get an iterator over keys in the store's partition
-     * 
+     *
      * Note that the iterator need not be threadsafe, and that it must be
      * manually closed after use.
-     * 
+     *
      * @param partition partition whose keys are to be fetched
      * @return An iterator over the keys in this StorageEngine.
      */
@@ -102,7 +102,7 @@ public interface StorageEngine<K, V, T> extends Store<K, V, T> {
      * Are partitions persisted in distinct files? In other words is the data
      * stored on disk on a per-partition basis? This is really for the read-only
      * use case in which each partition is stored in a distinct file.
-     * 
+     *
      * @return Boolean indicating if partitions are persisted in distinct files
      *         (read-only use case).
      */
@@ -110,7 +110,7 @@ public interface StorageEngine<K, V, T> extends Store<K, V, T> {
 
     /**
      * Does the storage engine support efficient scanning of a single partition?
-     * 
+     *
      * @return true if the storage engine implements the capability. false
      *         otherwise
      */
@@ -120,7 +120,7 @@ public interface StorageEngine<K, V, T> extends Store<K, V, T> {
      * A lot of storage engines support efficient methods for performing large
      * number of writes (puts/deletes) against the data source. This method puts
      * the storage engine in this batch write mode
-     * 
+     *
      * @return true if the storage engine took successful action to switch to
      *         'batch-write' mode
      */
@@ -129,7 +129,7 @@ public interface StorageEngine<K, V, T> extends Store<K, V, T> {
     /**
      * Atomically update storage with the list of versioned values for the given
      * key, to improve storage efficiency.
-     * 
+     *
      * @param key Key to write
      * @param values List of versioned values to be written atomically.
      * @return list of obsolete versions that were rejected
@@ -143,10 +143,10 @@ public interface StorageEngine<K, V, T> extends Store<K, V, T> {
      * {@link StorageEngine#releaseLock(KeyLockHandle)} is called with the same
      * lock handle. The idea here is to facilitate custom atomic
      * Read-Modify-Write logic outside the storage engine
-     * 
+     *
      * NOTE : An invocation of getAndLock should be followed by EXACTLY ONE call
      * to either putAndLock or releaseLock, for resources to be freed properly
-     * 
+     *
      * @param key
      * @return
      */
@@ -157,7 +157,7 @@ public interface StorageEngine<K, V, T> extends Store<K, V, T> {
      * {@link StorageEngine#getAndLock(Object)} call, and update the key with
      * the set of values provided in the handle, also releasing the lock held on
      * the key.
-     * 
+     *
      * @param key
      * @param handle handle object with new list of versions to be stored
      */
@@ -167,13 +167,13 @@ public interface StorageEngine<K, V, T> extends Store<K, V, T> {
      * Release any lock held by a prior
      * {@link AbstractStorageEngine#getAndLock(Object)} call. Helpful for
      * exception handling during a read-modify-cycle
-     * 
+     *
      * @param handle
      */
     public void releaseLock(KeyLockHandle<V> handle);
 
     /**
-     * 
+     *
      * @return true if the storage engine successfully returned to normal mode
      */
     public boolean endBatchModifications();

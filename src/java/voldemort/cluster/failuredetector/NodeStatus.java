@@ -21,11 +21,12 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * Holds the status of a node--either available or unavailable as well as the
  * last date the status was checked.
- * 
+ *
  * Operations on this class are not atomic, but that is okay.
- * 
- * 
+ *
+ *
  */
+// TODO: 2018/4/26 by zmyer
 class NodeStatus {
 
     private long lastChecked;
@@ -104,7 +105,7 @@ class NodeStatus {
     }
 
     public void recordOperation(boolean isSuccess) {
-        if(isSuccess) {
+        if (isSuccess) {
             success++;
         } else {
             failure++;

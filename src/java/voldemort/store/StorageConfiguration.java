@@ -22,27 +22,28 @@ import voldemort.utils.ByteArray;
 /**
  * An abstraction that represents the shared resources of a persistence engine.
  * This could include file handles, db connection pools, caches, etc.
- * 
+ *
  * For example for BDB it holds the various environments, for jdbc it holds a
  * connection pool reference
- * 
+ *
  * This should be called StorageEngineFactory but that would leave us with the
  * indignity of having a StorageEngineFactoryFactory to handle the mapping of
  * store type => factory. And we can't have that.
- * 
- * 
+ *
+ *
  */
+// TODO: 2018/4/3 by zmyer
 public interface StorageConfiguration {
 
     /**
      * Get an initialized storage implementation
-     * 
+     *
      * @param storeDef store definition
      * @param strategy routing strategy used for the store
      * @return The storage engine
      */
     public StorageEngine<ByteArray, byte[], byte[]> getStore(StoreDefinition storeDef,
-                                                             RoutingStrategy strategy);
+            RoutingStrategy strategy);
 
     /**
      * Get the type of stores returned by this configuration
@@ -51,7 +52,7 @@ public interface StorageConfiguration {
 
     /**
      * Update the storage configuration at runtime
-     * 
+     *
      * @param storeDef new store definition object
      */
     public void update(StoreDefinition storeDef);
@@ -63,7 +64,7 @@ public interface StorageConfiguration {
 
     /**
      * Remove the storage engine from the underlying storage configuration
-     * 
+     *
      * @param engine Specifies the storage engine to be removed
      */
     public void removeStorageEngine(StorageEngine<ByteArray, byte[], byte[]> engine);

@@ -28,6 +28,7 @@ import java.util.Map;
  * Eventually, this can allow us to generically manage stores with multiple data set
  * versions (not just ReadOnly).
  */
+// TODO: 2018/4/26 by zmyer
 public class StoreVersionManager {
     private static final Logger logger = Logger.getLogger(StoreVersionManager.class);
 
@@ -60,7 +61,7 @@ public class StoreVersionManager {
         sb.append(currentVersion);
         sb.append(", versionToEnabledMap: {");
         boolean firstItem = true;
-        for (Map.Entry<Long, Boolean> entry: versionToEnabledMap.entrySet()) {
+        for (Map.Entry<Long, Boolean> entry : versionToEnabledMap.entrySet()) {
             if (firstItem) {
                 firstItem = false;
             } else {
@@ -85,7 +86,7 @@ public class StoreVersionManager {
      */
     public void syncInternalStateFromFileSystem(boolean alsoSyncRemoteState) {
         // Make sure versions missing from the file-system are cleaned up from the internal state
-        for (Long version: versionToEnabledMap.keySet()) {
+        for (Long version : versionToEnabledMap.keySet()) {
             File[] existingVersionDirs = ReadOnlyUtils.getVersionDirs(rootDir, version, version);
             if (existingVersionDirs.length == 0) {
                 removeVersion(version, alsoSyncRemoteState);
@@ -95,7 +96,7 @@ public class StoreVersionManager {
         // Make sure we have all versions on the file-system in the internal state
         File[] versionDirs = ReadOnlyUtils.getVersionDirs(rootDir);
         if (versionDirs != null) {
-            for (File versionDir: versionDirs) {
+            for (File versionDir : versionDirs) {
                 long versionNumber = ReadOnlyUtils.getVersionId(versionDir);
                 boolean versionEnabled = isVersionEnabled(versionDir);
                 versionToEnabledMap.put(versionNumber, versionEnabled);
@@ -166,8 +167,10 @@ public class StoreVersionManager {
     }
 
     public boolean hasAnyDisabledVersion() {
-        for (Boolean enabled: versionToEnabledMap.values()) {
-            if (!enabled) return true;
+        for (Boolean enabled : versionToEnabledMap.values()) {
+            if (!enabled) {
+                return true;
+            }
         }
         return false;
     }
@@ -209,8 +212,8 @@ public class StoreVersionManager {
             disabledMarker.createNewFile();
         } catch (IOException e) {
             throw new PersistenceFailureException("Failed to create the disabled marker at path: " +
-                                                  disabledMarker.getAbsolutePath() + "\nThe store/version " +
-                                                  "will remain disabled only until the next restart.", e);
+                    disabledMarker.getAbsolutePath() + "\nThe store/version " +
+                    "will remain disabled only until the next restart.", e);
         }
     }
 
@@ -227,8 +230,8 @@ public class StoreVersionManager {
         if (disabledMarker.exists()) {
             if (!disabledMarker.delete()) {
                 throw new PersistenceFailureException("Failed to create the disabled marker at path: " +
-                                                      disabledMarker.getAbsolutePath() + "\nThe store/version " +
-                                                      "will remain enabled only until the next restart.");
+                        disabledMarker.getAbsolutePath() + "\nThe store/version " +
+                        "will remain enabled only until the next restart.");
             }
         }
     }
@@ -245,7 +248,7 @@ public class StoreVersionManager {
         File[] versionDirArray = ReadOnlyUtils.getVersionDirs(rootDir, version, version);
         if (versionDirArray.length == 0) {
             throw new PersistenceFailureException("getDisabledMarkerFile did not find the requested version directory" +
-                                                  " on disk. Version: " + version + ", rootDir: " + rootDir);
+                    " on disk. Version: " + version + ", rootDir: " + rootDir);
         }
         File disabledMarkerFile = new File(versionDirArray[0], DISABLED_MARKER_NAME);
         return disabledMarkerFile;
@@ -263,7 +266,8 @@ public class StoreVersionManager {
                 failedFetchLock = FailedFetchLock.getLock(config, new Props());
                 removeRemoteObsoleteState(failedFetchLock);
             } catch (Exception e) {
-                logger.error("Failed to execute failedFetchLock.removeObsoleteStateForStore() for store " + storeName, e);
+                logger.error("Failed to execute failedFetchLock.removeObsoleteStateForStore() for store " + storeName,
+                        e);
             } finally {
                 IOUtils.closeQuietly(failedFetchLock);
             }
@@ -275,7 +279,8 @@ public class StoreVersionManager {
             try {
                 failedFetchLock.removeObsoleteStateForStore(config.getNodeId(), storeName, versionToEnabledMap);
             } catch (Exception e) {
-                logger.error("Failed to execute failedFetchLock.removeObsoleteStateForStore() for store " + storeName, e);
+                logger.error("Failed to execute failedFetchLock.removeObsoleteStateForStore() for store " + storeName,
+                        e);
             }
             logger.info("Successfully synced internal state with remote FailedFetchLock state for store " + storeName);
         } else {

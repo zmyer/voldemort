@@ -16,23 +16,22 @@
 
 package voldemort.cluster;
 
+import com.google.common.collect.ImmutableList;
+import org.apache.log4j.Logger;
+import voldemort.annotations.concurrency.Threadsafe;
+import voldemort.utils.Utils;
+
 import java.io.Serializable;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
 
-import org.apache.log4j.Logger;
-
-import voldemort.annotations.concurrency.Threadsafe;
-import voldemort.utils.Utils;
-
-import com.google.common.collect.ImmutableList;
-
 /**
  * A node in the voldemort cluster
- * 
- * 
+ *
+ *
  */
+// TODO: 2018/3/23 by zmyer
 @Threadsafe
 public class Node implements Serializable, Comparable<Node> {
 
@@ -49,21 +48,21 @@ public class Node implements Serializable, Comparable<Node> {
     private int restPort = -1;
 
     public Node(int id,
-                String host,
-                int httpPort,
-                int socketPort,
-                int adminPort,
-                List<Integer> partitions) {
+            String host,
+            int httpPort,
+            int socketPort,
+            int adminPort,
+            List<Integer> partitions) {
         this(id, host, httpPort, socketPort, adminPort, Zone.DEFAULT_ZONE_ID, partitions);
     }
 
     public Node(int id,
-                String host,
-                int httpPort,
-                int socketPort,
-                int adminPort,
-                int zoneId,
-                List<Integer> partitions) {
+            String host,
+            int httpPort,
+            int socketPort,
+            int adminPort,
+            int zoneId,
+            List<Integer> partitions) {
         this.id = id;
         this.host = Utils.notNull(host);
         this.httpPort = httpPort;
@@ -72,10 +71,10 @@ public class Node implements Serializable, Comparable<Node> {
         this.partitions = ImmutableList.copyOf(partitions);
 
         // fix default value for adminPort if not defined
-        if(adminPort == -1) {
+        if (adminPort == -1) {
             adminPort = socketPort + 1;
             logger.warn("admin-port not defined for node:" + id
-                        + " using default value(socket_port + 1):" + adminPort);
+                    + " using default value(socket_port + 1):" + adminPort);
         }
 
         this.adminPort = adminPort;
@@ -83,7 +82,7 @@ public class Node implements Serializable, Comparable<Node> {
 
     /**
      * Adding a new Constructor for Rest Service.
-     * 
+     *
      * @param id
      * @param host
      * @param httpPort
@@ -94,13 +93,13 @@ public class Node implements Serializable, Comparable<Node> {
      * @param restPort
      */
     public Node(int id,
-                String host,
-                int httpPort,
-                int socketPort,
-                int adminPort,
-                int zoneId,
-                List<Integer> partitions,
-                int restPort) {
+            String host,
+            int httpPort,
+            int socketPort,
+            int adminPort,
+            int zoneId,
+            List<Integer> partitions,
+            int restPort) {
         this(id, host, httpPort, socketPort, adminPort, zoneId, partitions);
         this.restPort = restPort;
     }
@@ -140,7 +139,7 @@ public class Node implements Serializable, Comparable<Node> {
     public URI getHttpUrl() {
         try {
             return new URI("http://" + getHost() + ":" + getHttpPort());
-        } catch(URISyntaxException e) {
+        } catch (URISyntaxException e) {
             throw new IllegalStateException("Invalid host format for node " + id + ".", e);
         }
     }
@@ -148,7 +147,7 @@ public class Node implements Serializable, Comparable<Node> {
     public URI getSocketUrl() {
         try {
             return new URI("tcp://" + getHost() + ":" + getSocketPort());
-        } catch(URISyntaxException e) {
+        } catch (URISyntaxException e) {
             throw new IllegalStateException("Invalid host format for node " + id + ".", e);
         }
     }
@@ -164,9 +163,9 @@ public class Node implements Serializable, Comparable<Node> {
 
     public String getStateString() {
         String stateString = briefToString() + " in zone " + getZoneId() + " with admin port "
-                             + getAdminPort() + ", socket port " + getSocketPort()
-                             + ", and http port " + getHttpPort();
-        if(getRestPort() > 0) {
+                + getAdminPort() + ", socket port " + getSocketPort()
+                + ", and http port " + getHttpPort();
+        if (getRestPort() > 0) {
             stateString += ", rest port" + getRestPort();
         }
         return stateString;
@@ -174,10 +173,12 @@ public class Node implements Serializable, Comparable<Node> {
 
     @Override
     public boolean equals(Object o) {
-        if(this == o)
+        if (this == o) {
             return true;
-        if(!(o instanceof Node))
+        }
+        if (!(o instanceof Node)) {
             return false;
+        }
 
         Node n = (Node) o;
         return getId() == n.getId();
@@ -195,8 +196,8 @@ public class Node implements Serializable, Comparable<Node> {
 
     public boolean isEqualState(Node other) {
         return id == other.getId() && host.equalsIgnoreCase(other.getHost())
-               && httpPort == other.getHttpPort() && socketPort == other.getSocketPort()
-               && adminPort == other.getAdminPort() && zoneId == other.getZoneId();
+                && httpPort == other.getHttpPort() && socketPort == other.getSocketPort()
+                && adminPort == other.getAdminPort() && zoneId == other.getZoneId();
     }
 
     public int getRestPort() {

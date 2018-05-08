@@ -28,6 +28,7 @@ import javax.management.MBeanOperationInfo;
  * 
  * 
  */
+// TODO: 2018/3/23 by zmyer
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
 public @interface JmxOperation {

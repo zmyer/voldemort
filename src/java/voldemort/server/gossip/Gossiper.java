@@ -16,17 +16,16 @@
 
 package voldemort.server.gossip;
 
-import java.util.Random;
-import java.util.concurrent.atomic.AtomicBoolean;
-
 import org.apache.log4j.Logger;
-
 import voldemort.VoldemortException;
 import voldemort.client.protocol.admin.AdminClient;
 import voldemort.cluster.Cluster;
 import voldemort.cluster.Node;
 import voldemort.store.metadata.MetadataStore;
 import voldemort.versioning.Versioned;
+
+import java.util.Random;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Implementation of a Gossip protocol for metadata. Periodically, choose a
@@ -43,6 +42,7 @@ import voldemort.versioning.Versioned;
  * <em>causally unrelated</em>, an error is logged.
  * </p>
  */
+// TODO: 2018/4/26 by zmyer
 public class Gossiper implements Runnable {
 
     private final AtomicBoolean running = new AtomicBoolean(true);
@@ -56,7 +56,7 @@ public class Gossiper implements Runnable {
     /**
      * Create a <code>Gossiper</code> object, which implements {@link Runnable}
      * allowing it to be run as a thread or be submitted to an Executor.
-     * 
+     *
      * @param metadataStore The instance of
      *        {@link voldemort.store.metadata.MetadataStore} for the local node.
      * @param adminClient Instance of
@@ -93,22 +93,23 @@ public class Gossiper implements Runnable {
      * and then sleep for a specified interval.
      */
     public void run() {
-        while(running.get()) {
+        while (running.get()) {
             try {
                 Thread.sleep(gossipInterval);
-            } catch(InterruptedException e) {
+            } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
             Node node = selectPeer();
             adminClient.setAdminClientCluster(metadataStore.getCluster());
 
-            if(logger.isDebugEnabled())
+            if (logger.isDebugEnabled()) {
                 logger.debug("Starting gossip with " + node);
+            }
 
-            for(String key: MetadataStore.GOSSIP_KEYS) {
+            for (String key : MetadataStore.GOSSIP_KEYS) {
                 try {
                     gossipKey(node, key);
-                } catch(VoldemortException e) {
+                } catch (VoldemortException e) {
                     logger.warn("Unable to Gossip key " + key + " with " + node, e);
                 }
             }
@@ -119,7 +120,7 @@ public class Gossiper implements Runnable {
      * Randomly select a distinct peer. Method is <code>protected</code> rather
      * than <code>private</code>, so that it may be overridden if peer selection
      * logic is to be changed e.g., to add datacenter/rack awareness.
-     * 
+     *
      * @return Peer for Gossip.
      */
     protected Node selectPeer() {
@@ -128,7 +129,7 @@ public class Gossiper implements Runnable {
         Node node;
         do {
             node = cluster.getNodeById(random.nextInt(nodes));
-        } while(node.getId() == metadataStore.getNodeId());
+        } while (node.getId() == metadataStore.getNodeId());
 
         return node;
     }
@@ -143,12 +144,12 @@ public class Gossiper implements Runnable {
      * were added during a network split, merge appropriate metadata to include
      * both stores.
      * </p>
-     * 
+     *
      * @param node Node to Gossip with.
      * @param key Metadata key to exchange by Gossip.
      */
     protected void gossipKey(Node node, String key) {
-        if(logger.isDebugEnabled()) {
+        if (logger.isDebugEnabled()) {
             logger.debug("Gossiping key " + key);
         }
 
@@ -159,36 +160,35 @@ public class Gossiper implements Runnable {
          * and forth between byte[] and String.
          */
         Versioned<String> remoteVersioned = adminClient.metadataMgmtOps.getRemoteMetadata(node.getId(),
-                                                                                   key);
+                key);
         Versioned<String> localVersioned = adminClient.metadataMgmtOps.getRemoteMetadata(metadataStore.getNodeId(),
-                                                                                  key);
-        switch(remoteVersioned.getVersion().compare(localVersioned.getVersion())) {
+                key);
+        switch (remoteVersioned.getVersion().compare(localVersioned.getVersion())) {
 
         // If remote version came after local version, update with remote
         // version
-            case AFTER: {
-                logger.info("Updating key " + key + " from " + node);
-                adminClient.metadataMgmtOps.updateRemoteMetadata(metadataStore.getNodeId(),
-                                                          key,
-                                                          remoteVersioned);
-                if(logger.isDebugEnabled()) {
-                    logger.debug("Updated key " + key + ": " + remoteVersioned);
-                }
-
-                break;
+        case AFTER: {
+            logger.info("Updating key " + key + " from " + node);
+            adminClient.metadataMgmtOps.updateRemoteMetadata(metadataStore.getNodeId(),
+                    key,
+                    remoteVersioned);
+            if (logger.isDebugEnabled()) {
+                logger.debug("Updated key " + key + ": " + remoteVersioned);
             }
 
-            // If remote version came before the local version, do nothing and
-            // wait for the other
-            // node to gossip with us.
-            case BEFORE: {
-                if(logger.isDebugEnabled()) {
-                    logger.debug("Remote(" + remoteVersioned
-                                 + ") came before, allowing them to initiate Gossip");
-                }
+            break;
+        }
 
-                break;
+        // If remote version came before the local version, do nothing and
+        // wait for the other
+        // node to gossip with us.
+        case BEFORE: {
+            if (logger.isDebugEnabled()) {
+                logger.debug("Remote(" + remoteVersioned
+                        + ") came before, allowing them to initiate Gossip");
             }
+            break;
+        }
 
             /*
              * If we can't establish a causal relationship between two versions,
@@ -196,12 +196,14 @@ public class Gossiper implements Runnable {
              * reconciliation, but for simplicity's sake we will just log an
              * error.
              */
-            case CONCURRENTLY: {
-                logger.error(key + " is concurrent between local node(" + localVersioned
-                             + ") and remote at " + node + "(" + remoteVersioned + ")");
+        case CONCURRENTLY: {
+            logger.error(key + " is concurrent between local node(" + localVersioned
+                    + ") and remote at " + node + "(" + remoteVersioned + ")");
 
-                break;
-            }
+            break;
+        }
+        default:
+            break;
         }
     }
 }

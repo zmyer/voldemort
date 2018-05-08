@@ -16,15 +16,8 @@
 
 package voldemort.server;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.Serializable;
-import java.util.List;
-import java.util.Properties;
-import java.util.Timer;
-import java.util.TimerTask;
-import java.util.concurrent.TimeUnit;
-
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import voldemort.client.ClientConfig;
 import voldemort.client.DefaultStoreClient;
 import voldemort.client.TimeoutConfig;
@@ -64,12 +57,19 @@ import voldemort.utils.Time;
 import voldemort.utils.UndefinedPropertyException;
 import voldemort.utils.Utils;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
+import java.io.File;
+import java.io.IOException;
+import java.io.Serializable;
+import java.util.List;
+import java.util.Properties;
+import java.util.Timer;
+import java.util.TimerTask;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Configuration parameters for the voldemort server.
  */
+// TODO: 2018/3/23 by zmyer
 public class VoldemortConfig implements Serializable {
 
     private static final long serialVersionUID = 1;
@@ -255,7 +255,8 @@ public class VoldemortConfig implements Serializable {
     public static final String NUM_REST_SERVICE_NETTY_BOSS_THREADS = "num.rest.service.netty.boss.threads";
     public static final String NUM_REST_SERVICE_NETTY_WORKER_THREADS = "num.rest.service.netty.worker.threads";
     public static final String NUM_REST_SERVICE_STORAGE_THREADS = "num.rest.service.storage.threads";
-    public static final String REST_SERVICE_STORAGE_THREAD_POOL_QUEUE_SIZE = "rest.service.storage.thread.pool.queue.size";
+    public static final String REST_SERVICE_STORAGE_THREAD_POOL_QUEUE_SIZE =
+            "rest.service.storage.thread.pool.queue.size";
     public static final String MAX_HTTP_AGGREGATED_CONTENT_LENGTH = "max.http.aggregated.content.length";
     public static final String REPAIRJOB_MAX_KEYS_SCANNED_PER_SEC = "repairjob.max.keys.scanned.per.sec";
     public static final String PRUNEJOB_MAX_KEYS_SCANNED_PER_SEC = "prunejob.max.keys.scanned.per.sec";
@@ -283,7 +284,8 @@ public class VoldemortConfig implements Serializable {
     public static final int DEFAULT_FETCHER_BUFFER_SIZE = 64 * 1024;
     public static final int DEFAULT_FETCHER_SOCKET_TIMEOUT = 1000 * 60 * 30; // 30 minutes
     public static final int DEFAULT_FETCHER_THROTTLE_INTERVAL_WINDOW_MS = 1000;
-    public static final long DEFAULT_DEFAULT_STORAGE_SPACE_QUOTA_IN_KB = -1L; // -1 represents no storage space quota constraint
+    public static final long DEFAULT_DEFAULT_STORAGE_SPACE_QUOTA_IN_KB = -1L;
+    // -1 represents no storage space quota constraint
     public static final int DEFAULT_RO_MAX_VALUE_BUFFER_ALLOCATION_SIZE = 25 * 1024 * 1024;
 
     private static final Props defaultConfig = new Props();
@@ -346,7 +348,8 @@ public class VoldemortConfig implements Serializable {
         defaultConfig.put(FILE_FETCHER_CLASS, (String) null); // FIXME: Some unit tests fail without this default.
         defaultConfig.put(READONLY_STATS_FILE_ENABLED, true);
         defaultConfig.put(READONLY_STATS_FILE_MAX_VERSIONS, 1000);
-        defaultConfig.put(READONLY_MAX_VALUE_BUFFER_ALLOCATION_SIZE, VoldemortConfig.DEFAULT_RO_MAX_VALUE_BUFFER_ALLOCATION_SIZE);
+        defaultConfig.put(READONLY_MAX_VALUE_BUFFER_ALLOCATION_SIZE,
+                VoldemortConfig.DEFAULT_RO_MAX_VALUE_BUFFER_ALLOCATION_SIZE);
         // To enable block-level compression over the wire for Read-Only fetches, set this property to "GZIP"
         defaultConfig.put(READONLY_COMPRESSION_CODEC, "NO_CODEC");
         defaultConfig.put(READONLY_MODIFY_PROTOCOL, "");
@@ -370,15 +373,15 @@ public class VoldemortConfig implements Serializable {
 
         defaultConfig.put(TESTING_SLOW_QUEUEING_GET_MS, 0);
         defaultConfig.put(TESTING_SLOW_QUEUEING_GETALL_MS, 0);
-        defaultConfig.put(TESTING_SLOW_QUEUEING_GETVERSIONS_MS,0);
+        defaultConfig.put(TESTING_SLOW_QUEUEING_GETVERSIONS_MS, 0);
         defaultConfig.put(TESTING_SLOW_QUEUEING_PUT_MS, 0);
         defaultConfig.put(TESTING_SLOW_QUEUEING_DELETE_MS, 0);
 
         defaultConfig.put(TESTING_SLOW_CONCURRENT_GET_MS, 0);
-        defaultConfig.put(TESTING_SLOW_CONCURRENT_GETALL_MS,0);
-        defaultConfig.put(TESTING_SLOW_CONCURRENT_GETVERSIONS_MS,0);
+        defaultConfig.put(TESTING_SLOW_CONCURRENT_GETALL_MS, 0);
+        defaultConfig.put(TESTING_SLOW_CONCURRENT_GETVERSIONS_MS, 0);
         defaultConfig.put(TESTING_SLOW_CONCURRENT_PUT_MS, 0);
-        defaultConfig.put(TESTING_SLOW_CONCURRENT_DELETE_MS,0);
+        defaultConfig.put(TESTING_SLOW_CONCURRENT_DELETE_MS, 0);
 
         defaultConfig.put(MAX_THREADS, 100);
 
@@ -450,11 +453,11 @@ public class VoldemortConfig implements Serializable {
         defaultConfig.put(NUM_SCAN_PERMITS, 1);
 
         defaultConfig.put(STORAGE_CONFIGS, ImmutableList.of(BdbStorageConfiguration.class.getName(),
-                                                            MysqlStorageConfiguration.class.getName(),
-                                                            InMemoryStorageConfiguration.class.getName(),
-                                                            CacheStorageConfiguration.class.getName(),
-                                                            ReadOnlyStorageConfiguration.class.getName(),
-                                                            RocksDbStorageConfiguration.class.getName()));
+                MysqlStorageConfiguration.class.getName(),
+                InMemoryStorageConfiguration.class.getName(),
+                CacheStorageConfiguration.class.getName(),
+                ReadOnlyStorageConfiguration.class.getName(),
+                RocksDbStorageConfiguration.class.getName()));
 
         // start at midnight (0-23)
         defaultConfig.put(RETENTION_CLEANUP_FIRST_START_HOUR, 0);
@@ -479,10 +482,13 @@ public class VoldemortConfig implements Serializable {
         defaultConfig.put(FAILUREDETECTOR_IMPLEMENTATION, FailureDetectorConfig.DEFAULT_IMPLEMENTATION_CLASS_NAME);
         defaultConfig.put(FAILUREDETECTOR_BANNAGE_PERIOD, FailureDetectorConfig.DEFAULT_BANNAGE_PERIOD);
         defaultConfig.put(FAILUREDETECTOR_THRESHOLD, FailureDetectorConfig.DEFAULT_THRESHOLD);
-        defaultConfig.put(FAILUREDETECTOR_THRESHOLD_COUNTMINIMUM, FailureDetectorConfig.DEFAULT_THRESHOLD_COUNT_MINIMUM);
+        defaultConfig.put(FAILUREDETECTOR_THRESHOLD_COUNTMINIMUM,
+                FailureDetectorConfig.DEFAULT_THRESHOLD_COUNT_MINIMUM);
         defaultConfig.put(FAILUREDETECTOR_THRESHOLD_INTERVAL, FailureDetectorConfig.DEFAULT_THRESHOLD_INTERVAL);
-        defaultConfig.put(FAILUREDETECTOR_ASYNCRECOVERY_INTERVAL, FailureDetectorConfig.DEFAULT_ASYNC_RECOVERY_INTERVAL);
-        defaultConfig.put(FAILUREDETECTOR_CATASTROPHIC_ERROR_TYPES, FailureDetectorConfig.DEFAULT_CATASTROPHIC_ERROR_TYPES);
+        defaultConfig.put(FAILUREDETECTOR_ASYNCRECOVERY_INTERVAL,
+                FailureDetectorConfig.DEFAULT_ASYNC_RECOVERY_INTERVAL);
+        defaultConfig.put(FAILUREDETECTOR_CATASTROPHIC_ERROR_TYPES,
+                FailureDetectorConfig.DEFAULT_CATASTROPHIC_ERROR_TYPES);
 
         // network class loader disable by default.
         defaultConfig.put(ENABLE_NETWORK_CLASSLOADER, false);
@@ -504,11 +510,11 @@ public class VoldemortConfig implements Serializable {
         defaultConfig.put(ROCKSDB_ENABLE_READ_LOCKS, false);
 
         defaultConfig.put(RESTRICTED_CONFIGS, Lists.newArrayList(MYSQL_USER,
-                                                                 MYSQL_PASSWORD,
-                                                                 READONLY_KEYTAB_PATH,
-                                                                 READONLY_KERBEROS_USER,
-                                                                 READONLY_KERBEROS_KDC,
-                                                                 READONLY_KERBEROS_REALM));
+                MYSQL_PASSWORD,
+                READONLY_KEYTAB_PATH,
+                READONLY_KERBEROS_USER,
+                READONLY_KERBEROS_KDC,
+                READONLY_KERBEROS_REALM));
 
         defaultConfig.put(ENABLE_NODE_ID_DETECTION, false);
         defaultConfig.put(VALIDATE_NODE_ID, false);
@@ -739,13 +745,13 @@ public class VoldemortConfig implements Serializable {
 
     private void initializeNodeId(Props combinedConfigs, Props dynamicDefaults) {
         boolean nodeIdExists = combinedConfigs.containsKey(NODE_ID);
-        if(!nodeIdExists) {
+        if (!nodeIdExists) {
             try {
                 // If node Id is not present in the configs, look for the
                 // environment variable and save it in dynamic defaults.
                 int nodeId = getIntEnvVariable(VOLDEMORT_NODE_ID_VAR_NAME);
                 dynamicDefaults.put(NODE_ID, nodeId);
-            }catch(ConfigurationException ex) {
+            } catch (ConfigurationException ex) {
                 // missingNodeId is handled in the server startup.
             }
         } else {
@@ -787,14 +793,16 @@ public class VoldemortConfig implements Serializable {
         dynamicDefaults.put(CLIENT_ROUTING_GETALL_TIMEOUT_MS, combinedConfigs.getInt(CLIENT_ROUTING_TIMEOUT_MS));
         int clientRoutingPutTimeoutMs = combinedConfigs.getInt(CLIENT_ROUTING_TIMEOUT_MS);
         dynamicDefaults.put(CLIENT_ROUTING_PUT_TIMEOUT_MS, clientRoutingPutTimeoutMs);
-        dynamicDefaults.put(CLIENT_ROUTING_GETVERSIONS_TIMEOUT_MS, combinedConfigs.getInt(CLIENT_ROUTING_PUT_TIMEOUT_MS, clientRoutingPutTimeoutMs));
+        dynamicDefaults.put(CLIENT_ROUTING_GETVERSIONS_TIMEOUT_MS,
+                combinedConfigs.getInt(CLIENT_ROUTING_PUT_TIMEOUT_MS, clientRoutingPutTimeoutMs));
         dynamicDefaults.put(CLIENT_ROUTING_DELETE_TIMEOUT_MS, combinedConfigs.getInt(CLIENT_ROUTING_TIMEOUT_MS));
         dynamicDefaults.put(FAILUREDETECTOR_REQUEST_LENGTH_THRESHOLD, combinedConfigs.getInt(SOCKET_TIMEOUT_MS));
-        dynamicDefaults.put(REST_SERVICE_STORAGE_THREAD_POOL_QUEUE_SIZE, combinedConfigs.getInt(NUM_REST_SERVICE_STORAGE_THREADS));
+        dynamicDefaults.put(REST_SERVICE_STORAGE_THREAD_POOL_QUEUE_SIZE,
+                combinedConfigs.getInt(NUM_REST_SERVICE_STORAGE_THREADS));
 
         // We're changing the property from "client.node.bannage.ms" to
         // "failuredetector.bannage.period" so if we have the old one, migrate it over.
-        if(userSuppliedConfig.containsKey(CLIENT_NODE_BANNAGE_MS)
+        if (userSuppliedConfig.containsKey(CLIENT_NODE_BANNAGE_MS)
                 && !userSuppliedConfig.containsKey(FAILUREDETECTOR_BANNAGE_PERIOD)) {
             dynamicDefaults.put(FAILUREDETECTOR_BANNAGE_PERIOD, userSuppliedConfig.getInt(CLIENT_NODE_BANNAGE_MS));
         }
@@ -902,18 +910,28 @@ public class VoldemortConfig implements Serializable {
         this.mysqlDatabaseName = this.allProps.getString(MYSQL_DATABASE);
 
         this.testingSlowQueueingDelays = new OpTimeMap(0);
-        this.testingSlowQueueingDelays.setOpTime(VoldemortOpCode.GET_OP_CODE, this.allProps.getInt(TESTING_SLOW_QUEUEING_GET_MS));
-        this.testingSlowQueueingDelays.setOpTime(VoldemortOpCode.GET_ALL_OP_CODE, this.allProps.getInt(TESTING_SLOW_QUEUEING_GETALL_MS));
-        this.testingSlowQueueingDelays.setOpTime(VoldemortOpCode.GET_VERSION_OP_CODE, this.allProps.getInt(TESTING_SLOW_QUEUEING_GETVERSIONS_MS));
-        this.testingSlowQueueingDelays.setOpTime(VoldemortOpCode.PUT_OP_CODE, this.allProps.getInt(TESTING_SLOW_QUEUEING_PUT_MS));
-        this.testingSlowQueueingDelays.setOpTime(VoldemortOpCode.DELETE_OP_CODE, this.allProps.getInt(TESTING_SLOW_QUEUEING_DELETE_MS));
+        this.testingSlowQueueingDelays.setOpTime(VoldemortOpCode.GET_OP_CODE,
+                this.allProps.getInt(TESTING_SLOW_QUEUEING_GET_MS));
+        this.testingSlowQueueingDelays.setOpTime(VoldemortOpCode.GET_ALL_OP_CODE,
+                this.allProps.getInt(TESTING_SLOW_QUEUEING_GETALL_MS));
+        this.testingSlowQueueingDelays.setOpTime(VoldemortOpCode.GET_VERSION_OP_CODE,
+                this.allProps.getInt(TESTING_SLOW_QUEUEING_GETVERSIONS_MS));
+        this.testingSlowQueueingDelays.setOpTime(VoldemortOpCode.PUT_OP_CODE,
+                this.allProps.getInt(TESTING_SLOW_QUEUEING_PUT_MS));
+        this.testingSlowQueueingDelays.setOpTime(VoldemortOpCode.DELETE_OP_CODE,
+                this.allProps.getInt(TESTING_SLOW_QUEUEING_DELETE_MS));
 
         this.testingSlowConcurrentDelays = new OpTimeMap(0);
-        this.testingSlowConcurrentDelays.setOpTime(VoldemortOpCode.GET_OP_CODE, this.allProps.getInt(TESTING_SLOW_CONCURRENT_GET_MS));
-        this.testingSlowConcurrentDelays.setOpTime(VoldemortOpCode.GET_ALL_OP_CODE, this.allProps.getInt(TESTING_SLOW_CONCURRENT_GETALL_MS));
-        this.testingSlowConcurrentDelays.setOpTime(VoldemortOpCode.GET_VERSION_OP_CODE, this.allProps.getInt(TESTING_SLOW_CONCURRENT_GETVERSIONS_MS));
-        this.testingSlowConcurrentDelays.setOpTime(VoldemortOpCode.PUT_OP_CODE, this.allProps.getInt(TESTING_SLOW_CONCURRENT_PUT_MS));
-        this.testingSlowConcurrentDelays.setOpTime(VoldemortOpCode.DELETE_OP_CODE, this.allProps.getInt(TESTING_SLOW_CONCURRENT_DELETE_MS));
+        this.testingSlowConcurrentDelays.setOpTime(VoldemortOpCode.GET_OP_CODE,
+                this.allProps.getInt(TESTING_SLOW_CONCURRENT_GET_MS));
+        this.testingSlowConcurrentDelays.setOpTime(VoldemortOpCode.GET_ALL_OP_CODE,
+                this.allProps.getInt(TESTING_SLOW_CONCURRENT_GETALL_MS));
+        this.testingSlowConcurrentDelays.setOpTime(VoldemortOpCode.GET_VERSION_OP_CODE,
+                this.allProps.getInt(TESTING_SLOW_CONCURRENT_GETVERSIONS_MS));
+        this.testingSlowConcurrentDelays.setOpTime(VoldemortOpCode.PUT_OP_CODE,
+                this.allProps.getInt(TESTING_SLOW_CONCURRENT_PUT_MS));
+        this.testingSlowConcurrentDelays.setOpTime(VoldemortOpCode.DELETE_OP_CODE,
+                this.allProps.getInt(TESTING_SLOW_CONCURRENT_DELETE_MS));
 
         this.maxThreads = this.allProps.getInt(MAX_THREADS);
         this.coreThreads = this.allProps.getInt(CORE_THREADS);
@@ -947,11 +965,16 @@ public class VoldemortConfig implements Serializable {
         this.clientConnectionTimeoutMs = this.allProps.getInt(CLIENT_CONNECTION_TIMEOUT_MS);
         this.clientRoutingTimeoutMs = this.allProps.getInt(CLIENT_ROUTING_TIMEOUT_MS);
         this.clientTimeoutConfig = new TimeoutConfig(this.clientRoutingTimeoutMs, false);
-        this.clientTimeoutConfig.setOperationTimeout(VoldemortOpCode.GET_OP_CODE, this.allProps.getInt(CLIENT_ROUTING_GET_TIMEOUT_MS));
-        this.clientTimeoutConfig.setOperationTimeout(VoldemortOpCode.GET_ALL_OP_CODE, this.allProps.getInt(CLIENT_ROUTING_GETALL_TIMEOUT_MS));
-        this.clientTimeoutConfig.setOperationTimeout(VoldemortOpCode.PUT_OP_CODE, this.allProps.getInt(CLIENT_ROUTING_PUT_TIMEOUT_MS));
-        this.clientTimeoutConfig.setOperationTimeout(VoldemortOpCode.GET_VERSION_OP_CODE, this.allProps.getLong(CLIENT_ROUTING_GETVERSIONS_TIMEOUT_MS));
-        this.clientTimeoutConfig.setOperationTimeout(VoldemortOpCode.DELETE_OP_CODE, this.allProps.getInt(CLIENT_ROUTING_DELETE_TIMEOUT_MS));
+        this.clientTimeoutConfig.setOperationTimeout(VoldemortOpCode.GET_OP_CODE,
+                this.allProps.getInt(CLIENT_ROUTING_GET_TIMEOUT_MS));
+        this.clientTimeoutConfig.setOperationTimeout(VoldemortOpCode.GET_ALL_OP_CODE,
+                this.allProps.getInt(CLIENT_ROUTING_GETALL_TIMEOUT_MS));
+        this.clientTimeoutConfig.setOperationTimeout(VoldemortOpCode.PUT_OP_CODE,
+                this.allProps.getInt(CLIENT_ROUTING_PUT_TIMEOUT_MS));
+        this.clientTimeoutConfig.setOperationTimeout(VoldemortOpCode.GET_VERSION_OP_CODE,
+                this.allProps.getLong(CLIENT_ROUTING_GETVERSIONS_TIMEOUT_MS));
+        this.clientTimeoutConfig.setOperationTimeout(VoldemortOpCode.DELETE_OP_CODE,
+                this.allProps.getInt(CLIENT_ROUTING_DELETE_TIMEOUT_MS));
         this.clientTimeoutConfig.setPartialGetAllAllowed(this.allProps.getBoolean(CLIENT_ROUTING_ALLOW_PARTIAL_GETALL));
         this.clientMaxThreads = this.allProps.getInt(CLIENT_MAX_THREADS);
         this.clientThreadIdleMs = this.allProps.getInt(CLIENT_THREAD_IDLE_MS);
@@ -1048,74 +1071,99 @@ public class VoldemortConfig implements Serializable {
     }
 
     private void validateParams() {
-        if(coreThreads < 0)
+        if (coreThreads < 0) {
             throw new IllegalArgumentException(CORE_THREADS + " cannot be less than 1");
-        else if(coreThreads > maxThreads)
+        } else if (coreThreads > maxThreads) {
             throw new IllegalArgumentException(CORE_THREADS + " cannot be greater than " + MAX_THREADS);
-        if(maxThreads < 1)
+        }
+        if (maxThreads < 1) {
             throw new ConfigurationException(MAX_THREADS + " cannot be less than 1.");
-        if(slopFrequencyMs < 1)
+        }
+        if (slopFrequencyMs < 1) {
             throw new ConfigurationException(SLOP_FREQUENCY_MS + " cannot be less than 1.");
-        if(socketTimeoutMs < 0)
+        }
+        if (socketTimeoutMs < 0) {
             throw new ConfigurationException(SOCKET_TIMEOUT_MS + " must be 0 or more ms.");
-        if(clientSelectors < 1)
+        }
+        if (clientSelectors < 1) {
             throw new ConfigurationException(CLIENT_SELECTORS + " must be 1 or more.");
-        if(clientRoutingTimeoutMs < 0)
+        }
+        if (clientRoutingTimeoutMs < 0) {
             throw new ConfigurationException(CLIENT_ROUTING_TIMEOUT_MS + " must be 0 or more ms.");
-        if(schedulerThreads < 1)
-            throw new ConfigurationException("Must have at least 1 scheduler thread, " + this.schedulerThreads + " set.");
-        if(enableServerRouting && !enableSocketServer)
-            throw new ConfigurationException("Server-side routing is enabled, this requires the socket server to also be enabled.");
-        if(numRestServiceNettyBossThreads < 1)
+        }
+        if (schedulerThreads < 1) {
+            throw new ConfigurationException(
+                    "Must have at least 1 scheduler thread, " + this.schedulerThreads + " set.");
+        }
+        if (enableServerRouting && !enableSocketServer) {
+            throw new ConfigurationException(
+                    "Server-side routing is enabled, this requires the socket server to also be enabled.");
+        }
+        if (numRestServiceNettyBossThreads < 1) {
             throw new ConfigurationException(NUM_REST_SERVICE_NETTY_BOSS_THREADS + " cannot be less than 1");
-        if(numRestServiceNettyWorkerThreads < 1)
+        }
+        if (numRestServiceNettyWorkerThreads < 1) {
             throw new ConfigurationException(NUM_REST_SERVICE_NETTY_WORKER_THREADS + " cannot be less than 1");
-        if(numRestServiceStorageThreads < 1)
+        }
+        if (numRestServiceStorageThreads < 1) {
             throw new ConfigurationException(NUM_REST_SERVICE_STORAGE_THREADS + " cannot be less than 1");
-        if(numRestServiceNettyServerBacklog < 0)
+        }
+        if (numRestServiceNettyServerBacklog < 0) {
             throw new ConfigurationException(NUM_REST_SERVICE_NETTY_SERVER_BACKLOG + " cannot be negative");
-        if(restServiceStorageThreadPoolQueueSize < 0)
+        }
+        if (restServiceStorageThreadPoolQueueSize < 0) {
             throw new ConfigurationException(REST_SERVICE_STORAGE_THREAD_POOL_QUEUE_SIZE + " cannot be negative.");
-        if(maxHttpAggregatedContentLength <= 0)
+        }
+        if (maxHttpAggregatedContentLength <= 0) {
             throw new ConfigurationException(MAX_HTTP_AGGREGATED_CONTENT_LENGTH + " must be positive");
+        }
         if (this.highAvailabilityPushEnabled) {
-            if (this.highAvailabilityPushClusterId == null)
+            if (this.highAvailabilityPushClusterId == null) {
                 throw new ConfigurationException(PUSH_HA_CLUSTER_ID + " must be set if " + PUSH_HA_ENABLED + "=true");
-            if (this.highAvailabilityPushLockPath == null)
+            }
+            if (this.highAvailabilityPushLockPath == null) {
                 throw new ConfigurationException(PUSH_HA_LOCK_PATH + " must be set if " + PUSH_HA_ENABLED + "=true");
-            if (this.highAvailabilityPushLockImplementation == null)
-                throw new ConfigurationException(PUSH_HA_LOCK_IMPLEMENTATION + " must be set if " + PUSH_HA_ENABLED + "=true");
-            if (this.highAvailabilityPushMaxNodeFailures < 1)
-                throw new ConfigurationException(PUSH_HA_MAX_NODE_FAILURES + " must be 1 or more if " + PUSH_HA_ENABLED + "=true");
+            }
+            if (this.highAvailabilityPushLockImplementation == null) {
+                throw new ConfigurationException(
+                        PUSH_HA_LOCK_IMPLEMENTATION + " must be set if " + PUSH_HA_ENABLED + "=true");
+            }
+            if (this.highAvailabilityPushMaxNodeFailures < 1) {
+                throw new ConfigurationException(
+                        PUSH_HA_MAX_NODE_FAILURES + " must be 1 or more if " + PUSH_HA_ENABLED + "=true");
+            }
         }
     }
 
     private int getIntEnvVariable(String name) {
         String var = System.getenv(name);
-        if(var == null)
+        if (var == null) {
             throw new ConfigurationException("The environment variable " + name
-                                             + " is not defined.");
+                    + " is not defined.");
+        }
         try {
             return Integer.parseInt(var);
-        } catch(NumberFormatException e) {
+        } catch (NumberFormatException e) {
             throw new ConfigurationException("Invalid format for environment variable " + name
-                                             + ", expecting an integer.", e);
+                    + ", expecting an integer.", e);
         }
     }
 
     public static VoldemortConfig loadFromEnvironmentVariable() {
         String voldemortHome = System.getenv(VoldemortConfig.VOLDEMORT_HOME_VAR_NAME);
-        if(voldemortHome == null)
+        if (voldemortHome == null) {
             throw new ConfigurationException("No environment variable "
-                                             + VoldemortConfig.VOLDEMORT_HOME_VAR_NAME
-                                             + " has been defined, set it!");
+                    + VoldemortConfig.VOLDEMORT_HOME_VAR_NAME
+                    + " has been defined, set it!");
+        }
 
         String voldemortConfigDir = System.getenv(VoldemortConfig.VOLDEMORT_CONFIG_DIR);
-        if(voldemortConfigDir != null) {
-            if(!Utils.isReadableDir(voldemortConfigDir))
+        if (voldemortConfigDir != null) {
+            if (!Utils.isReadableDir(voldemortConfigDir)) {
                 throw new ConfigurationException("Attempt to load configuration from VOLDEMORT_CONFIG_DIR, "
-                                                 + voldemortConfigDir
-                                                 + " failed. That is not a readable directory.");
+                        + voldemortConfigDir
+                        + " failed. That is not a readable directory.");
+            }
         }
         return loadFromVoldemortHome(voldemortHome, voldemortConfigDir);
     }
@@ -1127,26 +1175,28 @@ public class VoldemortConfig implements Serializable {
     }
 
     public static VoldemortConfig loadFromVoldemortHome(String voldemortHome,
-                                                        String voldemortConfigDir) {
-        if(!Utils.isReadableDir(voldemortHome))
+            String voldemortConfigDir) {
+        if (!Utils.isReadableDir(voldemortHome)) {
             throw new ConfigurationException("Attempt to load configuration from VOLDEMORT_HOME, "
-                                             + voldemortHome
-                                             + " failed. That is not a readable directory.");
+                    + voldemortHome
+                    + " failed. That is not a readable directory.");
+        }
 
-        if(voldemortConfigDir == null) {
+        if (voldemortConfigDir == null) {
             voldemortConfigDir = voldemortHome + File.separator + "config";
         }
         String propertiesFile = voldemortConfigDir + File.separator + "server.properties";
-        if(!Utils.isReadableFile(propertiesFile))
+        if (!Utils.isReadableFile(propertiesFile)) {
             throw new ConfigurationException(propertiesFile
-                                             + " is not a readable configuration file.");
+                    + " is not a readable configuration file.");
+        }
 
         Props properties = null;
         try {
             properties = new Props(new File(propertiesFile));
             properties.put(VOLDEMORT_HOME, voldemortHome);
             properties.put(METADATA_DIRECTORY, voldemortConfigDir);
-        } catch(IOException e) {
+        } catch (IOException e) {
             throw new ConfigurationException(e);
         }
 
@@ -1185,7 +1235,7 @@ public class VoldemortConfig implements Serializable {
     /**
      * Id of the server within the cluster. The server matches up this id with
      * the information in cluster.xml to determine what partitions belong to it
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #NODE_ID}"</li>
      * <li>Default : {@value #VOLDEMORT_NODE_ID_VAR_NAME} env variable</li>
@@ -1215,7 +1265,7 @@ public class VoldemortConfig implements Serializable {
 
     /**
      * Root directory for Voldemort's data
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #DATA_DIRECTORY}"</li>
      * <li>Default : VOLDEMORT_HOME/data</li>
@@ -1231,7 +1281,7 @@ public class VoldemortConfig implements Serializable {
 
     /**
      * Root directory for Voldemort's configuration
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #METADATA_DIRECTORY}"</li>
      * <li>Default : VOLDEMORT_HOME/config</li>
@@ -1247,7 +1297,7 @@ public class VoldemortConfig implements Serializable {
 
     /**
      * The size of BDB Cache to hold portions of the BTree.
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #BDB_CACHE_SIZE}"</li>
      * <li>Default : 200MB</li>
@@ -1264,7 +1314,7 @@ public class VoldemortConfig implements Serializable {
     /**
      * This parameter controls whether we expose space utilization via MBean. If
      * set to false, stat will always return 0;
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #BDB_EXPOSE_SPACE_UTILIZATION}"</li>
      * <li>Default : true</li>
@@ -1280,12 +1330,12 @@ public class VoldemortConfig implements Serializable {
 
     /**
      * If true then sync transactions to disk immediately.
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #BDB_FLUSH_TRANSACTIONS}"</li>
      * <li>Default : false</li>
      * </ul>
-     * 
+     *
      */
     public void setBdbFlushTransactions(boolean bdbSyncTransactions) {
         this.bdbFlushTransactions = bdbSyncTransactions;
@@ -1297,7 +1347,7 @@ public class VoldemortConfig implements Serializable {
 
     /**
      * The directory in which bdb data is stored.
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #BDB_DATA_DIRECTORY}"</li>
      * <li>Default : data.directory/bdb</li>
@@ -1314,15 +1364,15 @@ public class VoldemortConfig implements Serializable {
     /**
      * When supplied with comma separated propkey=propvalue strings, enables
      * admin to arbitrarily set any BDB JE environment property
-     * 
+     *
      * eg:
      * bdb.raw.property.string=je.cleaner.threads=1,je.cleaner.lazyMigration=
      * true
-     * 
+     *
      * Since this is applied after the regular BDB parameter in this class, this
      * has the effect of overriding previous configs if they are specified here
      * again.
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #BDB_RAW_PROPERTY_STRING}"</li>
      * <li>Default : null</li>
@@ -1338,7 +1388,7 @@ public class VoldemortConfig implements Serializable {
 
     /**
      * The maximum size of a single .jdb log file in bytes.
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #BDB_MAX_LOGFILE_SIZE}"</li>
      * <li>Default : 60MB</li>
@@ -1358,7 +1408,7 @@ public class VoldemortConfig implements Serializable {
      * value greater than 0, might potentially hurt if the workload generates a
      * cleaning pattern with a heavy skew of utilization distribution amongs the
      * jdb files
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #BDB_CLEANER_MIN_FILE_UTILIZATION}"</li>
      * <li>default: 0</li>
@@ -1367,8 +1417,9 @@ public class VoldemortConfig implements Serializable {
      * </ul>
      */
     public final void setBdbCleanerMinFileUtilization(int minFileUtilization) {
-        if(minFileUtilization < 0 || minFileUtilization > 50)
+        if (minFileUtilization < 0 || minFileUtilization > 50) {
             throw new IllegalArgumentException("minFileUtilization should be between 0 and 50 (both inclusive)");
+        }
         this.bdbCleanerMinFileUtilization = minFileUtilization;
     }
 
@@ -1379,7 +1430,7 @@ public class VoldemortConfig implements Serializable {
     /**
      * If true, the checkpointer uses more resources in order to complete the
      * checkpoint in a shorter time interval.
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #BDB_CHECKPOINTER_HIGH_PRIORITY}"</li>
      * <li>default: false</li>
@@ -1396,7 +1447,7 @@ public class VoldemortConfig implements Serializable {
     /**
      * The maximum number of log files in the cleaner's backlog, or zero if
      * there is no limit
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #BDB_CLEANER_MAX_BATCH_FILES}"</li>
      * <li>default: 0</li>
@@ -1405,8 +1456,10 @@ public class VoldemortConfig implements Serializable {
      * </ul>
      */
     public final void setBdbCleanerMaxBatchFiles(int bdbCleanerMaxBatchFiles) {
-        if(bdbCleanerMaxBatchFiles < 0 || bdbCleanerMaxBatchFiles > 100000)
-            throw new IllegalArgumentException("bdbCleanerMaxBatchFiles should be between 0 and 100000 (both inclusive)");
+        if (bdbCleanerMaxBatchFiles < 0 || bdbCleanerMaxBatchFiles > 100000) {
+            throw new IllegalArgumentException(
+                    "bdbCleanerMaxBatchFiles should be between 0 and 100000 (both inclusive)");
+        }
         this.bdbCleanerMaxBatchFiles = bdbCleanerMaxBatchFiles;
     }
 
@@ -1415,9 +1468,9 @@ public class VoldemortConfig implements Serializable {
     }
 
     /**
-     * 
+     *
      * The number of cleaner threads
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #BDB_CLEANER_THREADS}"</li>
      * <li>default: 1</li>
@@ -1425,8 +1478,9 @@ public class VoldemortConfig implements Serializable {
      * </ul>
      */
     public final void setBdbCleanerThreads(int bdbCleanerThreads) {
-        if(bdbCleanerThreads <= 0)
+        if (bdbCleanerThreads <= 0) {
             throw new IllegalArgumentException("bdbCleanerThreads should be greater than 0");
+        }
         this.bdbCleanerThreads = bdbCleanerThreads;
     }
 
@@ -1435,10 +1489,10 @@ public class VoldemortConfig implements Serializable {
     }
 
     /**
-     * 
+     *
      * Amount of bytes written before the Cleaner wakes up to check for
      * utilization
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #BDB_CLEANER_INTERVAL_BYTES}"</li>
      * <li>default: 30MB</li>
@@ -1454,16 +1508,17 @@ public class VoldemortConfig implements Serializable {
 
     /**
      * Buffer size used by cleaner to fetch BTree nodes during cleaning.
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #BDB_CLEANER_LOOKAHEAD_CACHE_SIZE}"</li>
      * <li>default: 8192</li>
      * </ul>
-     * 
+     *
      */
     public final void setBdbCleanerLookAheadCacheSize(int bdbCleanerLookAheadCacheSize) {
-        if(bdbCleanerLookAheadCacheSize < 0)
+        if (bdbCleanerLookAheadCacheSize < 0) {
             throw new IllegalArgumentException("bdbCleanerLookAheadCacheSize should be at least 0");
+        }
         this.bdbCleanerLookAheadCacheSize = bdbCleanerLookAheadCacheSize;
     }
 
@@ -1472,12 +1527,12 @@ public class VoldemortConfig implements Serializable {
     }
 
     /**
-     * 
+     *
      * The lock timeout for all transactional and non-transactional operations.
      * Value of zero disables lock timeouts i.e. a deadlock scenario will block
      * forever. High locktimeout combined with a highly concurrent workload,
      * might have adverse impact on latency for all stores
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #BDB_LOCK_TIMEOUT_MS}"</li>
      * <li>default: 500</li>
@@ -1486,8 +1541,9 @@ public class VoldemortConfig implements Serializable {
      * </ul>
      */
     public final void setBdbLockTimeoutMs(long bdbLockTimeoutMs) {
-        if(bdbLockTimeoutMs < 0)
+        if (bdbLockTimeoutMs < 0) {
             throw new IllegalArgumentException("bdbLockTimeoutMs should be greater than 0");
+        }
         this.bdbLockTimeoutMs = bdbLockTimeoutMs;
     }
 
@@ -1497,17 +1553,18 @@ public class VoldemortConfig implements Serializable {
 
     /**
      * The size of the lock table used by BDB JE
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #BDB_LOCK_N_LOCK_TABLES}"</li>
      * <li>Default : 7</li>
      * </ul>
-     * 
+     *
      */
     public void setBdbLockNLockTables(int bdbLockNLockTables) {
-        if(bdbLockNLockTables < 1 || bdbLockNLockTables > 32767)
+        if (bdbLockNLockTables < 1 || bdbLockNLockTables > 32767) {
             throw new IllegalArgumentException("bdbLockNLockTables should be greater than 0 and "
-                                               + "less than 32767");
+                    + "less than 32767");
+        }
         this.bdbLockNLockTables = bdbLockNLockTables;
     }
 
@@ -1517,7 +1574,7 @@ public class VoldemortConfig implements Serializable {
 
     /**
      * Buffer for faulting in objects from disk
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #BDB_LOG_FAULT_READ_SIZE}"</li>
      * <li>Default : 2048</li>
@@ -1533,12 +1590,12 @@ public class VoldemortConfig implements Serializable {
 
     /**
      * Buffer size used by BDB JE for reading the log eg: Cleaning.
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #BDB_LOG_ITERATOR_READ_SIZE}"</li>
      * <li>Default : 8192</li>
      * </ul>
-     * 
+     *
      */
     public void setBdbLogIteratorReadSize(int bdbLogIteratorReadSize) {
         this.bdbLogIteratorReadSize = bdbLogIteratorReadSize;
@@ -1550,12 +1607,12 @@ public class VoldemortConfig implements Serializable {
 
     /**
      * Controls whether BDB JE should use latches instead of synchronized blocks
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #BDB_FAIR_LATCHES}"</li>
      * <li>Default : false</li>
      * </ul>
-     * 
+     *
      */
     public void setBdbFairLatches(boolean bdbFairLatches) {
         this.bdbFairLatches = bdbFairLatches;
@@ -1567,12 +1624,12 @@ public class VoldemortConfig implements Serializable {
 
     /**
      * If true, BDB JE get() will not be blocked by put()
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #BDB_LOCK_READ_UNCOMMITTED}"</li>
      * <li>Default : true</li>
      * </ul>
-     * 
+     *
      */
     public void setBdbReadUncommitted(boolean bdbReadUncommitted) {
         this.bdbReadUncommitted = bdbReadUncommitted;
@@ -1583,10 +1640,10 @@ public class VoldemortConfig implements Serializable {
     }
 
     /**
-     * 
+     *
      * The cleaner will keep the total disk space utilization percentage above
      * this value.
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #BDB_CLEANER_MIN_UTILIZATION}"</li>
      * <li>default: 50</li>
@@ -1595,8 +1652,9 @@ public class VoldemortConfig implements Serializable {
      * </ul>
      */
     public final void setBdbCleanerMinUtilization(int minUtilization) {
-        if(minUtilization < 0 || minUtilization > 90)
+        if (minUtilization < 0 || minUtilization > 90) {
             throw new IllegalArgumentException("minUtilization should be between 0 and 90 (both inclusive)");
+        }
         this.bdbCleanerMinUtilization = minUtilization;
     }
 
@@ -1606,7 +1664,7 @@ public class VoldemortConfig implements Serializable {
 
     /**
      * The btree node fanout. Given by "". default: 512
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #BDB_BTREE_FANOUT}"</li>
      * <li>default: 512</li>
@@ -1618,12 +1676,12 @@ public class VoldemortConfig implements Serializable {
 
     /**
      * Exposes BDB JE EnvironmentConfig.TREE_MAX_DELTA.
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #BDB_MAX_DELTA}"</li>
      * <li>Default : 100</li>
      * </ul>
-     * 
+     *
      */
     public void setBdbMaxDelta(int maxDelta) {
         this.bdbMaxDelta = maxDelta;
@@ -1635,12 +1693,12 @@ public class VoldemortConfig implements Serializable {
 
     /**
      * Exposes BDB JE EnvironmentConfig.TREE_BIN_DELTA.
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #BDB_BIN_DELTA}"</li>
      * <li>Default : 75</li>
      * </ul>
-     * 
+     *
      */
     public void setBdbBinDelta(int binDelta) {
         this.bdbBinDelta = binDelta;
@@ -1659,12 +1717,12 @@ public class VoldemortConfig implements Serializable {
      * an update/delete to compute file utilization. Without this, BDB will auto
      * compute utilization based on heuristics.. (which may or may not work,
      * depending on your use case)
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #BDB_CLEANER_FETCH_OBSOLETE_SIZE}"</li>
      * <li>default : true</li>
      * </ul>
-     * 
+     *
      */
     public final void setBdbCleanerFetchObsoleteSize(boolean bdbCleanerFetchObsoleteSize) {
         this.bdbCleanerFetchObsoleteSize = bdbCleanerFetchObsoleteSize;
@@ -1677,12 +1735,12 @@ public class VoldemortConfig implements Serializable {
     /**
      * If true, Cleaner does not perform any predictive adjustment of the
      * internally computed utilization values
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #BDB_CLEANER_ADJUST_UTILIZATION}"</li>
      * <li>default : false</li>
      * </ul>
-     * 
+     *
      */
     public final void setBdbCleanerAdjustUtilization(boolean bdbCleanerAdjustUtilization) {
         this.bdbCleanerAdjustUtilization = bdbCleanerAdjustUtilization;
@@ -1697,12 +1755,12 @@ public class VoldemortConfig implements Serializable {
      * snapshot will not be modified when opening the Environment, and a new
      * .jdb file will be created and become the end-of-log file. If using
      * incremental backup, this parameter must be true.
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #BDB_RECOVERY_FORCE_CHECKPOINT}"</li>
      * <li>default : false</li>
      * </ul>
-     * 
+     *
      */
     public final void setBdbRecoveryForceCheckpoint(boolean bdbRecoveryForceCheckpoint) {
         this.bdbRecoveryForceCheckpoint = bdbRecoveryForceCheckpoint;
@@ -1718,12 +1776,12 @@ public class VoldemortConfig implements Serializable {
      * it is flushed down by Checkpointer, hence not GC friendly (Will cause
      * promotions). Use if you have lots of spare RAM but running low on
      * threads/IOPS
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #BDB_CLEANER_LAZY_MIGRATION}"</li>
      * <li>default : false</li>
      * </ul>
-     * 
+     *
      */
     public final void setBdbCleanerLazyMigration(boolean bdbCleanerLazyMigration) {
         this.bdbCleanerLazyMigration = bdbCleanerLazyMigration;
@@ -1737,12 +1795,12 @@ public class VoldemortConfig implements Serializable {
      * If true, BDB will not cache data in the JVM. This is very Java GC
      * friendly, and brings a lot of predictability in performance, by greatly
      * reducing constant CMS activity
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #BDB_CACHE_EVICTLN}"</li>
      * <li>Default : true</li>
      * </ul>
-     * 
+     *
      */
     public void setBdbCacheModeEvictLN(boolean bdbCacheModeEvictLN) {
         this.bdbCacheModeEvictLN = bdbCacheModeEvictLN;
@@ -1755,12 +1813,12 @@ public class VoldemortConfig implements Serializable {
     /**
      * If true, attempts are made to minimize impact to BDB cache during scan
      * jobs
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #BDB_MINIMIZE_SCAN_IMPACT}"</li>
      * <li>Default : true</li>
      * </ul>
-     * 
+     *
      */
     public void setBdbMinimizeScanImpact(boolean bdbMinimizeScanImpact) {
         this.bdbMinimizeScanImpact = bdbMinimizeScanImpact;
@@ -1773,12 +1831,12 @@ public class VoldemortConfig implements Serializable {
     /**
      * Controls persistence mode for BDB JE Transaction. By default, we rely on
      * the checkpointer to flush the writes
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #BDB_WRITE_TRANSACTIONS}"</li>
      * <li>Default : false</li>
      * </ul>
-     * 
+     *
      */
     public void setBdbWriteTransactions(boolean bdbWriteTransactions) {
         this.bdbWriteTransactions = bdbWriteTransactions;
@@ -1786,12 +1844,12 @@ public class VoldemortConfig implements Serializable {
 
     /**
      * If true, use separate BDB JE environment per store
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #BDB_ONE_ENV_PER_STORE}"</li>
      * <li>Default : false</li>
      * </ul>
-     * 
+     *
      */
     public void setBdbOneEnvPerStore(boolean bdbOneEnvPerStore) {
         this.bdbOneEnvPerStore = bdbOneEnvPerStore;
@@ -1809,12 +1867,12 @@ public class VoldemortConfig implements Serializable {
      * If true, keys will be prefixed by the partition Id on disk. This can
      * dramatically speed up rebalancing, restore operations, at the cost of 2
      * bytes of extra storage per key
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #BDB_PREFIX_KEYS_WITH_PARTITIONID}"</li>
      * <li>Default : true</li>
      * </ul>
-     * 
+     *
      */
     public void setBdbPrefixKeysWithPartitionId(boolean bdbPrefixKeysWithPartitionId) {
         this.bdbPrefixKeysWithPartitionId = bdbPrefixKeysWithPartitionId;
@@ -1827,12 +1885,12 @@ public class VoldemortConfig implements Serializable {
     /**
      * Checkpointer is woken up and a checkpoint is written once this many bytes
      * have been logged
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #BDB_CHECKPOINT_INTERVAL_BYTES}"</li>
      * <li>Default : 200MB</li>
      * </ul>
-     * 
+     *
      */
     public void setBdbCheckpointBytes(long bdbCheckpointBytes) {
         this.bdbCheckpointBytes = bdbCheckpointBytes;
@@ -1846,12 +1904,12 @@ public class VoldemortConfig implements Serializable {
      * BDB JE Checkpointer will be turned off during batch writes. This helps
      * save redundant writing of index updates, as we do say large streaming
      * updates
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #BDB_CHECKPOINTER_OFF_BATCH_WRITES}"</li>
      * <li>Default : false</li>
      * </ul>
-     * 
+     *
      */
     public void setBdbCheckpointerOffForBatchWrites(boolean bdbCheckpointerOffForBulkWrites) {
         this.bdbCheckpointerOffForBatchWrites = bdbCheckpointerOffForBulkWrites;
@@ -1863,12 +1921,12 @@ public class VoldemortConfig implements Serializable {
 
     /**
      * BDB JE Checkpointer wakes up whenever this time period elapses
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #BDB_CHECKPOINT_INTERVAL_MS}"</li>
      * <li>Default : 30s or 30000 ms</li>
      * </ul>
-     * 
+     *
      */
     public void setBdbCheckpointMs(long bdbCheckpointMs) {
         this.bdbCheckpointMs = bdbCheckpointMs;
@@ -1881,12 +1939,12 @@ public class VoldemortConfig implements Serializable {
     /**
      * Interval to reuse environment stats fetched from BDB. Once the interval
      * expires, a fresh call will be made
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #BDB_STATS_CACHE_TTL_MS}"</li>
      * <li>Default : 5s</li>
      * </ul>
-     * 
+     *
      */
     public void setBdbStatsCacheTtlMs(long statsCacheTtlMs) {
         this.bdbStatsCacheTtlMs = statsCacheTtlMs;
@@ -1900,12 +1958,12 @@ public class VoldemortConfig implements Serializable {
      * When using partitioned caches, this parameter controls the minimum amount
      * of memory reserved for the global pool. Any memory-footprint reservation
      * that will break this guarantee will fail.
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #{@VALUE #BDB_MINIMUM_SHARED_CACHE}}"</li>
      * <li>Default : 0</li>
      * </ul>
-     * 
+     *
      */
     public void setBdbMinimumSharedCache(long minimumSharedCache) {
         this.bdbMinimumSharedCache = minimumSharedCache;
@@ -1917,12 +1975,12 @@ public class VoldemortConfig implements Serializable {
 
     /**
      * Controls if BDB JE cache eviction happens based on LRU or by BTree level.
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #BDB_EVICT_BY_LEVEL}"</li>
      * <li>Default : false</li>
      * </ul>
-     * 
+     *
      */
     public void setBdbLevelBasedEviction(boolean bdbLevelBasedEviction) {
         this.bdbLevelBasedEviction = bdbLevelBasedEviction;
@@ -1936,12 +1994,12 @@ public class VoldemortConfig implements Serializable {
      * The comfortable number of threads the threadpool will attempt to
      * maintain. Not applicable with enable.nio=true and not officially
      * supported anymore
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #CORE_THREADS}"</li>
      * <li>Default : max(1, floor(0.5 * max.threads)</li>
      * </ul>
-     * 
+     *
      */
     @Deprecated
     public void setCoreThreads(int coreThreads) {
@@ -1955,12 +2013,12 @@ public class VoldemortConfig implements Serializable {
     /**
      * The maximum number of threads in the server thread pool. Not applicable
      * with enable.nio.connector=true. Not officially supported anymore
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #MAX_THREADS}"</li>
      * <li>Default : 100</li>
      * </ul>
-     * 
+     *
      */
     @Deprecated
     public void setMaxThreads(int maxThreads) {
@@ -1974,12 +2032,12 @@ public class VoldemortConfig implements Serializable {
     /**
      * Number of threads that the admin service thread pool will attempt to keep
      * around. Not applicable with enable.nio.connector=true
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #ADMIN_CORE_THREADS}"</li>
      * <li>Default : max(1, adminMaxThreads/2)</li>
      * </ul>
-     * 
+     *
      */
     public void setAdminCoreThreads(int coreThreads) {
         this.adminCoreThreads = coreThreads;
@@ -1992,12 +2050,12 @@ public class VoldemortConfig implements Serializable {
     /**
      * Maximum number of threads in the admin service thread pool. Not
      * applicable with enable.nio=true
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #ADMIN_MAX_THREADS}"</li>
      * <li>Default : 20</li>
      * </ul>
-     * 
+     *
      */
     public void setAdminMaxThreads(int maxThreads) {
         this.adminMaxThreads = maxThreads;
@@ -2010,12 +2068,12 @@ public class VoldemortConfig implements Serializable {
     /**
      * Determines whether the server will use NIO style selectors while handling
      * requests. This is recommended over using old style BIO.
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #ENABLE_NIO_CONNECTOR}"</li>
      * <li>Default : true</li>
      * </ul>
-     * 
+     *
      */
     public void setUseNioConnector(boolean useNio) {
         this.useNioConnector = useNio;
@@ -2027,13 +2085,13 @@ public class VoldemortConfig implements Serializable {
 
     /**
      * Number of NIO server threads to use to process client requests
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #NIO_CONNECTOR_SELECTORS}"</li>
      * <li>Default : max(8, number of available processors)</li>
      * </ul>
-     * 
-     * 
+     *
+     *
      */
     public void setNioConnectorSelectors(int nioConnectorSelectors) {
         this.nioConnectorSelectors = nioConnectorSelectors;
@@ -2045,13 +2103,13 @@ public class VoldemortConfig implements Serializable {
 
     /**
      * Number of admin NIO server threads to spin up.
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #NIO_ADMIN_CONNECTOR_SELECTORS}"</li>
      * <li>Default : max(8, number of available processors)</li>
      * </ul>
-     * 
-     * 
+     *
+     *
      */
     public void setNioAdminConnectorSelectors(int nioAdminConnectorSelectors) {
         this.nioAdminConnectorSelectors = nioAdminConnectorSelectors;
@@ -2068,7 +2126,7 @@ public class VoldemortConfig implements Serializable {
      * <li>Property : "{@value #HTTP_ENABLE}"</li>
      * <li>Default :false</li>
      * </ul>
-     * 
+     *
      */
     @Deprecated
     public void setEnableHttpServer(boolean enableHttpServer) {
@@ -2078,12 +2136,12 @@ public class VoldemortConfig implements Serializable {
     /**
      * Determines whether the socket server will be enabled for BIO/NIO request
      * handling
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #SOCKET_ENABLE}"</li>
      * <li>Default :true</li>
      * </ul>
-     * 
+     *
      */
     public boolean isSocketServerEnabled() {
         return enableSocketServer;
@@ -2096,7 +2154,7 @@ public class VoldemortConfig implements Serializable {
     /**
      * Determine whether the admin service has been enabled to perform
      * maintenance operations on the server
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #ADMIN_ENABLE}"</li>
      * <li>Default : true</li>
@@ -2112,12 +2170,12 @@ public class VoldemortConfig implements Serializable {
 
     /**
      * Maximum amount of data read out of the server by streaming operations
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #STREAM_READ_BYTE_PER_SEC}"</li>
      * <li>Default : 10MB</li>
      * </ul>
-     * 
+     *
      */
     public void setStreamMaxReadBytesPerSec(long streamMaxReadBytesPerSec) {
         this.streamMaxReadBytesPerSec = streamMaxReadBytesPerSec;
@@ -2130,12 +2188,12 @@ public class VoldemortConfig implements Serializable {
     /**
      * Maximum amount of data to be written into the server by streaming
      * operations
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #STREAM_WRITE_BYTE_PER_SEC}"</li>
      * <li>Default : 10MB</li>
      * </ul>
-     * 
+     *
      */
     public void setStreamMaxWriteBytesPerSec(long streamMaxWriteBytesPerSec) {
         this.streamMaxWriteBytesPerSec = streamMaxWriteBytesPerSec;
@@ -2149,12 +2207,12 @@ public class VoldemortConfig implements Serializable {
      * If true, multiple successive versions of the same key, will be atomically
      * written to storage in a single operation. Currently not supported for
      * MySqlStorageEngine
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #USE_MULTI_VERSION_STREAMING_PUTS}"</li>
      * <li>Default : true</li>
      * </ul>
-     * 
+     *
      */
     public void setMultiVersionStreamingPutsEnabled(boolean multiVersionStreamingPutsEnabled) {
         this.multiVersionStreamingPutsEnabled = multiVersionStreamingPutsEnabled;
@@ -2167,12 +2225,12 @@ public class VoldemortConfig implements Serializable {
     /**
      * Controls the rate at which the {@link StreamingSlopPusherJob} will send
      * slop writes over the wire
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #SLOP_WRITE_BYTE_PER_SEC}"</li>
      * <li>Default :10MB</li>
      * </ul>
-     * 
+     *
      */
     public void setSlopMaxWriteBytesPerSec(long slopMaxWriteBytesPerSec) {
         this.slopMaxWriteBytesPerSec = slopMaxWriteBytesPerSec;
@@ -2185,12 +2243,12 @@ public class VoldemortConfig implements Serializable {
     /**
      * Controls the rate at which the {@link StreamingSlopPusherJob} reads the
      * 'slop' store and drains it off to another server
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #SLOP_READ_BYTE_PER_SEC}"</li>
      * <li>Default :10MB</li>
      * </ul>
-     * 
+     *
      */
     public void setSlopMaxReadBytesPerSec(long slopMaxReadBytesPerSec) {
         this.slopMaxReadBytesPerSec = slopMaxReadBytesPerSec;
@@ -2202,12 +2260,12 @@ public class VoldemortConfig implements Serializable {
 
     /**
      * Is JMX monitoring enabled on the server?
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #JMX_ENABLE}"</li>
      * <li>Default : true</li>
      * </ul>
-     * 
+     *
      */
     public void setEnableJmx(boolean enableJmx) {
         this.enableJmx = enableJmx;
@@ -2219,7 +2277,7 @@ public class VoldemortConfig implements Serializable {
 
     /**
      * user name to use with MySQL storage engine
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #MYSQL_USER}"</li>
      * <li>Default : "root"</li>
@@ -2235,7 +2293,7 @@ public class VoldemortConfig implements Serializable {
 
     /**
      * Password to use with MySQL storage engine
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #MYSQL_PASSWORD}"</li>
      * <li>Default :""</li>
@@ -2251,7 +2309,7 @@ public class VoldemortConfig implements Serializable {
 
     /**
      * MySQL database name to use
-     * 
+     *
      * <ul>
      * <li>Property :</li>
      * <li>Default :</li>
@@ -2267,7 +2325,7 @@ public class VoldemortConfig implements Serializable {
 
     /**
      * Hostname of the database server for MySQL storage engine
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #MYSQL_HOST}"</li>
      * <li>Default :"localhost"</li>
@@ -2283,7 +2341,7 @@ public class VoldemortConfig implements Serializable {
 
     /**
      * Port number for the MySQL database server
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #MYSQL_PORT}"</li>
      * <li>Default :3306</li>
@@ -2300,7 +2358,7 @@ public class VoldemortConfig implements Serializable {
     /**
      * The underlying store type which will be used to store slops. Defaults to
      * Bdb torageConfiguration.class.getName())
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #SLOP_STORE_ENGINE}"</li>
      * <li>Default :BdbStorageConfiguration.TYPE_NAME</li>
@@ -2316,7 +2374,7 @@ public class VoldemortConfig implements Serializable {
 
     /**
      * The type of streaming job we would want to use to send hints. Defaults to
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #PUSHER_TYPE}"</li>
      * <li>Default :StreamingSlopPusherJob.TYPE_NAME</li>
@@ -2332,7 +2390,7 @@ public class VoldemortConfig implements Serializable {
 
     /**
      * Number of zones declared down before we terminate the pusher job
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #SLOP_ZONES_TERMINATE}"</li>
      * <li>Default :0</li>
@@ -2350,7 +2408,7 @@ public class VoldemortConfig implements Serializable {
      * if true, dead slops accumulated for nodes/stores that are no longer part
      * of the cluster, will be automatically deleted by the slop pusher, when it
      * runs. If false, they will be ignored.
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #AUTO_PURGE_DEAD_SLOPS}"</li>
      * <li>Default :true</li>
@@ -2366,7 +2424,7 @@ public class VoldemortConfig implements Serializable {
 
     /**
      * Returns the size of the batch used while streaming slops
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #SLOP_BATCH_SIZE}"</li>
      * <li>Default :100</li>
@@ -2386,7 +2444,7 @@ public class VoldemortConfig implements Serializable {
 
     /**
      * Frequency at which the slop pusher attempts to push slops
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #SLOP_FREQUENCY_MS}"</li>
      * <li>Default :300 seconds</li>
@@ -2398,7 +2456,7 @@ public class VoldemortConfig implements Serializable {
 
     /**
      * {@link ClientConfig#setSocketTimeout(int, java.util.concurrent.TimeUnit)}
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #SOCKET_TIMEOUT_MS}"</li>
      * <li>Default :5000</li>
@@ -2414,7 +2472,7 @@ public class VoldemortConfig implements Serializable {
 
     /**
      * {@link ClientConfig#setSelectors(int)}
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #CLIENT_SELECTORS}"</li>
      * <li>Default :4</li>
@@ -2430,7 +2488,7 @@ public class VoldemortConfig implements Serializable {
 
     /**
      * {@link ClientConfig#setRoutingTimeout(int, java.util.concurrent.TimeUnit)}
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #CLIENT_ROUTING_TIMEOUT_MS}"</li>
      * <li>Default :15000</li>
@@ -2442,7 +2500,7 @@ public class VoldemortConfig implements Serializable {
 
     /**
      * {@link ClientConfig#setTimeoutConfig(TimeoutConfig)}
-     * 
+     *
      */
     public TimeoutConfig getTimeoutConfig() {
         return this.clientTimeoutConfig;
@@ -2454,7 +2512,7 @@ public class VoldemortConfig implements Serializable {
 
     /**
      * {@link ClientConfig#setMaxConnectionsPerNode(int)}
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #CLIENT_MAX_CONNECTIONS_PER_NODE}"</li>
      * <li>Default :50</li>
@@ -2470,7 +2528,7 @@ public class VoldemortConfig implements Serializable {
 
     /**
      * {@link ClientConfig#setConnectionTimeout(int, java.util.concurrent.TimeUnit)}
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #CLIENT_CONNECTION_TIMEOUT_MS}"</li>
      * <li>Default :500</li>
@@ -2504,7 +2562,7 @@ public class VoldemortConfig implements Serializable {
 
     /**
      * {@link ClientConfig#setMaxThreads(int)}
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #CLIENT_MAX_THREADS}"</li>
      * <li>Default :500</li>
@@ -2520,7 +2578,7 @@ public class VoldemortConfig implements Serializable {
 
     /**
      * {@link ClientConfig#setThreadIdleTime(long, java.util.concurrent.TimeUnit)}
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #CLIENT_THREAD_IDLE_MS}"</li>
      * <li>Default :100000</li>
@@ -2551,7 +2609,7 @@ public class VoldemortConfig implements Serializable {
 
     /**
      * Whether or not slop store should be created on the server.
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #SLOP_ENABLE}"</li>
      * <li>Default :true</li>
@@ -2569,7 +2627,7 @@ public class VoldemortConfig implements Serializable {
      * Whether or not {@link StreamingSlopPusherJob} or
      * {@link BlockingSlopPusherJob} should be enabled to asynchronous push
      * slops to failed servers
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #SLOP_PUSHER_ENABLE}"</li>
      * <li>Default :true</li>
@@ -2585,7 +2643,7 @@ public class VoldemortConfig implements Serializable {
 
     /**
      * Whether {@link RepairJob} will be enabled
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #ENABLE_REPAIR}"</li>
      * <li>Default :true</li>
@@ -2601,7 +2659,7 @@ public class VoldemortConfig implements Serializable {
 
     /**
      * Whether {@link VersionedPutPruneJob} will be enabled
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #ENABLE_PRUNEJOB}"</li>
      * <li>Default :true</li>
@@ -2617,7 +2675,7 @@ public class VoldemortConfig implements Serializable {
 
     /**
      * Whether will {@link SlopPurgeJob} be enabled
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #ENABLE_SLOP_PURGE_JOB}"</li>
      * <li>Default :true</li>
@@ -2634,7 +2692,7 @@ public class VoldemortConfig implements Serializable {
     /**
      * if enabled, {@link LoggingStore} will be enable to ouput more detailed
      * trace debugging if needed
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #ENABLE_VERBOSE_LOGGING}"</li>
      * <li>Default :true</li>
@@ -2651,7 +2709,7 @@ public class VoldemortConfig implements Serializable {
     /**
      * If enabled, {@link StatTrackingStore} will be enabled to account
      * performance statistics
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #ENABLE_STAT_TRACKING}"</li>
      * <li>Default :true</li>
@@ -2668,7 +2726,7 @@ public class VoldemortConfig implements Serializable {
     /**
      * If enabled, {@link InvalidMetadataCheckingStore} will reject traffic that
      * does not belong to this server with a {@link InvalidMetadataException}
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #ENABLE_METADATA_CHECKING}"</li>
      * <li>Default :true</li>
@@ -2685,7 +2743,7 @@ public class VoldemortConfig implements Serializable {
     /**
      * Number of {@link SchedulerService} threads to create that run all the
      * background async jobs
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #CLIENT_MAX_QUEUED_REQUESTS}"</li>
      * <li>Default :1000</li>
@@ -2702,7 +2760,7 @@ public class VoldemortConfig implements Serializable {
     /**
      * Determines whether the scheduler can be allowed to interrupt a
      * {@link AsyncOperation}, when terminating the job
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #SERVICE_INTERRUPTIBLE}"</li>
      * <li>Default :true</li>
@@ -2718,7 +2776,7 @@ public class VoldemortConfig implements Serializable {
 
     /**
      * Directory to store the read-only data and index files in
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #READONLY_DATA_DIRECTORY}"</li>
      * <li>Default : DATA_DIR/read-only</li>
@@ -2735,7 +2793,7 @@ public class VoldemortConfig implements Serializable {
     /**
      * Number of previous versions to keep around for
      * {@link ReadOnlyStorageEngine}
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #READONLY_BACKUPS}"</li>
      * <li>Default :1</li>
@@ -2752,7 +2810,7 @@ public class VoldemortConfig implements Serializable {
     /**
      * Amount of time we will wait before we start deleting the backup. This
      * happens during swaps when old backups need to be deleted. Some delay is
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #READONLY_DELETE_BACKUP_MS}"</li>
      * <li>Default :0</li>
@@ -2768,7 +2826,7 @@ public class VoldemortConfig implements Serializable {
 
     /**
      * Path to keytab for principal used for kerberized Hadoop grids
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #READONLY_KEYTAB_PATH}"</li>
      * <li>Default :METADATA_DIR/voldemrt.headless.keytab</li>
@@ -2784,7 +2842,7 @@ public class VoldemortConfig implements Serializable {
 
     /**
      * Principal used in kerberized Hadoop grids
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #READONLY_KERBEROS_USER}"</li>
      * <li>Default :"voldemrt"</li>
@@ -2800,7 +2858,7 @@ public class VoldemortConfig implements Serializable {
 
     /**
      * Path to the hadoop config
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #READONLY_HADOOP_CONFIG_PATH}"</li>
      * <li>Default : METADATA_DIR/hadoop-conf</li>
@@ -2816,7 +2874,7 @@ public class VoldemortConfig implements Serializable {
 
     /**
      * {@link ClientConfig#setSocketBufferSize(int)}
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #SOCKET_BUFFER_SIZE}"</li>
      * <li>Default :64kb</li>
@@ -2832,7 +2890,7 @@ public class VoldemortConfig implements Serializable {
 
     /**
      * {@link ClientConfig#setSocketKeepAlive(boolean)}
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #SOCKET_KEEPALIVE}"</li>
      * <li>Default :false</li>
@@ -2858,7 +2916,7 @@ public class VoldemortConfig implements Serializable {
      * Determines the size of the {@link NioSocketService}'s accept backlog
      * queue. A large enough backlog queue prevents connections from being
      * dropped during connection bursts
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #NIO_ACCEPTOR_BACKLOG}"</li>
      * <li>Default : 256</li>
@@ -2891,7 +2949,7 @@ public class VoldemortConfig implements Serializable {
     /**
      * List of fully qualified class names of {@link StorageEngine} types to
      * enable on the server
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #STORAGE_CONFIGS}"</li>
      * <li>Default : {@link BdbStorageConfiguration}
@@ -2909,7 +2967,7 @@ public class VoldemortConfig implements Serializable {
 
     /**
      * {@link ClientConfig#setRequestFormatType(RequestFormatType)}
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #REQUEST_FORMAT}"</li>
      * <li>Default :"vp1"</li>
@@ -2931,7 +2989,7 @@ public class VoldemortConfig implements Serializable {
      * If enabled, Routing may happen in the server,depending on store
      * definition. Note that the Java Client {@link DefaultStoreClient} does not
      * support this yet.
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #ENABLE_SERVER_ROUTING}"</li>
      * <li>Default : true</li>
@@ -2950,7 +3008,7 @@ public class VoldemortConfig implements Serializable {
      * traffic. This trades off between time to finish background work and
      * impact on online performance eg: {@link DataCleanupJob} and
      * {@link StreamingSlopPusherJob}
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #NUM_SCAN_PERMITS}"</li>
      * <li>Default :1</li>
@@ -2966,7 +3024,7 @@ public class VoldemortConfig implements Serializable {
 
     /**
      * {@link ClientConfig#setFailureDetectorImplementation(String)}
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #FAILUREDETECTOR_IMPLEMENTATION}"</li>
      * <li>Default :FailureDetectorConfig.DEFAULT_IMPLEMENTATION_CLASS_NAME</li>
@@ -2982,7 +3040,7 @@ public class VoldemortConfig implements Serializable {
 
     /**
      * {@link ClientConfig#setFailureDetectorBannagePeriod(long)}
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #FAILUREDETECTOR_BANNAGE_PERIOD}"</li>
      * <li>Default :FailureDetectorConfig.DEFAULT_BANNAGE_PERIOD</li>
@@ -2998,7 +3056,7 @@ public class VoldemortConfig implements Serializable {
 
     /**
      * {@link ClientConfig#setFailureDetectorThreshold(int)}
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #FAILUREDETECTOR_THRESHOLD}"</li>
      * <li>Default :FailureDetectorConfig.DEFAULT_THRESHOLD</li>
@@ -3014,7 +3072,7 @@ public class VoldemortConfig implements Serializable {
 
     /**
      * {@link ClientConfig#setFailureDetectorThresholdCountMinimum(int)}
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #FAILUREDETECTOR_THRESHOLD_COUNTMINIMUM}"</li>
      * <li>Default :FailureDetectorConfig.DEFAULT_THRESHOLD_COUNT_MINIMUM</li>
@@ -3030,7 +3088,7 @@ public class VoldemortConfig implements Serializable {
 
     /**
      * {@link ClientConfig#setFailureDetectorThresholdInterval(long)}
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #FAILUREDETECTOR_THRESHOLD_INTERVAL}"</li>
      * <li>Default :FailureDetectorConfig.DEFAULT_THRESHOLD_INTERVAL</li>
@@ -3046,7 +3104,7 @@ public class VoldemortConfig implements Serializable {
 
     /**
      * {@link ClientConfig#setFailureDetectorAsyncRecoveryInterval(long)}
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #FAILUREDETECTOR_ASYNCRECOVERY_INTERVAL}"</li>
      * <li>Default :FailureDetectorConfig.DEFAULT_ASYNC_RECOVERY_INTERVAL</li>
@@ -3062,7 +3120,7 @@ public class VoldemortConfig implements Serializable {
 
     /**
      * {@link ClientConfig#setFailureDetectorCatastrophicErrorTypes(List)}
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #FAILUREDETECTOR_CATASTROPHIC_ERROR_TYPES}"</li>
      * <li>Default :FailureDetectorConfig.DEFAULT_CATASTROPHIC_ERROR_TYPES</li>
@@ -3078,7 +3136,7 @@ public class VoldemortConfig implements Serializable {
 
     /**
      * {@link ClientConfig#setFailureDetectorRequestLengthThreshold(long)}
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #FAILUREDETECTOR_REQUEST_LENGTH_THRESHOLD}"</li>
      * <li>Default :same as socket timeout</li>
@@ -3111,7 +3169,7 @@ public class VoldemortConfig implements Serializable {
      * First day of the week to run {@link DataCleanupJob}, after server starts
      * up. From there on, it will run with the configured frequency. 1=SUN,
      * 2=MON, 3=TUE, 4=WED, 5=THU, 6=FRI,7=SAT
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #RETENTION_CLEANUP_FIRST_START_DAY}"</li>
      * <li>Default :tomorrow</li>
@@ -3127,7 +3185,7 @@ public class VoldemortConfig implements Serializable {
 
     /**
      * Frequency to run {@link DataCleanupJob}
-     * 
+     *
      * <ul>
      * <li>Property :</li>
      * <li>Default :</li>
@@ -3146,7 +3204,7 @@ public class VoldemortConfig implements Serializable {
      * run interval. Otherwise, it will slowly shift based on how long the job
      * actually takes to complete. See
      * {@link Timer#scheduleAtFixedRate(TimerTask, java.util.Date, long)}
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #RETENTION_CLEANUP_PIN_START_TIME}"</li>
      * <li>Default :true</li>
@@ -3163,7 +3221,7 @@ public class VoldemortConfig implements Serializable {
     /**
      * If enabled, the server will perform an expiry check for get and getall
      * and will not return stale entries
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #ENFORCE_RETENTION_POLICY_ON_READ}"</li>
      * <li>Default :false</li>
@@ -3180,7 +3238,7 @@ public class VoldemortConfig implements Serializable {
     /**
      * If enabled, in addition to filtering stale entries, the server will also
      * delete the stale value
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #DELETE_EXPIRED_VALUES_ON_READ}"</li>
      * <li>Default :false</li>
@@ -3197,7 +3255,7 @@ public class VoldemortConfig implements Serializable {
     /**
      * {@link ClientConfig#setSocketTimeout(int, java.util.concurrent.TimeUnit)}
      * to use in AdminService
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #ADMIN_CLIENT_SOCKET_TIMEOUT_SEC}"</li>
      * <li>Default :24 * 60 * 60</li>
@@ -3215,7 +3273,7 @@ public class VoldemortConfig implements Serializable {
      * (
      * {@link ClientConfig#setConnectionTimeout(int, java.util.concurrent.TimeUnit)}
      * to use in AdminService
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #ADMIN_CLIENT_CONNECTION_TIMEOUT_SEC}"</li>
      * <li>Default :60</li>
@@ -3232,7 +3290,7 @@ public class VoldemortConfig implements Serializable {
     /**
      * The maximum amount of time the server will wait for the remote
      * rebalancing tasks to finish.
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #REBALANCING_TIMEOUT_SECONDS}"</li>
      * <li>Default :10 * 24 * 60 * 60</li>
@@ -3304,7 +3362,7 @@ public class VoldemortConfig implements Serializable {
 
     /**
      * Interval to report statistics for HDFS fetches
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #FETCHER_REPORTING_INTERVAL_BYTES}"</li>
      * <li>Default :25MB</li>
@@ -3321,7 +3379,7 @@ public class VoldemortConfig implements Serializable {
     /**
      * Number of attempts the readonly fetcher will make, before giving up on a
      * failed fetch from Hadoop
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #FETCHER_RETRY_COUNT}"</li>
      * <li>Default :5</li>
@@ -3378,11 +3436,11 @@ public class VoldemortConfig implements Serializable {
     /**
      * Default storage space quota size in KB to be used for new stores that are
      * automatically created via Build And Push flow.
-     * 
+     *
      * Setting this to -1 (which is the default) indicates no restriction in
      * disk quota and will continue to work the same way as if there were no
      * storage space quota.
-     *  
+     *
      * <ul>
      * <li>Property : "{@value #DEFAULT_STORAGE_SPACE_QUOTA_IN_KB}"</li>
      * <li>Default : -1</li>
@@ -3399,7 +3457,7 @@ public class VoldemortConfig implements Serializable {
     /**
      * Size of buffer to be used for HdfsFetcher. Note that this does not apply
      * to WebHDFS fetches.
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #HDFS_FETCHER_BUFFER_SIZE}"</li>
      * <li>Default :64kb</li>
@@ -3430,7 +3488,7 @@ public class VoldemortConfig implements Serializable {
     /**
      * Strategy to be used to search the read-only index for a given key. Either
      * {@link BinarySearchStrategy} or {@link InterpolationSearchStrategy}
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #READONLY_SEARCH_STRATEGY}"</li>
      * <li>Default :BinarySearchStrategy.class.getName()</li>
@@ -3480,7 +3538,7 @@ public class VoldemortConfig implements Serializable {
     }
 
     public boolean getReadOnlyOmitPort() {
-      return this.readOnlyOmitPort;
+        return this.readOnlyOmitPort;
     }
 
     /**
@@ -3500,7 +3558,7 @@ public class VoldemortConfig implements Serializable {
      * </ul>
      */
     public void setReadOnlyOmitPort(boolean readOnlyOmitPort) {
-      this.readOnlyOmitPort = readOnlyOmitPort;
+        this.readOnlyOmitPort = readOnlyOmitPort;
     }
 
     public boolean isReadOnlyBuildPrimaryReplicasOnly() {
@@ -3520,7 +3578,7 @@ public class VoldemortConfig implements Serializable {
         this.readOnlyBuildPrimaryReplicasOnly = readOnlyBuildPrimaryReplicasOnly;
     }
 
-    public boolean isBouncyCastleEnabled () {
+    public boolean isBouncyCastleEnabled() {
         return bouncyCastleEnabled;
     }
 
@@ -3532,9 +3590,10 @@ public class VoldemortConfig implements Serializable {
      * <li>Default : false</li>
      * </ul>
      */
-    public void setBouncyCastleEnabled (boolean bouncyCastleEnabled) {
+    public void setBouncyCastleEnabled(boolean bouncyCastleEnabled) {
         this.bouncyCastleEnabled = bouncyCastleEnabled;
     }
+
     public boolean isHighAvailabilityPushEnabled() {
         return highAvailabilityPushEnabled;
     }
@@ -3666,7 +3725,7 @@ public class VoldemortConfig implements Serializable {
     /**
      * Loads a class to be used as a {@link VoldemortFilter}. Note that this is
      * not officially supported
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #ENABLE_NETWORK_CLASSLOADER}"</li>
      * <li>Default :false</li>
@@ -3678,7 +3737,7 @@ public class VoldemortConfig implements Serializable {
 
     /**
      * If enabled, Rebalancing is enabled on the server
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #ENABLE_REBALANCING}"</li>
      * <li>Default : true</li>
@@ -3700,7 +3759,7 @@ public class VoldemortConfig implements Serializable {
      * The maximum number of stores that can be rebalancing at the same time.
      * This is one of the parameters that trades off between rebalancing speed
      * and impact to online traffic
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #MAX_PARALLEL_STORES_REBALANCING}"</li>
      * <li>Default :3</li>
@@ -3716,7 +3775,7 @@ public class VoldemortConfig implements Serializable {
 
     /**
      * Total number of threads needed to issue proxy puts during rebalancing
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #MAX_PROXY_PUT_THREADS}"</li>
      * <li>Default : 1</li>
@@ -3732,10 +3791,10 @@ public class VoldemortConfig implements Serializable {
 
     /**
      * Enables fast, efficient range scans to be used for rebalancing
-     * 
+     *
      * Note: Only valid if the storage engine supports partition scans
      * {@link StorageEngine#isPartitionScanSupported()}
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #USE_PARTITION_SCAN_FOR_REBALANCE}"</li>
      * <li>Default :true</li>
@@ -3768,7 +3827,7 @@ public class VoldemortConfig implements Serializable {
     /**
      * If enabled, provides the ability to enforce quotas per operation, per
      * store on the server, via Admin tool. Also needs stat tracking enabled
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #ENABLE_QUOTA_LIMITING}"</li>
      * <li>Default :true</li>
@@ -3812,7 +3871,7 @@ public class VoldemortConfig implements Serializable {
      * <li>Property : "{@value #REST_ENABLE}"</li>
      * <li>Default :false</li>
      * </ul>
-     * 
+     *
      */
     public void setEnableRestService(boolean enableRestService) {
         this.enableRestService = enableRestService;
@@ -3917,7 +3976,7 @@ public class VoldemortConfig implements Serializable {
 
     /**
      * Global throttle limit for repair jobs
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #REPAIRJOB_MAX_KEYS_SCANNED_PER_SEC}"</li>
      * <li>Default : Integer.MAX_VALUE (unthrottled)</li>
@@ -3933,7 +3992,7 @@ public class VoldemortConfig implements Serializable {
 
     /**
      * Global throttle limit for versioned put prune jobs
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #PRUNEJOB_MAX_KEYS_SCANNED_PER_SEC}"</li>
      * <li>Default : Integer.MAX_VALUE (unthrottled)</li>
@@ -3949,7 +4008,7 @@ public class VoldemortConfig implements Serializable {
 
     /**
      * Global throttle limit for slop purge jobs
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #SLOP_PURGEJOB_MAX_KEYS_SCANNED_PER_SEC}"</li>
      * <li>Default : 10k</li>
@@ -3961,7 +4020,7 @@ public class VoldemortConfig implements Serializable {
 
     /**
      * Kdc for kerberized Hadoop grids
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #READONLY_KERBEROS_KDC}"</li>
      * <li>Default :""</li>
@@ -3977,12 +4036,12 @@ public class VoldemortConfig implements Serializable {
 
     /**
      * kerberized hadoop realm
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #READONLY_KERBEROS_REALM}"</li>
      * <li>Default : ""</li>
      * </ul>
-     * 
+     *
      * @return
      */
     public void setReadOnlyKerberosRealm(String kerberosRealm) {
@@ -3995,12 +4054,12 @@ public class VoldemortConfig implements Serializable {
 
     /**
      * Read-only file fetcher class
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #FILE_FETCHER_CLASS}"</li>
      * <li>Default : "null"</li>
      * </ul>
-     * 
+     *
      * @return
      */
     public void setFileFetcherClass(String fileFetcherClass) {
@@ -4057,9 +4116,9 @@ public class VoldemortConfig implements Serializable {
 
     /**
      * Compression codec expected by Read-Only Voldemort Server
-     * 
+     *
      * @param readOnlyCompressionCodec
-     * 
+     *
      *        <ul>
      *        <li>Property : "{@value #READONLY_COMPRESSION_CODEC}"</li>
      *        <li>Default : "NO_CODEC"</li>
@@ -4075,12 +4134,12 @@ public class VoldemortConfig implements Serializable {
 
     /**
      * Where RocksDB should put its data directories
-     * 
+     *
      * <ul>
      * <li>Property : "{@value #ROCKSDB_DATA_DIR}"</li>
      * <li>Default : "/tmp/rdb_data_dir"</li>
      * </ul>
-     * 
+     *
      * @param rdbDataDirectory
      */
     public void setRdbDataDirectory(String rdbDataDirectory) {
@@ -4095,7 +4154,7 @@ public class VoldemortConfig implements Serializable {
      * If true, keys will be prefixed by the partition Id on disk. This can
      * possibly speed up rebalancing, restore operations, at the cost of 2 bytes
      * of extra storage per key
-     * 
+     *
      * @param rocksdbPrefixKeysWithPartitionId
      */
     public void setRocksdbPrefixKeysWithPartitionId(boolean rocksdbPrefixKeysWithPartitionId) {
@@ -4109,7 +4168,7 @@ public class VoldemortConfig implements Serializable {
     /**
      * If set to true get API will be synchronized. By default this feature is
      * disabled.
-     * 
+     *
      * @param rocksdbEnableReadLocks
      */
     public void setRocksdbEnableReadLocks(boolean rocksdbEnableReadLocks) {
@@ -4128,6 +4187,7 @@ public class VoldemortConfig implements Serializable {
     public void setNioAdminConnectorKeepAlive(boolean nioAdminConnectorKeepAlive) {
         this.nioAdminConnectorKeepAlive = nioAdminConnectorKeepAlive;
     }
+
     public boolean isNioAdminConnectorKeepAlive() {
         return nioAdminConnectorKeepAlive;
     }
@@ -4175,14 +4235,14 @@ public class VoldemortConfig implements Serializable {
     }
 
     public HostMatcher getNodeIdImplementation() {
-        if(nodeIdImplementation == null) {
+        if (nodeIdImplementation == null) {
             throw new ConfigurationException("Node Id implementation is incorrectly configured ");
         }
         return nodeIdImplementation;
     }
 
     public void setNodeIdImplementation(HostMatcher nodeIdImplementation) {
-        if(nodeIdImplementation == null) {
+        if (nodeIdImplementation == null) {
             throw new ConfigurationException("Node Id implementation can't be null");
         }
         this.nodeIdImplementation = nodeIdImplementation;

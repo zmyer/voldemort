@@ -31,13 +31,19 @@ import voldemort.utils.Utils;
  * 
  * 
  */
+// TODO: 2018/3/23 by zmyer
 public abstract class AbstractService implements VoldemortService {
 
+    //日志对象
     private static final Logger logger = Logger.getLogger(VoldemortService.class);
 
+    //启动标记
     private final AtomicBoolean isStarted;
+
+    //服务类型
     private final ServiceType type;
 
+    // TODO: 2018/3/23 by zmyer
     public AbstractService(ServiceType type) {
         this.type = Utils.notNull(type);
         this.isStarted = new AtomicBoolean(false);
@@ -47,11 +53,13 @@ public abstract class AbstractService implements VoldemortService {
         return type;
     }
 
+    // TODO: 2018/3/23 by zmyer
     @JmxGetter(name = "started", description = "Determine if the service has been started.")
     public boolean isStarted() {
         return isStarted.get();
     }
 
+    // TODO: 2018/3/23 by zmyer
     @JmxOperation(description = "Start the service.", impact = MBeanOperationInfo.ACTION)
     public void start() {
         boolean isntStarted = isStarted.compareAndSet(false, true);
@@ -59,9 +67,11 @@ public abstract class AbstractService implements VoldemortService {
             throw new IllegalStateException("Server is already started!");
 
         logger.info("Starting " + getType().getDisplayName());
+        //启动服务
         startInner();
     }
 
+    // TODO: 2018/3/23 by zmyer
     @JmxOperation(description = "Stop the service.", impact = MBeanOperationInfo.ACTION)
     public void stop() {
         logger.info("Stopping " + getType().getDisplayName());
@@ -71,6 +81,7 @@ public abstract class AbstractService implements VoldemortService {
                 return;
             }
 
+            //关闭服务
             stopInner();
             isStarted.set(false);
         }

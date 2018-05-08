@@ -16,29 +16,11 @@
 
 package voldemort.store.metadata;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.StringReader;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReadWriteLock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
-
-import javax.management.MBeanOperationInfo;
-
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Lists;
 import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
-
 import voldemort.VoldemortException;
 import voldemort.annotations.jmx.JmxOperation;
 import voldemort.client.rebalance.RebalanceTaskInfo;
@@ -72,14 +54,30 @@ import voldemort.versioning.Versioned;
 import voldemort.xml.ClusterMapper;
 import voldemort.xml.StoreDefinitionsMapper;
 
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Lists;
+import javax.management.MBeanOperationInfo;
+import java.io.File;
+import java.io.IOException;
+import java.io.StringReader;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
  * MetadataStore maintains metadata for Voldemort Server. <br>
  * Metadata is persisted as strings in inner store for ease of readability.<br>
  * Metadata Store keeps an in memory write-through-cache for performance.
  */
+// TODO: 2018/3/23 by zmyer
 public class MetadataStore extends AbstractStorageEngine<ByteArray, byte[], byte[]> {
 
     public static final String METADATA_STORE_NAME = "metadata";
@@ -103,19 +101,19 @@ public class MetadataStore extends AbstractStorageEngine<ByteArray, byte[], byte
     public static final Set<String> REQUIRED_KEYS = ImmutableSet.of(CLUSTER_KEY, STORES_KEY);
 
     public static final Set<String> OPTIONAL_KEYS = ImmutableSet.of(SERVER_STATE_KEY,
-                                                                    NODE_ID_KEY,
-                                                                    SLOP_STREAMING_ENABLED_KEY,
-                                                                    PARTITION_STREAMING_ENABLED_KEY,
-                                                                    READONLY_FETCH_ENABLED_KEY,
-                                                                    QUOTA_ENFORCEMENT_ENABLED_KEY,
-                                                                    REBALANCING_STEAL_INFO,
-                                                                    REBALANCING_SOURCE_CLUSTER_XML,
-                                                                    REBALANCING_SOURCE_STORES_XML);
+            NODE_ID_KEY,
+            SLOP_STREAMING_ENABLED_KEY,
+            PARTITION_STREAMING_ENABLED_KEY,
+            READONLY_FETCH_ENABLED_KEY,
+            QUOTA_ENFORCEMENT_ENABLED_KEY,
+            REBALANCING_STEAL_INFO,
+            REBALANCING_SOURCE_CLUSTER_XML,
+            REBALANCING_SOURCE_STORES_XML);
 
     public static final Set<Object> METADATA_KEYS = ImmutableSet.builder()
-                                                                .addAll(REQUIRED_KEYS)
-                                                                .addAll(OPTIONAL_KEYS)
-                                                                .build();
+            .addAll(REQUIRED_KEYS)
+            .addAll(OPTIONAL_KEYS)
+            .build();
 
     // helper keys for metadataCacheOnly
     private static final String ROUTING_STRATEGY_KEY = "routing.strategy";
@@ -123,7 +121,7 @@ public class MetadataStore extends AbstractStorageEngine<ByteArray, byte[], byte
 
     /**
      * Identifies the Voldemort server state.
-     * 
+     *
      * NORMAL_SERVER is the default state; OFFLINE_SERVER is where online
      * services and slop pushing are turned off, only admin operations
      * permitted; REBALANCING_MASTER_SERVER is the server state during the
@@ -155,7 +153,7 @@ public class MetadataStore extends AbstractStorageEngine<ByteArray, byte[], byte
     private static final Logger logger = Logger.getLogger(MetadataStore.class);
 
     public MetadataStore(Store<String, String, String> innerStore,
-                         StorageEngine<String, String, String> storeDefinitionsStorageEngine) {
+            StorageEngine<String, String, String> storeDefinitionsStorageEngine) {
         super(innerStore.getName());
         this.innerStore = innerStore;
         this.metadataCache = new HashMap<String, Versioned<Object>>();
@@ -166,16 +164,17 @@ public class MetadataStore extends AbstractStorageEngine<ByteArray, byte[], byte
     }
 
     public static MetadataStore createInMemoryMetadataStore(Store<String, String, String> innerStore,
-                                                            int nodeId) {
-        StorageEngine<String, String, String> storesRepo = new InMemoryStorageEngine<String, String, String>("stores-repo");
+            int nodeId) {
+        StorageEngine<String, String, String> storesRepo = new InMemoryStorageEngine<String, String, String>(
+                "stores-repo");
 
         List<Versioned<String>> versionedStoreList = innerStore.get(STORES_KEY, "");
 
-        if(versionedStoreList != null && versionedStoreList.size() > 0) {
+        if (versionedStoreList != null && versionedStoreList.size() > 0) {
             String stores = versionedStoreList.get(0).getValue();
             StoreDefinitionsMapper mapper = new StoreDefinitionsMapper();
             List<StoreDefinition> storeDefinitions = mapper.readStoreList(new StringReader(stores));
-            for(StoreDefinition storeDef: storeDefinitions) {
+            for (StoreDefinition storeDef : storeDefinitions) {
                 Versioned<String> versionedStoreValue = new Versioned<String>(mapper.writeStore(storeDef));
                 storesRepo.put(storeDef.getName(), versionedStoreValue, null);
             }
@@ -187,76 +186,82 @@ public class MetadataStore extends AbstractStorageEngine<ByteArray, byte[], byte
     }
 
     public void addMetadataStoreListener(String storeName, MetadataStoreListener listener) {
-        if(this.storeNameTolisteners == null)
+        if (this.storeNameTolisteners == null) {
             throw new VoldemortException("MetadataStoreListener must be non-null");
+        }
 
-        if(!this.storeNameTolisteners.containsKey(storeName))
+        if (!this.storeNameTolisteners.containsKey(storeName)) {
             this.storeNameTolisteners.put(storeName, new ArrayList<MetadataStoreListener>(2));
+        }
         this.storeNameTolisteners.get(storeName).add(listener);
     }
 
     public void removeMetadataStoreListener(String storeName) {
-        if(this.storeNameTolisteners == null)
+        if (this.storeNameTolisteners == null) {
             throw new VoldemortException("MetadataStoreListener must be non-null");
+        }
 
         this.storeNameTolisteners.remove(storeName);
     }
 
     public static MetadataStore readFromDirectory(File dir) {
-        if(!Utils.isReadableDir(dir))
+        if (!Utils.isReadableDir(dir)) {
             throw new IllegalArgumentException("Metadata directory " + dir.getAbsolutePath()
-                                               + " does not exist or can not be read.");
+                    + " does not exist or can not be read.");
+        }
 
         String storeDefDirPath = dir.getAbsolutePath() + File.separator
-                                 + MetadataStore.STORE_DEFINITIONS_STORE_NAME;
+                + MetadataStore.STORE_DEFINITIONS_STORE_NAME;
 
         // If config directory does not contain STORES sub directory, then
         // create one by parsing the stores.xml file
         List<String> configurationFiles = Arrays.asList(dir.list());
-        if(configurationFiles == null)
+        if (configurationFiles == null) {
             throw new IllegalArgumentException("No configuration found in " + dir.getAbsolutePath()
-                                               + ".");
+                    + ".");
+        }
 
-        if(!configurationFiles.contains(STORE_DEFINITIONS_STORE_NAME)) {
+        if (!configurationFiles.contains(STORE_DEFINITIONS_STORE_NAME)) {
             // parse stores.xml and create STORES sub-dir
             StoreDefinitionsMapper mapper = new StoreDefinitionsMapper();
             List<StoreDefinition> storeDefinitions = null;
             try {
                 storeDefinitions = mapper.readStoreList(new File(dir.getAbsolutePath()
-                                                                 + File.separator + STORES_KEY));
-            } catch(IOException e) {
+                        + File.separator + STORES_KEY));
+            } catch (IOException e) {
                 throw new VoldemortException("Cannot parse the store definitions from "
-                                             + STORES_KEY + " file ", e);
+                        + STORES_KEY + " file ", e);
             }
 
-            if(storeDefinitions == null) {
+            if (storeDefinitions == null) {
                 throw new VoldemortException("Neither STORES nor stores.xml exist in the config directory");
             }
 
             // Create the STORES sub directory
             File storeDefinitionsDir = new File(storeDefDirPath);
-            if(!storeDefinitionsDir.mkdir()) {
+            if (!storeDefinitionsDir.mkdir()) {
                 throw new VoldemortException("Unable to create " + STORE_DEFINITIONS_STORE_NAME
-                                             + " sub directory");
+                        + " sub directory");
             }
-            for(StoreDefinition storeDef: storeDefinitions) {
+            for (StoreDefinition storeDef : storeDefinitions) {
                 try {
                     FileUtils.writeStringToFile(new File(storeDefDirPath + File.separator
-                                                         + storeDef.getName()),
-                                                mapper.writeStore(storeDef));
-                } catch(IOException e) {
+                                    + storeDef.getName()),
+                            mapper.writeStore(storeDef));
+                } catch (IOException e) {
                     throw new VoldemortException("Cannot write store definition to file: "
-                                                 + storeDef.getName(), e);
+                            + storeDef.getName(), e);
                 }
             }
         }
 
         // Create a STORES configuration engine for STORES sub-directory
-        StorageEngine<String, String, String> storesEngine = new ConfigurationStorageEngine(MetadataStore.STORE_DEFINITIONS_STORE_NAME,
-                                                                                            storeDefDirPath);
+        StorageEngine<String, String, String> storesEngine = new ConfigurationStorageEngine(
+                MetadataStore.STORE_DEFINITIONS_STORE_NAME,
+                storeDefDirPath);
 
         Store<String, String, String> innerStore = new ConfigurationStorageEngine(MetadataStore.METADATA_STORE_NAME,
-                                                                                  dir.getAbsolutePath());
+                dir.getAbsolutePath());
         MetadataStore store = new MetadataStore(innerStore, storesEngine);
         ServerState state = new ServerState(store);
         JmxUtils.registerMbean(state.getClass().getCanonicalName(), state);
@@ -270,25 +275,25 @@ public class MetadataStore extends AbstractStorageEngine<ByteArray, byte[], byte
 
     @SuppressWarnings("unchecked")
     public void validate(ByteArray keyBytes, Versioned<byte[]> valueBytes, byte[] transforms)
-                throws VoldemortException {
+            throws VoldemortException {
         String key = ByteUtils.getString(keyBytes.get(), "UTF-8");
         Versioned<String> value = new Versioned<String>(ByteUtils.getString(valueBytes.getValue(),
-                                                                            "UTF-8"),
-                                                        valueBytes.getVersion());
+                "UTF-8"),
+                valueBytes.getVersion());
 
         Versioned<Object> valueObject = convertStringToObject(key, value);
 
-        if(key.equals(MetadataStore.STORES_KEY)) {
+        if (key.equals(MetadataStore.STORES_KEY)) {
             List<StoreDefinition> storeDefinitions = (List<StoreDefinition>) valueObject.getValue();
 
             Set<String> existingStores = new HashSet<String>(this.storeNames);
 
             Set<String> specifiedStoreNames = new HashSet<String>();
-            for(StoreDefinition storeDef: storeDefinitions) {
+            for (StoreDefinition storeDef : storeDefinitions) {
                 String storeName = storeDef.getName();
-                if(specifiedStoreNames.contains(storeName)) {
+                if (specifiedStoreNames.contains(storeName)) {
                     throw new VoldemortException(" Duplicate store names in Stores.xml for storeName "
-                                                 + storeName);
+                            + storeName);
                 }
                 specifiedStoreNames.add(storeName);
             }
@@ -298,17 +303,17 @@ public class MetadataStore extends AbstractStorageEngine<ByteArray, byte[], byte
             // an error. But for operations we use it from time to time to block
             // access to some stores by removing a store from metadata and
             // adding it back to allow again.
-            if(existingStores.size() > 0) {
+            if (existingStores.size() > 0) {
                 logger.warn(" Set metadata does not support store deletion. This will leave the store in an "
-                            + "inconsistent state. Stores (Inconsistent) missing in set metadata "
-                                             + Arrays.toString(existingStores.toArray()));
+                        + "inconsistent state. Stores (Inconsistent) missing in set metadata "
+                        + Arrays.toString(existingStores.toArray()));
             }
 
             specifiedStoreNames.removeAll(this.storeNames);
-            if(specifiedStoreNames.size() > 0) {
+            if (specifiedStoreNames.size() > 0) {
                 logger.warn(" Set metadata does not support store addition . This will leave the store in an "
-                            + "inconsistent state. Stores (Inconsistent) added in set metadata "
-                                             + Arrays.toString(specifiedStoreNames.toArray()));
+                        + "inconsistent state. Stores (Inconsistent) added in set metadata "
+                        + Arrays.toString(specifiedStoreNames.toArray()));
             }
         }
 
@@ -316,7 +321,7 @@ public class MetadataStore extends AbstractStorageEngine<ByteArray, byte[], byte
 
     /**
      * helper function to convert strings to bytes as needed.
-     * 
+     *
      * @param key
      * @param value
      */
@@ -326,7 +331,7 @@ public class MetadataStore extends AbstractStorageEngine<ByteArray, byte[], byte
         writeLock.lock();
 
         try {
-            if(this.storeNames.contains(key) || key.equals(STORES_KEY)) {
+            if (this.storeNames.contains(key) || key.equals(STORES_KEY)) {
 
                 // Check for backwards compatibility
                 List<StoreDefinition> storeDefinitions = (List<StoreDefinition>) value.getValue();
@@ -336,7 +341,7 @@ public class MetadataStore extends AbstractStorageEngine<ByteArray, byte[], byte
                 // additional stores which do not exist in the specified
                 // stores.xml
                 Set<String> storeNamesToDelete = new HashSet<String>();
-                for(String storeName: this.storeNames) {
+                for (String storeName : this.storeNames) {
                     storeNamesToDelete.add(storeName);
                 }
 
@@ -347,21 +352,21 @@ public class MetadataStore extends AbstractStorageEngine<ByteArray, byte[], byte
                 // Update the STORES directory and the corresponding entry in
                 // metadata cache
                 Set<String> specifiedStoreNames = new HashSet<String>();
-                for(StoreDefinition storeDef: storeDefinitions) {
+                for (StoreDefinition storeDef : storeDefinitions) {
                     specifiedStoreNames.add(storeDef.getName());
                     String storeDefStr = mapper.writeStore(storeDef);
                     Versioned<String> versionedValueStr = new Versioned<String>(storeDefStr,
-                                                                                value.getVersion());
+                            value.getVersion());
                     this.storeDefinitionsStorageEngine.put(storeDef.getName(),
-                                                           versionedValueStr,
-                                                           "");
+                            versionedValueStr,
+                            "");
 
                     // Update the metadata cache
                     this.metadataCache.put(storeDef.getName(),
-                                           new Versioned<Object>(storeDefStr, value.getVersion()));
+                            new Versioned<Object>(storeDefStr, value.getVersion()));
                 }
 
-                if(key.equals(STORES_KEY)) {
+                if (key.equals(STORES_KEY)) {
                     storeNamesToDelete.removeAll(specifiedStoreNames);
                     resetStoreDefinitions(storeNamesToDelete);
                 }
@@ -372,7 +377,7 @@ public class MetadataStore extends AbstractStorageEngine<ByteArray, byte[], byte
                 // Update routing strategies
                 updateRoutingStrategies(getCluster(), getStoreDefList());
 
-            } else if(METADATA_KEYS.contains(key)) {
+            } else if (METADATA_KEYS.contains(key)) {
                 // try inserting into inner store first
                 putInner(key, convertObjectToString(key, value));
 
@@ -380,12 +385,13 @@ public class MetadataStore extends AbstractStorageEngine<ByteArray, byte[], byte
                 metadataCache.put(key, value);
 
                 // do special stuff if needed
-                if(CLUSTER_KEY.equals(key)) {
+                if (CLUSTER_KEY.equals(key)) {
                     updateRoutingStrategies((Cluster) value.getValue(), getStoreDefList());
-                } else if(NODE_ID_KEY.equals(key)) {
+                } else if (NODE_ID_KEY.equals(key)) {
                     initNodeId(getNodeIdNoLock());
-                } else if(SYSTEM_STORES_KEY.equals(key))
+                } else if (SYSTEM_STORES_KEY.equals(key)) {
                     throw new VoldemortException("Cannot overwrite system store definitions");
+                }
 
             } else {
                 throw new VoldemortException("Unhandled Key:" + key + " for MetadataStore put()");
@@ -399,7 +405,7 @@ public class MetadataStore extends AbstractStorageEngine<ByteArray, byte[], byte
      * Function to update store definitions. Unlike the put method, this
      * function does not delete any existing state. It only updates the state of
      * the stores specified in the given stores.xml
-     * 
+     *
      * @param valueBytes specifies the bytes of the stores.xml containing
      *        updates for the specified stores
      */
@@ -410,8 +416,8 @@ public class MetadataStore extends AbstractStorageEngine<ByteArray, byte[], byte
 
         try {
             Versioned<String> value = new Versioned<String>(ByteUtils.getString(valueBytes.getValue(),
-                                                                                "UTF-8"),
-                                                            valueBytes.getVersion());
+                    "UTF-8"),
+                    valueBytes.getVersion());
             Versioned<Object> valueObject = convertStringToObject(STORES_KEY, value);
             StoreDefinitionsMapper mapper = new StoreDefinitionsMapper();
             List<StoreDefinition> storeDefinitions = (List<StoreDefinition>) valueObject.getValue();
@@ -422,19 +428,19 @@ public class MetadataStore extends AbstractStorageEngine<ByteArray, byte[], byte
             StoreDefinitionUtils.validateNewStoreDefsAreNonBreaking(getStoreDefList(), storeDefinitions);
 
             // Go through each store definition and do a corresponding put
-            for(StoreDefinition storeDef: storeDefinitions) {
-                if(!this.storeNames.contains(storeDef.getName())) {
+            for (StoreDefinition storeDef : storeDefinitions) {
+                if (!this.storeNames.contains(storeDef.getName())) {
                     throw new VoldemortException("Cannot update a store which does not exist !");
                 }
 
                 String storeDefStr = mapper.writeStore(storeDef);
                 Versioned<String> versionedValueStr = new Versioned<String>(storeDefStr,
-                                                                            value.getVersion());
+                        value.getVersion());
                 this.storeDefinitionsStorageEngine.put(storeDef.getName(), versionedValueStr, "");
 
                 // Update the metadata cache
                 this.metadataCache.put(storeDef.getName(),
-                                       new Versioned<Object>(storeDefStr, value.getVersion()));
+                        new Versioned<Object>(storeDefStr, value.getVersion()));
             }
 
             // Re-initialize the store definitions
@@ -452,7 +458,7 @@ public class MetadataStore extends AbstractStorageEngine<ByteArray, byte[], byte
     /**
      * helper function to read current version and put() after incrementing it
      * for local node.
-     * 
+     *
      * @param key
      * @param value
      */
@@ -460,11 +466,11 @@ public class MetadataStore extends AbstractStorageEngine<ByteArray, byte[], byte
         // acquire write lock
         writeLock.lock();
         try {
-            if(METADATA_KEYS.contains(key)) {
+            if (METADATA_KEYS.contains(key)) {
                 VectorClock version = (VectorClock) get(key, null).get(0).getVersion();
                 put(key,
-                    new Versioned<Object>(value, version.incremented(getNodeId(),
-                                                                     System.currentTimeMillis())));
+                        new Versioned<Object>(value, version.incremented(getNodeId(),
+                                System.currentTimeMillis())));
             } else {
                 throw new VoldemortException("Unhandled Key:" + key + " for MetadataStore put()");
             }
@@ -475,7 +481,7 @@ public class MetadataStore extends AbstractStorageEngine<ByteArray, byte[], byte
 
     /**
      * A write through put to inner-store.
-     * 
+     *
      * @param keyBytes : keyName strings serialized as bytes eg. 'cluster.xml'
      * @param valueBytes : versioned byte[] eg. UTF bytes for cluster xml
      *        definitions
@@ -489,8 +495,8 @@ public class MetadataStore extends AbstractStorageEngine<ByteArray, byte[], byte
         try {
             String key = ByteUtils.getString(keyBytes.get(), "UTF-8");
             Versioned<String> value = new Versioned<String>(ByteUtils.getString(valueBytes.getValue(),
-                                                                                "UTF-8"),
-                                                            valueBytes.getVersion());
+                    "UTF-8"),
+                    valueBytes.getVersion());
 
             Versioned<Object> valueObject = convertStringToObject(key, value);
 
@@ -529,7 +535,7 @@ public class MetadataStore extends AbstractStorageEngine<ByteArray, byte[], byte
 
             String key = ByteUtils.getString(keyBytes.get(), "UTF-8");
 
-            if(METADATA_KEYS.contains(key) || this.storeNames.contains(key)) {
+            if (METADATA_KEYS.contains(key) || this.storeNames.contains(key)) {
                 try {
                     List<Versioned<byte[]>> values = Lists.newArrayList();
 
@@ -537,29 +543,30 @@ public class MetadataStore extends AbstractStorageEngine<ByteArray, byte[], byte
                     Versioned<String> value = convertObjectToString(key, metadataCache.get(key));
 
                     // Metadata debugging information
-                    if(logger.isTraceEnabled())
+                    if (logger.isTraceEnabled()) {
                         logger.trace("Key " + key + " requested, returning: " + value.getValue());
+                    }
 
                     values.add(new Versioned<byte[]>(ByteUtils.getBytes(value.getValue(), "UTF-8"),
-                                                     value.getVersion()));
+                            value.getVersion()));
 
                     return values;
-                } catch(Exception e) {
+                } catch (Exception e) {
                     throw new VoldemortException("Failed to read metadata key:"
-                                                         + ByteUtils.getString(keyBytes.get(),
-                                                                               "UTF-8")
-                                                         + " delete config/.temp config/.version directories and restart.",
-                                                 e);
+                            + ByteUtils.getString(keyBytes.get(),
+                            "UTF-8")
+                            + " delete config/.temp config/.version directories and restart.",
+                            e);
                 }
             } else {
-               // This exception can be thrown in two cases.
-               // 1. An operator running vadmin.sh meta get <key> mistype the <key>
-               // 2. Client doing getStoreClient passed in a store name that does not exist
-               // Since there is no way to tell the difference between 1&2, the error message
-               // is focused on use case 2. In the future, if that is a problem the error message
-               // can be made to reflect both the cases.
+                // This exception can be thrown in two cases.
+                // 1. An operator running vadmin.sh meta get <key> mistype the <key>
+                // 2. Client doing getStoreClient passed in a store name that does not exist
+                // Since there is no way to tell the difference between 1&2, the error message
+                // is focused on use case 2. In the future, if that is a problem the error message
+                // can be made to reflect both the cases.
                 throw new StoreNotFoundException("Store " + key + " does not exist on node "
-                                             + this.getNodeId());
+                        + this.getNodeId());
             }
         } finally {
             readLock.unlock();
@@ -571,21 +578,23 @@ public class MetadataStore extends AbstractStorageEngine<ByteArray, byte[], byte
         readLock.lock();
         try {
             return get(new ByteArray(ByteUtils.getBytes(key, "UTF-8")),
-                       transforms == null ? null : ByteUtils.getBytes(transforms, "UTF-8"));
+                    transforms == null ? null : ByteUtils.getBytes(transforms, "UTF-8"));
         } finally {
             readLock.unlock();
         }
     }
 
-    @JmxOperation(description = "Clean all rebalancing server/cluster states from this node.", impact = MBeanOperationInfo.ACTION)
+    @JmxOperation(description = "Clean all rebalancing server/cluster states from this node.",
+            impact = MBeanOperationInfo.ACTION)
     public void cleanAllRebalancingState() {
         // acquire write lock
         writeLock.lock();
         try {
-            for(String key: OPTIONAL_KEYS) {
-                if(!key.equals(NODE_ID_KEY))
+            for (String key : OPTIONAL_KEYS) {
+                if (!key.equals(NODE_ID_KEY)) {
                     innerStore.delete(key,
-                                      getVersions(new ByteArray(ByteUtils.getBytes(key, "UTF-8"))).get(0));
+                            getVersions(new ByteArray(ByteUtils.getBytes(key, "UTF-8"))).get(0));
+                }
             }
 
             init();
@@ -602,7 +611,7 @@ public class MetadataStore extends AbstractStorageEngine<ByteArray, byte[], byte
         try {
             List<Versioned<byte[]>> values = get(key, null);
             List<Version> versions = new ArrayList<Version>(values.size());
-            for(Versioned<?> value: values) {
+            for (Versioned<?> value : values) {
                 versions.add(value.getVersion());
             }
             return versions;
@@ -665,9 +674,10 @@ public class MetadataStore extends AbstractStorageEngine<ByteArray, byte[], byte
         try {
 
             List<StoreDefinition> storeDefs = getStoreDefList();
-            for(StoreDefinition storeDef: storeDefs) {
-                if(storeDef.getName().equals(storeName))
+            for (StoreDefinition storeDef : storeDefs) {
+                if (storeDef.getName().equals(storeName)) {
                     return storeDef;
+                }
             }
 
             throw new VoldemortException("Store " + storeName + " not found in MetadataStore");
@@ -706,8 +716,8 @@ public class MetadataStore extends AbstractStorageEngine<ByteArray, byte[], byte
     public boolean getSlopStreamingEnabledUnlocked() {
 
         return Boolean.parseBoolean(metadataCache.get(SLOP_STREAMING_ENABLED_KEY)
-                                                 .getValue()
-                                                 .toString());
+                .getValue()
+                .toString());
 
     }
 
@@ -724,8 +734,8 @@ public class MetadataStore extends AbstractStorageEngine<ByteArray, byte[], byte
     public boolean getPartitionStreamingEnabledUnlocked() {
 
         return Boolean.parseBoolean(metadataCache.get(PARTITION_STREAMING_ENABLED_KEY)
-                                                 .getValue()
-                                                 .toString());
+                .getValue()
+                .toString());
 
     }
 
@@ -742,8 +752,8 @@ public class MetadataStore extends AbstractStorageEngine<ByteArray, byte[], byte
     public boolean getReadOnlyFetchEnabledUnlocked() {
 
         return Boolean.parseBoolean(metadataCache.get(READONLY_FETCH_ENABLED_KEY)
-                                                 .getValue()
-                                                 .toString());
+                .getValue()
+                .toString());
 
     }
 
@@ -760,8 +770,8 @@ public class MetadataStore extends AbstractStorageEngine<ByteArray, byte[], byte
 
     public boolean getQuotaEnforcingEnabledUnlocked() {
         return Boolean.parseBoolean(metadataCache.get(QUOTA_ENFORCEMENT_ENABLED_KEY)
-                                                 .getValue()
-                                                 .toString());
+                .getValue()
+                .toString());
     }
 
     public RebalancerState getRebalancerState() {
@@ -790,7 +800,7 @@ public class MetadataStore extends AbstractStorageEngine<ByteArray, byte[], byte
         readLock.lock();
         try {
             return (List<StoreDefinition>) metadataCache.get(REBALANCING_SOURCE_STORES_XML)
-                                                        .getValue();
+                    .getValue();
         } finally {
             readLock.unlock();
         }
@@ -805,12 +815,14 @@ public class MetadataStore extends AbstractStorageEngine<ByteArray, byte[], byte
         // acquire read lock
         readLock.lock();
         try {
-            Map<String, RoutingStrategy> routingStrategyMap = (Map<String, RoutingStrategy>) metadataCache.get(ROUTING_STRATEGY_KEY)
-                                                                                                          .getValue();
+            Map<String, RoutingStrategy> routingStrategyMap = (Map<String, RoutingStrategy>) metadataCache.get(
+                    ROUTING_STRATEGY_KEY)
+                    .getValue();
             RoutingStrategy strategy = routingStrategyMap.get(storeName);
-            if(strategy == null) {
-                Map<String, RoutingStrategy> systemRoutingStrategyMap = (Map<String, RoutingStrategy>) metadataCache.get(SYSTEM_ROUTING_STRATEGY_KEY)
-                                                                                                                    .getValue();
+            if (strategy == null) {
+                Map<String, RoutingStrategy> systemRoutingStrategyMap =
+                        (Map<String, RoutingStrategy>) metadataCache.get(SYSTEM_ROUTING_STRATEGY_KEY)
+                                .getValue();
                 strategy = systemRoutingStrategyMap.get(storeName);
             }
             return strategy;
@@ -821,14 +833,15 @@ public class MetadataStore extends AbstractStorageEngine<ByteArray, byte[], byte
 
     /**
      * Returns the list of store defs as a map
-     * 
+     *
      * @param storeDefs
      * @return
      */
     private HashMap<String, StoreDefinition> makeStoreDefinitionMap(List<StoreDefinition> storeDefs) {
         HashMap<String, StoreDefinition> storeDefMap = new HashMap<String, StoreDefinition>();
-        for(StoreDefinition storeDef: storeDefs)
+        for (StoreDefinition storeDef : storeDefs) {
             storeDefMap.put(storeDef.getName(), storeDef);
+        }
         return storeDefMap;
     }
 
@@ -836,7 +849,7 @@ public class MetadataStore extends AbstractStorageEngine<ByteArray, byte[], byte
      * Changes to cluster OR store definition metadata results in routing
      * strategies changing. These changes need to be propagated to all the
      * listeners.
-     * 
+     *
      * @param cluster The updated cluster metadata
      * @param storeDefs The updated list of store definition
      */
@@ -845,29 +858,31 @@ public class MetadataStore extends AbstractStorageEngine<ByteArray, byte[], byte
         writeLock.lock();
         try {
             VectorClock clock = new VectorClock();
-            if(metadataCache.containsKey(ROUTING_STRATEGY_KEY))
+            if (metadataCache.containsKey(ROUTING_STRATEGY_KEY)) {
                 clock = (VectorClock) metadataCache.get(ROUTING_STRATEGY_KEY).getVersion();
+            }
 
             logger.info("Updating routing strategy for all stores");
             HashMap<String, StoreDefinition> storeDefMap = makeStoreDefinitionMap(storeDefs);
             HashMap<String, RoutingStrategy> routingStrategyMap = createRoutingStrategyMap(cluster,
-                                                                                           storeDefMap);
+                    storeDefMap);
             this.metadataCache.put(ROUTING_STRATEGY_KEY,
-                                   new Versioned<Object>(routingStrategyMap,
-                                                         clock.incremented(getNodeId(),
-                                                                           System.currentTimeMillis())));
+                    new Versioned<Object>(routingStrategyMap,
+                            clock.incremented(getNodeId(),
+                                    System.currentTimeMillis())));
 
-            for(String storeName: storeNameTolisteners.keySet()) {
+            for (String storeName : storeNameTolisteners.keySet()) {
                 RoutingStrategy updatedRoutingStrategy = routingStrategyMap.get(storeName);
-                if(updatedRoutingStrategy != null) {
+                if (updatedRoutingStrategy != null) {
                     try {
-                        for(MetadataStoreListener listener: storeNameTolisteners.get(storeName)) {
+                        for (MetadataStoreListener listener : storeNameTolisteners.get(storeName)) {
                             listener.updateRoutingStrategy(updatedRoutingStrategy);
                             listener.updateStoreDefinition(storeDefMap.get(storeName));
                         }
-                    } catch(Exception e) {
-                        if(logger.isEnabledFor(Level.WARN))
+                    } catch (Exception e) {
+                        if (logger.isEnabledFor(Level.WARN)) {
                             logger.warn(e, e);
+                        }
                     }
                 }
 
@@ -883,14 +898,14 @@ public class MetadataStore extends AbstractStorageEngine<ByteArray, byte[], byte
      */
     private void initSystemRoutingStrategies(Cluster cluster) {
         HashMap<String, RoutingStrategy> routingStrategyMap = createRoutingStrategyMap(cluster,
-                                                                                       makeStoreDefinitionMap(getSystemStoreDefList()));
+                makeStoreDefinitionMap(getSystemStoreDefList()));
         this.metadataCache.put(SYSTEM_ROUTING_STRATEGY_KEY,
-                               new Versioned<Object>(routingStrategyMap));
+                new Versioned<Object>(routingStrategyMap));
     }
 
     /**
      * Add the steal information to the rebalancer state
-     * 
+     *
      * @param stealInfo The steal information to add
      */
     public void addRebalancingState(final RebalanceTaskInfo stealInfo) {
@@ -898,20 +913,20 @@ public class MetadataStore extends AbstractStorageEngine<ByteArray, byte[], byte
         writeLock.lock();
         try {
             // Move into rebalancing state
-            if(ByteUtils.getString(get(SERVER_STATE_KEY, null).get(0).getValue(), "UTF-8")
-                        .compareTo(VoldemortState.NORMAL_SERVER.toString()) == 0) {
+            if (ByteUtils.getString(get(SERVER_STATE_KEY, null).get(0).getValue(), "UTF-8")
+                    .compareTo(VoldemortState.NORMAL_SERVER.toString()) == 0) {
                 put(SERVER_STATE_KEY, VoldemortState.REBALANCING_MASTER_SERVER);
                 initCache(SERVER_STATE_KEY);
             }
 
             // Add the steal information
             RebalancerState rebalancerState = getRebalancerState();
-            if(!rebalancerState.update(stealInfo)) {
+            if (!rebalancerState.update(stealInfo)) {
                 throw new VoldemortException("Could not add steal information " + stealInfo
-                                             + " since a plan for the same donor node "
-                                             + stealInfo.getDonorId() + " ( "
-                                             + rebalancerState.find(stealInfo.getDonorId())
-                                             + " ) already exists");
+                        + " since a plan for the same donor node "
+                        + stealInfo.getDonorId() + " ( "
+                        + rebalancerState.find(stealInfo.getDonorId())
+                        + " ) already exists");
             }
             put(MetadataStore.REBALANCING_STEAL_INFO, rebalancerState);
             initCache(REBALANCING_STEAL_INFO);
@@ -922,7 +937,7 @@ public class MetadataStore extends AbstractStorageEngine<ByteArray, byte[], byte
 
     /**
      * Delete the partition steal information from the rebalancer state
-     * 
+     *
      * @param stealInfo The steal information to delete
      */
     public void deleteRebalancingState(RebalanceTaskInfo stealInfo) {
@@ -931,11 +946,12 @@ public class MetadataStore extends AbstractStorageEngine<ByteArray, byte[], byte
         try {
             RebalancerState rebalancerState = getRebalancerState();
 
-            if(!rebalancerState.remove(stealInfo))
+            if (!rebalancerState.remove(stealInfo)) {
                 throw new IllegalArgumentException("Couldn't find " + stealInfo + " in "
-                                                   + rebalancerState + " while deleting");
+                        + rebalancerState + " while deleting");
+            }
 
-            if(rebalancerState.isEmpty()) {
+            if (rebalancerState.isEmpty()) {
                 logger.debug("Cleaning all rebalancing state");
                 cleanAllRebalancingState();
             } else {
@@ -949,7 +965,7 @@ public class MetadataStore extends AbstractStorageEngine<ByteArray, byte[], byte
 
     /**
      * change server state between OFFLINE_SERVER and NORMAL_SERVER
-     * 
+     *
      * @param setToOffline True if set to OFFLINE_SERVER
      */
     public void setOfflineState(boolean setToOffline) {
@@ -957,10 +973,10 @@ public class MetadataStore extends AbstractStorageEngine<ByteArray, byte[], byte
         writeLock.lock();
         try {
             String currentState = ByteUtils.getString(get(SERVER_STATE_KEY, null).get(0).getValue(),
-                                                      "UTF-8");
-            if(setToOffline) {
+                    "UTF-8");
+            if (setToOffline) {
                 // from NORMAL_SERVER to OFFLINE_SERVER
-                if(currentState.equals(VoldemortState.NORMAL_SERVER.toString())) {
+                if (currentState.equals(VoldemortState.NORMAL_SERVER.toString())) {
                     put(SERVER_STATE_KEY, VoldemortState.OFFLINE_SERVER);
                     initCache(SERVER_STATE_KEY);
                     put(SLOP_STREAMING_ENABLED_KEY, false);
@@ -969,20 +985,20 @@ public class MetadataStore extends AbstractStorageEngine<ByteArray, byte[], byte
                     initCache(PARTITION_STREAMING_ENABLED_KEY);
                     put(READONLY_FETCH_ENABLED_KEY, false);
                     initCache(READONLY_FETCH_ENABLED_KEY);
-                } else if(currentState.equals(VoldemortState.OFFLINE_SERVER.toString())) {
+                } else if (currentState.equals(VoldemortState.OFFLINE_SERVER.toString())) {
                     logger.warn("Already in OFFLINE_SERVER state.");
                     return;
                 } else {
                     logger.error("Cannot enter OFFLINE_SERVER state from " + currentState);
                     throw new VoldemortException("Cannot enter OFFLINE_SERVER state from "
-                                                 + currentState);
+                            + currentState);
                 }
             } else {
                 // from OFFLINE_SERVER to NORMAL_SERVER
-                if(currentState.equals(VoldemortState.NORMAL_SERVER.toString())) {
+                if (currentState.equals(VoldemortState.NORMAL_SERVER.toString())) {
                     logger.warn("Already in NORMAL_SERVER state.");
                     return;
-                } else if(currentState.equals(VoldemortState.OFFLINE_SERVER.toString())) {
+                } else if (currentState.equals(VoldemortState.OFFLINE_SERVER.toString())) {
                     put(SERVER_STATE_KEY, VoldemortState.NORMAL_SERVER);
                     initCache(SERVER_STATE_KEY);
                     put(SLOP_STREAMING_ENABLED_KEY, true);
@@ -996,7 +1012,7 @@ public class MetadataStore extends AbstractStorageEngine<ByteArray, byte[], byte
                 } else {
                     logger.error("Cannot enter NORMAL_SERVER state from " + currentState);
                     throw new VoldemortException("Cannot enter NORMAL_SERVER state from "
-                                                 + currentState);
+                            + currentState);
                 }
             }
         } finally {
@@ -1006,13 +1022,13 @@ public class MetadataStore extends AbstractStorageEngine<ByteArray, byte[], byte
 
     /**
      * Function to add a new Store to the Metadata store. This involves
-     * 
+     *
      * 1. Create a new entry in the ConfigurationStorageEngine for STORES.
-     * 
+     *
      * 2. Update the metadata cache.
-     * 
+     *
      * 3. Re-create the 'stores.xml' key
-     * 
+     *
      * @param storeDef defines the new store to be created
      */
     public void addStoreDefinition(StoreDefinition storeDef) {
@@ -1021,7 +1037,7 @@ public class MetadataStore extends AbstractStorageEngine<ByteArray, byte[], byte
 
         try {
             // Check if store already exists
-            if(this.storeNames.contains(storeDef.getName())) {
+            if (this.storeNames.contains(storeDef.getName())) {
                 throw new VoldemortException("Store already exists !");
             }
 
@@ -1050,13 +1066,13 @@ public class MetadataStore extends AbstractStorageEngine<ByteArray, byte[], byte
 
     /**
      * Function to delete the specified store from Metadata store. This involves
-     * 
+     *
      * 1. Remove entry from the ConfigurationStorageEngine for STORES.
-     * 
+     *
      * 2. Update the metadata cache.
-     * 
+     *
      * 3. Re-create the 'stores.xml' key
-     * 
+     *
      * @param storeName specifies name of the store to be deleted.
      */
     public void deleteStoreDefinition(String storeName) {
@@ -1065,7 +1081,7 @@ public class MetadataStore extends AbstractStorageEngine<ByteArray, byte[], byte
 
         try {
             // Check if store exists
-            if(!this.storeNames.contains(storeName)) {
+            if (!this.storeNames.contains(storeName)) {
                 throw new VoldemortException("Requested store to be deleted does not exist !");
             }
 
@@ -1118,7 +1134,7 @@ public class MetadataStore extends AbstractStorageEngine<ByteArray, byte[], byte
 
     @Override
     public Map<ByteArray, List<Versioned<byte[]>>> getAll(Iterable<ByteArray> keys,
-                                                          Map<ByteArray, byte[]> transforms)
+            Map<ByteArray, byte[]> transforms)
             throws VoldemortException {
         // acquire read lock
         readLock.lock();
@@ -1134,7 +1150,7 @@ public class MetadataStore extends AbstractStorageEngine<ByteArray, byte[], byte
      * Utility function to validate if the given store name exists in the store
      * name list managed by MetadataStore. This is used by the Admin service for
      * validation before serving a get-metadata request.
-     * 
+     *
      * @param name Name of the store to validate
      * @return True if the store name exists in the 'storeNames' list. False
      *         otherwise.
@@ -1142,7 +1158,7 @@ public class MetadataStore extends AbstractStorageEngine<ByteArray, byte[], byte
     public boolean isValidStore(String name) {
         readLock.lock();
         try {
-            if(this.storeNames.contains(name)) {
+            if (this.storeNames.contains(name)) {
                 return true;
             }
             return false;
@@ -1155,12 +1171,14 @@ public class MetadataStore extends AbstractStorageEngine<ByteArray, byte[], byte
         writeLock.lock();
         try {
             initCache(NODE_ID_KEY, nodeId);
-            if(getNodeIdNoLock() != nodeId)
+            if (getNodeIdNoLock() != nodeId) {
                 throw new RuntimeException("Attempt to start previous node:"
-                                           + getNodeId()
-                                           + " as node:"
-                                           + nodeId
-                                           + " (Did you copy config directory ? try deleting .temp .version in config dir to force clean) aborting ...");
+                        + getNodeId()
+                        + " as node:"
+                        + nodeId
+                        +
+                        " (Did you copy config directory ? try deleting .temp .version in config dir to force clean) aborting ...");
+            }
             // set transient values
             updateRoutingStrategies(getCluster(), getStoreDefList());
         } finally {
@@ -1170,13 +1188,13 @@ public class MetadataStore extends AbstractStorageEngine<ByteArray, byte[], byte
 
     public static StoreDefinition getStoreDef(String storeName, MetadataStore metadataStore) {
         StoreDefinition def = null;
-        if(SystemStoreConstants.isSystemStore(storeName)) {
+        if (SystemStoreConstants.isSystemStore(storeName)) {
             def = SystemStoreConstants.getSystemStoreDef(storeName);
         } else {
             def = metadataStore.getStoreDef(storeName);
         }
 
-        if(def == null) {
+        if (def == null) {
             throw new StoreNotFoundException("Store" + storeName + " does not exist");
         }
         return def;
@@ -1190,30 +1208,30 @@ public class MetadataStore extends AbstractStorageEngine<ByteArray, byte[], byte
 
         writeLock.lock();
         try {
-        // Required keys
-        initCache(CLUSTER_KEY);
+            // Required keys
+            initCache(CLUSTER_KEY);
 
-        // If stores definition storage engine is not null, initialize metadata
-        // Add the mapping from key to the storage engine used
-        if(this.storeDefinitionsStorageEngine != null) {
-            initStoreDefinitions(null);
-        } else {
-            initCache(STORES_KEY);
-        }
+            // If stores definition storage engine is not null, initialize metadata
+            // Add the mapping from key to the storage engine used
+            if (this.storeDefinitionsStorageEngine != null) {
+                initStoreDefinitions(null);
+            } else {
+                initCache(STORES_KEY);
+            }
 
-        // Initialize system store in the metadata cache
-        initSystemCache();
-        initSystemRoutingStrategies(getCluster());
+            // Initialize system store in the metadata cache
+            initSystemCache();
+            initSystemRoutingStrategies(getCluster());
 
-        // Initialize with default if not present
-        initCache(SLOP_STREAMING_ENABLED_KEY, true);
-        initCache(PARTITION_STREAMING_ENABLED_KEY, true);
-        initCache(READONLY_FETCH_ENABLED_KEY, true);
-        initCache(QUOTA_ENFORCEMENT_ENABLED_KEY, true);
-        initCache(REBALANCING_STEAL_INFO, new RebalancerState(new ArrayList<RebalanceTaskInfo>()));
-        initCache(SERVER_STATE_KEY, VoldemortState.NORMAL_SERVER.toString());
-        initCache(REBALANCING_SOURCE_CLUSTER_XML, null);
-        initCache(REBALANCING_SOURCE_STORES_XML, null);
+            // Initialize with default if not present
+            initCache(SLOP_STREAMING_ENABLED_KEY, true);
+            initCache(PARTITION_STREAMING_ENABLED_KEY, true);
+            initCache(READONLY_FETCH_ENABLED_KEY, true);
+            initCache(QUOTA_ENFORCEMENT_ENABLED_KEY, true);
+            initCache(REBALANCING_STEAL_INFO, new RebalancerState(new ArrayList<RebalanceTaskInfo>()));
+            initCache(SERVER_STATE_KEY, VoldemortState.NORMAL_SERVER.toString());
+            initCache(REBALANCING_SOURCE_CLUSTER_XML, null);
+            initCache(REBALANCING_SOURCE_STORES_XML, null);
 
 
         } finally {
@@ -1224,26 +1242,26 @@ public class MetadataStore extends AbstractStorageEngine<ByteArray, byte[], byte
     /**
      * Function to go through all the store definitions contained in the STORES
      * directory and
-     * 
+     *
      * 1. Update metadata cache.
-     * 
+     *
      * 2. Update STORES_KEY by stitching together all these keys.
-     * 
+     *
      * 3. Update 'storeNames' list.
-     * 
+     *
      * This method is not thread safe. It is expected that the caller of this
      * method will correctly handle concurrency issues. Currently this is not an
      * issue since its invoked by init, put, add and delete store all of which
      * use locks to deal with any concurrency related issues.
      */
     private void initStoreDefinitions(Version storesXmlVersion) {
-        if(this.storeDefinitionsStorageEngine == null) {
+        if (this.storeDefinitionsStorageEngine == null) {
             throw new VoldemortException("The store definitions directory is empty");
         }
 
         String allStoreDefinitions = "<stores>";
         Version finalStoresXmlVersion = null;
-        if(storesXmlVersion != null) {
+        if (storesXmlVersion != null) {
             finalStoresXmlVersion = storesXmlVersion;
         }
         this.storeNames.clear();
@@ -1254,7 +1272,7 @@ public class MetadataStore extends AbstractStorageEngine<ByteArray, byte[], byte
         // Do the de-dup here
         Map<String, Versioned<String>> storeNameToDefMap = new HashMap<String, Versioned<String>>();
         Version maxVersion = null;
-        while(storesIterator.hasNext()) {
+        while (storesIterator.hasNext()) {
             Pair<String, Versioned<String>> storeDetail = storesIterator.next();
             String storeName = storeDetail.getFirst();
             Versioned<String> versionedStoreDef = storeDetail.getSecond();
@@ -1262,21 +1280,21 @@ public class MetadataStore extends AbstractStorageEngine<ByteArray, byte[], byte
             Version curVersion = versionedStoreDef.getVersion();
 
             // Get the highest version from all the store entries
-            if(maxVersion == null) {
+            if (maxVersion == null) {
                 maxVersion = curVersion;
-            } else if(maxVersion.compare(curVersion) == Occurred.BEFORE) {
+            } else if (maxVersion.compare(curVersion) == Occurred.BEFORE) {
                 maxVersion = curVersion;
             }
         }
 
         // If the specified version is null, assign highest Version to
         // 'stores.xml' key
-        if(finalStoresXmlVersion == null) {
+        if (finalStoresXmlVersion == null) {
             finalStoresXmlVersion = maxVersion;
         }
 
         // Go through all the individual stores and update metadata
-        for(Entry<String, Versioned<String>> storeEntry: storeNameToDefMap.entrySet()) {
+        for (Entry<String, Versioned<String>> storeEntry : storeNameToDefMap.entrySet()) {
             String storeName = storeEntry.getKey();
             Versioned<String> versionedStoreDef = storeEntry.getValue();
 
@@ -1284,11 +1302,11 @@ public class MetadataStore extends AbstractStorageEngine<ByteArray, byte[], byte
             this.storeNames.add(storeName);
 
             this.metadataCache.put(storeName, new Versioned<Object>(versionedStoreDef.getValue(),
-                                                                    versionedStoreDef.getVersion()));
+                    versionedStoreDef.getVersion()));
         }
 
         Collections.sort(this.storeNames);
-        for(String storeName: this.storeNames) {
+        for (String storeName : this.storeNames) {
             Versioned<String> versionedStoreDef = storeNameToDefMap.get(storeName);
             // Stitch together to form the complete store definition list.
             allStoreDefinitions += versionedStoreDef.getValue();
@@ -1299,24 +1317,24 @@ public class MetadataStore extends AbstractStorageEngine<ByteArray, byte[], byte
 
         // Update cache with the composite store definition list.
         metadataCache.put(STORES_KEY,
-                          convertStringToObject(STORES_KEY,
-                                                new Versioned<String>(allStoreDefinitions,
-                                                                      finalStoresXmlVersion)));
+                convertStringToObject(STORES_KEY,
+                        new Versioned<String>(allStoreDefinitions,
+                                finalStoresXmlVersion)));
     }
 
     /**
      * Function to clear all the metadata related to the given store
      * definitions. This is needed when a put on 'stores.xml' is called, thus
      * replacing the existing state.
-     * 
+     *
      * This method is not thread safe. It is expected that the caller of this
      * method will handle concurrency related issues.
-     * 
+     *
      * @param storeNamesToDelete
      */
     private void resetStoreDefinitions(Set<String> storeNamesToDelete) {
         // Clear entries in the metadata cache
-        for(String storeName: storeNamesToDelete) {
+        for (String storeName : storeNamesToDelete) {
             this.metadataCache.remove(storeName);
             this.storeDefinitionsStorageEngine.delete(storeName, null);
             this.storeNames.remove(storeName);
@@ -1329,24 +1347,25 @@ public class MetadataStore extends AbstractStorageEngine<ByteArray, byte[], byte
 
     // Initialize the metadata cache with system store list
     private synchronized void initSystemCache() {
-        List<StoreDefinition> value = storeMapper.readStoreList(new StringReader(SystemStoreConstants.SYSTEM_STORE_SCHEMA));
+        List<StoreDefinition> value = storeMapper.readStoreList(
+                new StringReader(SystemStoreConstants.SYSTEM_STORE_SCHEMA));
         metadataCache.put(SYSTEM_STORES_KEY, new Versioned<Object>(value));
     }
 
     private void initCache(String key, Object defaultValue) {
         try {
             initCache(key);
-        } catch(Exception e) {
+        } catch (Exception e) {
             // put default value if failed to init
             this.put(key, new Versioned<Object>(defaultValue));
         }
     }
 
     private HashMap<String, RoutingStrategy> createRoutingStrategyMap(Cluster cluster,
-                                                                      HashMap<String, StoreDefinition> storeDefs) {
+            HashMap<String, StoreDefinition> storeDefs) {
         HashMap<String, RoutingStrategy> map = new HashMap<String, RoutingStrategy>();
 
-        for(StoreDefinition store: storeDefs.values()) {
+        for (StoreDefinition store : storeDefs.values()) {
             map.put(store.getName(), routingFactory.updateRoutingStrategy(store, cluster));
         }
 
@@ -1361,7 +1380,7 @@ public class MetadataStore extends AbstractStorageEngine<ByteArray, byte[], byte
      * <p>
      * StoreRepository takes only StorageEngine<ByteArray,byte[]> and for
      * persistence on disk we need to convert them to String.<br>
-     * 
+     *
      * @param key
      * @param value
      * @return
@@ -1370,36 +1389,36 @@ public class MetadataStore extends AbstractStorageEngine<ByteArray, byte[], byte
     private Versioned<String> convertObjectToString(String key, Versioned<Object> value) {
         String valueStr = "";
 
-        if(CLUSTER_KEY.equals(key)) {
+        if (CLUSTER_KEY.equals(key)) {
             valueStr = clusterMapper.writeCluster((Cluster) value.getValue());
-        } else if(STORES_KEY.equals(key)) {
+        } else if (STORES_KEY.equals(key)) {
             valueStr = storeMapper.writeStoreList((List<StoreDefinition>) value.getValue());
-        } else if(REBALANCING_STEAL_INFO.equals(key)) {
+        } else if (REBALANCING_STEAL_INFO.equals(key)) {
             RebalancerState rebalancerState = (RebalancerState) value.getValue();
             valueStr = rebalancerState.toJsonString();
-        } else if(SERVER_STATE_KEY.equals(key) || NODE_ID_KEY.equals(key)
-                  || SLOP_STREAMING_ENABLED_KEY.equals(key)
-                  || PARTITION_STREAMING_ENABLED_KEY.equals(key)
-                  || READONLY_FETCH_ENABLED_KEY.equals(key)
-                  || QUOTA_ENFORCEMENT_ENABLED_KEY.equals(key)) {
+        } else if (SERVER_STATE_KEY.equals(key) || NODE_ID_KEY.equals(key)
+                || SLOP_STREAMING_ENABLED_KEY.equals(key)
+                || PARTITION_STREAMING_ENABLED_KEY.equals(key)
+                || READONLY_FETCH_ENABLED_KEY.equals(key)
+                || QUOTA_ENFORCEMENT_ENABLED_KEY.equals(key)) {
             valueStr = value.getValue().toString();
-        } else if(REBALANCING_SOURCE_CLUSTER_XML.equals(key)) {
-            if(value.getValue() != null) {
+        } else if (REBALANCING_SOURCE_CLUSTER_XML.equals(key)) {
+            if (value.getValue() != null) {
                 valueStr = clusterMapper.writeCluster((Cluster) value.getValue());
             }
-        } else if(REBALANCING_SOURCE_STORES_XML.equals(key)) {
-            if(value.getValue() != null) {
+        } else if (REBALANCING_SOURCE_STORES_XML.equals(key)) {
+            if (value.getValue() != null) {
                 valueStr = storeMapper.writeStoreList((List<StoreDefinition>) value.getValue());
             }
-        } else if(this.storeNames.contains(key)) {
+        } else if (this.storeNames.contains(key)) {
             valueStr = "<stores>";
-            if(value.getValue() != null) {
+            if (value.getValue() != null) {
                 valueStr += value.getValue();
             }
             valueStr += "</stores>";
         } else {
             throw new VoldemortException("Unhandled key:'" + key
-                                         + "' for Object to String serialization.");
+                    + "' for Object to String serialization.");
         }
 
         return new Versioned<String>(valueStr, value.getVersion());
@@ -1410,7 +1429,7 @@ public class MetadataStore extends AbstractStorageEngine<ByteArray, byte[], byte
      * <p>
      * StoreRepository takes only StorageEngine<ByteArray,byte[]> and for
      * persistence on disk we need to convert them to String.<br>
-     * 
+     *
      * @param key
      * @param value
      * @return
@@ -1418,37 +1437,37 @@ public class MetadataStore extends AbstractStorageEngine<ByteArray, byte[], byte
     private Versioned<Object> convertStringToObject(String key, Versioned<String> value) {
         Object valueObject = null;
 
-        if(CLUSTER_KEY.equals(key)) {
+        if (CLUSTER_KEY.equals(key)) {
             valueObject = clusterMapper.readCluster(new StringReader(value.getValue()));
-        } else if(STORES_KEY.equals(key)) {
+        } else if (STORES_KEY.equals(key)) {
             valueObject = storeMapper.readStoreList(new StringReader(value.getValue()));
-        } else if(SERVER_STATE_KEY.equals(key)) {
+        } else if (SERVER_STATE_KEY.equals(key)) {
             valueObject = VoldemortState.valueOf(value.getValue());
-        } else if(NODE_ID_KEY.equals(key)) {
+        } else if (NODE_ID_KEY.equals(key)) {
             valueObject = Integer.parseInt(value.getValue());
-        } else if(SLOP_STREAMING_ENABLED_KEY.equals(key)
-                  || PARTITION_STREAMING_ENABLED_KEY.equals(key)
-                  || READONLY_FETCH_ENABLED_KEY.equals(key)
-                  || QUOTA_ENFORCEMENT_ENABLED_KEY.equals(key)) {
+        } else if (SLOP_STREAMING_ENABLED_KEY.equals(key)
+                || PARTITION_STREAMING_ENABLED_KEY.equals(key)
+                || READONLY_FETCH_ENABLED_KEY.equals(key)
+                || QUOTA_ENFORCEMENT_ENABLED_KEY.equals(key)) {
             valueObject = Boolean.parseBoolean(value.getValue());
-        } else if(REBALANCING_STEAL_INFO.equals(key)) {
+        } else if (REBALANCING_STEAL_INFO.equals(key)) {
             String valueString = value.getValue();
-            if(valueString.startsWith("[")) {
+            if (valueString.startsWith("[")) {
                 valueObject = RebalancerState.create(valueString);
             } else {
                 valueObject = new RebalancerState(Arrays.asList(RebalanceTaskInfo.create(valueString)));
             }
-        } else if(REBALANCING_SOURCE_CLUSTER_XML.equals(key)) {
-            if(value.getValue() != null && value.getValue().length() > 0) {
+        } else if (REBALANCING_SOURCE_CLUSTER_XML.equals(key)) {
+            if (value.getValue() != null && value.getValue().length() > 0) {
                 valueObject = clusterMapper.readCluster(new StringReader(value.getValue()));
             }
-        } else if(REBALANCING_SOURCE_STORES_XML.equals(key)) {
-            if(value.getValue() != null && value.getValue().length() > 0) {
+        } else if (REBALANCING_SOURCE_STORES_XML.equals(key)) {
+            if (value.getValue() != null && value.getValue().length() > 0) {
                 valueObject = storeMapper.readStoreList(new StringReader(value.getValue()));
             }
         } else {
             throw new VoldemortException("Unhandled key:'" + key
-                                         + "' for String to Object serialization.");
+                    + "' for String to Object serialization.");
         }
 
         return new Versioned<Object>(valueObject, value.getVersion());
@@ -1461,11 +1480,13 @@ public class MetadataStore extends AbstractStorageEngine<ByteArray, byte[], byte
     private Versioned<String> getInnerValue(String key) throws VoldemortException {
         List<Versioned<String>> values = innerStore.get(key, null);
 
-        if(values.size() > 1)
+        if (values.size() > 1) {
             throw new VoldemortException("Inconsistent metadata found: expected 1 version but found "
-                                         + values.size() + " for key:" + key);
-        if(values.size() > 0)
+                    + values.size() + " for key:" + key);
+        }
+        if (values.size() > 0) {
             return values.get(0);
+        }
 
         throw new VoldemortException("No metadata found for required key:" + key);
     }
